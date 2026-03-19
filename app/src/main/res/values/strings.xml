@@ -1105,4 +1105,14 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="failed_to_load">Failed to load</string>
     <string name="studios">Studios</string>
 
+    <string name="page_actions_title">Page Actions</string>
+    <string name="save_page">Save page</string>
+    <string name="share_page">Share page</string>
+    <string name="copy_page_url">Copy image URL</string>
+    <string name="saving_page">Saving page…</string>
+    <string name="copied_page_url">URL copied to clipboard</string>
+    <string name="error_saving_page">Failed to save: %s</string>
+    <string name="error_sharing_page">Failed to share: %s</string>
+    <string name="continue_reading">Continue</string>
+
 </resources>
