@@ -99,6 +99,14 @@ import java.util.Timer
 import java.util.TimerTask
 import kotlin.math.min
 import kotlin.properties.Delegates
+import android.graphics.Color
+import android.widget.FrameLayout
+import android.widget.TextView
+import ani.dantotsu.media.manga.mangareader.ExtraReaderPrefs
+import ani.dantotsu.media.manga.mangareader.LongPressPageActionsDialog
+import ani.dantotsu.media.manga.mangareader.ReaderAutoScrollManager
+import ani.dantotsu.media.manga.mangareader.ReaderEinkRefreshManager
+import ani.dantotsu.media.manga.mangareader.ReaderOverlayManager
 
 class MangaReaderActivity : AppCompatActivity() {
     private val mangaCache = Injekt.get<MangaCache>()
