@@ -1115,4 +1115,16 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="error_sharing_page">Failed to share: %s</string>
     <string name="continue_reading">Continue</string>
 
+    <string name="novel_font_size">Font Size</string>
+    <string name="novel_letter_spacing">Letter Spacing</string>
+    <string name="novel_word_spacing">Word Spacing</string>
+    <string name="novel_paragraph_spacing">Paragraph Spacing</string>
+    <string name="novel_horizontal_padding">Horizontal Padding</string>
+    <string name="novel_text_align">Text Alignment</string>
+    <string name="novel_auto_scroll">Auto-Scroll</string>
+    <string name="novel_auto_scroll_speed">Auto-Scroll Speed (sec)</string>
+    <string name="novel_show_status_bar">Show Battery &amp; Time</string>
+    <string name="novel_show_progress">Show Reading Progress</string>
+    <string name="novel_translate_lang">Translate Selection</string>
+
 </resources>
