@@ -61,18 +61,16 @@ query {
 
 
         val result = getKitsuData(query) ?: return null
-        //Logger.log("Kitsu : result=$result")
         media.idKitsu = result.data?.lookupMapping?.id
         val a = (result.data?.lookupMapping?.episodes?.nodes ?: return null).mapNotNull { ep ->
             val num = ep?.number?.toString() ?: return@mapNotNull null
             num to Episode(
                 number = num,
                 title = ep.titles?.canonical,
-                desc = ep.description?.en,
+                desc = ep.description,
                 thumb = FileUrl[ep.thumbnail?.original?.url],
             )
         }.toMap()
-        //Logger.log("Kitsu : a=$a")
         return a
     }
 
@@ -118,13 +116,9 @@ query {
         data class Node(
             @SerialName("number") val number: Int? = null,
             @SerialName("titles") val titles: Titles? = null,
-            @SerialName("description") val description: Description? = null,
+            // description is a plain String from Kitsu, not a nested {en:...} object
+            @SerialName("description") val description: String? = null,
             @SerialName("thumbnail") val thumbnail: Thumbnail? = null
-        )
-
-        @Serializable
-        data class Description(
-            @SerialName("en") val en: String? = null
         )
 
         @Serializable
@@ -141,7 +135,5 @@ query {
         data class Titles(
             @SerialName("canonical") val canonical: String? = null
         )
-
     }
-
 }
