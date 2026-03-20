@@ -6,142 +6,120 @@ import ani.dantotsu.media.Media
 import ani.dantotsu.media.anime.Episode
 import ani.dantotsu.tryWithSuspend
 import ani.dantotsu.util.Logger
-import com.google.gson.Gson
-import com.lagradost.nicehttp.NiceResponse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.io.InputStreamReader
-import java.util.zip.GZIPInputStream
+import java.net.URLEncoder
 
 object Kitsu {
-    private suspend fun getKitsuData(query: String): KitsuResponse? {
-        val headers = mapOf(
-            "Content-Type" to "application/json",
-            "Accept" to "application/json",
-        )
-        val response = tryWithSuspend {
-            val res = client.post(
-                "https://kitsu.io/api/graphql",
-                headers,
-                data = mapOf("query" to query)
-            )
-            res
-        }
-        val json = decodeToString(response)
-        val gson = Gson()
-        return gson.fromJson(json, KitsuResponse::class.java)
-    }
 
     suspend fun getKitsuEpisodesDetails(media: Media): Map<String, Episode>? {
         Logger.log("Kitsu : title=${media.mainName()}")
-        val query =
-            """
-query {
-  lookupMapping(externalId: ${media.id}, externalSite: ANILIST_ANIME) {
-    __typename
-    ... on Anime {
-      id
-      episodes(first: 2000) {
-        nodes {
-          number
-          titles {
-            canonical
-          }
-          description
-          thumbnail {
-            original {
-              url
-            }
-          }
-        }
-      }
-    }
-  }
-}""".trimIndent()
+        return try {
+            tryWithSuspend {
+                // 1. Search for Anime by Title
+                val title = URLEncoder.encode(media.mainName(), "utf-8")
+                val searchUrl = "https://kitsu.io/api/edge/anime?filter[text]=$title&page[limit]=1"
+                val searchRes = client.get(searchUrl).parsed<KitsuAnimeSearch>()
+                
+                val animeId = searchRes.data?.firstOrNull()?.id ?: return@tryWithSuspend null
+                media.idKitsu = animeId
 
-
-        val result = getKitsuData(query) ?: return null
-        //Logger.log("Kitsu : result=$result")
-        media.idKitsu = result.data?.lookupMapping?.id
-        val a = (result.data?.lookupMapping?.episodes?.nodes ?: return null).mapNotNull { ep ->
-            val num = ep?.number?.toString() ?: return@mapNotNull null
-            num to Episode(
-                number = num,
-                title = ep.titles?.canonical,
-                desc = ep.description?.en,
-                thumb = FileUrl[ep.thumbnail?.original?.url],
-            )
-        }.toMap()
-        //Logger.log("Kitsu : a=$a")
-        return a
-    }
-
-    private fun decodeToString(res: NiceResponse?): String? {
-        return when (res?.headers?.get("Content-Encoding")) {
-            "gzip" -> {
-                res.body.byteStream().use { inputStream ->
-                    GZIPInputStream(inputStream).use { gzipInputStream ->
-                        InputStreamReader(gzipInputStream).use { reader ->
-                            reader.readText()
-                        }
+                // 2. Fetch Episodes with Pagination
+                val allEpisodes = mutableMapOf<String, Episode>()
+                var offset = 0
+                val limit = 20
+                
+                while (true) {
+                    val episodesUrl = "https://kitsu.io/api/edge/anime/$animeId/episodes?page[limit]=$limit&page[offset]=$offset&sort=number"
+                    val episodesRes = client.get(episodesUrl).parsed<KitsuEpisodes>()
+                    
+                    val pageEpisodes = episodesRes.data?.associate { ep ->
+                        val num = ep.attributes?.number?.toString() ?: return@associate null to null
+                        val epNum = if (num.endsWith(".0")) num.substringBefore(".") else num
+                        epNum to Episode(
+                            number = epNum,
+                            title = ep.attributes.canonicalTitle,
+                            desc = (ep.attributes.synopsis ?: ep.attributes.description)?.replace(
+                                Regex("\\(Source:.*\\)"),
+                                ""
+                            )?.trim(),
+                            thumb = FileUrl[ep.attributes.thumbnail?.original],
+                            extra = mapOf(
+                                "season" to ep.attributes.seasonNumber.toString(),
+                                "airDate" to ep.attributes.airdate.toString(),
+                                "length" to ep.attributes.length.toString()
+                            )
+                        )
+                    }?.filterKeys { it != null }?.mapKeys { it.key!! }?.filterValues { it != null }?.mapValues { it.value!! }
+                    
+                    if (pageEpisodes != null) {
+                        allEpisodes.putAll(pageEpisodes)
                     }
-                }
-            }
 
-            else -> {
-                res?.body?.string()
+                    if (episodesRes.links?.next == null || pageEpisodes.isNullOrEmpty()) {
+                        break
+                    }
+                    offset += limit
+                }
+                
+                allEpisodes
             }
+        } catch (e: Exception) {
+            null
         }
     }
 
     @Serializable
-    private data class KitsuResponse(
-        @SerialName("data") val data: Data? = null
-    ) {
-        @Serializable
-        data class Data(
-            @SerialName("lookupMapping") val lookupMapping: LookupMapping? = null
-        )
+    data class KitsuAnimeSearch(
+        val data: List<AnimeData>? = null
+    )
 
-        @Serializable
-        data class LookupMapping(
-            @SerialName("id") val id: String? = null,
-            @SerialName("episodes") val episodes: Episodes? = null
-        )
+    @Serializable
+    data class AnimeData(
+        val id: String? = null,
+        val type: String? = null
+    )
 
-        @Serializable
-        data class Episodes(
-            @SerialName("nodes") val nodes: List<Node?>? = null
-        )
+    @Serializable
+    data class KitsuEpisodes(
+        val data: List<EpisodeData>? = null,
+        val meta: Meta? = null,
+        val links: Links? = null
+    )
 
-        @Serializable
-        data class Node(
-            @SerialName("number") val number: Int? = null,
-            @SerialName("titles") val titles: Titles? = null,
-            @SerialName("description") val description: Description? = null,
-            @SerialName("thumbnail") val thumbnail: Thumbnail? = null
-        )
+    @Serializable
+    data class EpisodeData(
+        val id: String? = null,
+        val type: String? = null,
+        val attributes: EpisodeAttributes? = null
+    )
 
-        @Serializable
-        data class Description(
-            @SerialName("en") val en: String? = null
-        )
+    @Serializable
+    data class EpisodeAttributes(
+        val synopsis: String? = null,
+        val description: String? = null,
+        val canonicalTitle: String? = null,
+        val seasonNumber: Int? = null,
+        val number: Int? = null,
+        val airdate: String? = null,
+        val length: Int? = null,
+        val thumbnail: EpisodeThumbnail? = null
+    )
 
-        @Serializable
-        data class Thumbnail(
-            @SerialName("original") val original: Original? = null
-        )
+    @Serializable
+    data class EpisodeThumbnail(
+        val original: String? = null
+    )
 
-        @Serializable
-        data class Original(
-            @SerialName("url") val url: String? = null
-        )
+    @Serializable
+    data class Meta(
+        val count: Int? = null
+    )
 
-        @Serializable
-        data class Titles(
-            @SerialName("canonical") val canonical: String? = null
-        )
-
-    }
-
+    @Serializable
+    data class Links(
+        val first: String? = null,
+        val next: String? = null,
+        val last: String? = null
+    )
 }

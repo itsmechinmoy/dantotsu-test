@@ -118,6 +118,13 @@ class EpisodeAdapter(
                     binding.itemEpisodeFillerView.visibility = View.GONE
                 }
 
+                if (ep.rating != null) {
+                    binding.itemEpisodeRating.visibility = View.VISIBLE
+                    binding.itemEpisodeRating.text = "★ ${ep.rating}"
+                } else {
+                    binding.itemEpisodeRating.visibility = View.GONE
+                }
+
                 if (ep.date != null) {
                     binding.itemEpisodeDate.visibility = View.VISIBLE
                     binding.itemEpisodeDate.text = ep.date
@@ -166,6 +173,13 @@ class EpisodeAdapter(
 
                 binding.itemEpisodeNumber.text = ep.number
                 binding.itemEpisodeTitle.text = title
+
+                if (ep.rating != null) {
+                    binding.itemEpisodeRating.visibility = View.VISIBLE
+                    binding.itemEpisodeRating.text = "★ ${ep.rating}"
+                } else {
+                    binding.itemEpisodeRating.visibility = View.GONE
+                }
 
                 if (ep.date != null) {
                     binding.itemEpisodeDate.visibility = View.VISIBLE

@@ -230,41 +230,44 @@ class AnimeWatchFragment : Fragment() {
                 val episodes = loadedEpisodes[media.selected!!.sourceIndex]
                 if (episodes != null) {
                     episodes.forEach { (i, episode) ->
-                        if (media.anime?.anifyEpisodes != null) {
-                            if (media.anime!!.anifyEpisodes!!.containsKey(i)) {
-                                episode.desc =
-                                    media.anime!!.anifyEpisodes!![i]?.desc ?: episode.desc
-                                episode.title = if (MediaNameAdapter.removeEpisodeNumberCompletely(
-                                        episode.title ?: ""
-                                    ).isBlank()
-                                ) media.anime!!.anifyEpisodes!![i]?.title
-                                    ?: episode.title else episode.title
-                                    ?: media.anime!!.anifyEpisodes!![i]?.title ?: episode.title
-                                episode.thumb =
-                                    media.anime!!.anifyEpisodes!![i]?.thumb ?: episode.thumb
-
-                            }
-                        }
+                        // 1. Jikan (Lowest for Title, Date; Only Source for Filler)
                         if (media.anime?.fillerEpisodes != null) {
                             if (media.anime!!.fillerEpisodes!!.containsKey(i)) {
-                                episode.title =
-                                    episode.title ?: media.anime!!.fillerEpisodes!![i]?.title
-                                episode.filler = media.anime!!.fillerEpisodes!![i]?.filler ?: false
-                                episode.date = media.anime!!.fillerEpisodes!![i]?.date ?: episode.date
+                                val fillerEp = media.anime!!.fillerEpisodes!![i]
+                                episode.filler = fillerEp?.filler ?: false
+                                episode.title = episode.title ?: fillerEp?.title
+                                episode.date = fillerEp?.date ?: episode.date
                             }
                         }
+
+                        // 2. Kitsu (Fallback for Desc, Title, Thumb)
                         if (media.anime?.kitsuEpisodes != null) {
                             if (media.anime!!.kitsuEpisodes!!.containsKey(i)) {
-                                episode.desc =
-                                    media.anime!!.kitsuEpisodes!![i]?.desc ?: episode.desc
-                                episode.title = if (MediaNameAdapter.removeEpisodeNumberCompletely(
-                                        episode.title ?: ""
-                                    ).isBlank()
-                                ) media.anime!!.kitsuEpisodes!![i]?.title
-                                    ?: episode.title else episode.title
-                                    ?: media.anime!!.kitsuEpisodes!![i]?.title ?: episode.title
-                                episode.thumb =
-                                    media.anime!!.kitsuEpisodes!![i]?.thumb ?: episode.thumb
+                                val kitsuEp = media.anime!!.kitsuEpisodes!![i]
+                                episode.desc = kitsuEp?.desc ?: episode.desc
+                                episode.thumb = kitsuEp?.thumb ?: episode.thumb
+                                val kTitle = kitsuEp?.title
+                                if (!kTitle.isNullOrBlank()) {
+                                    episode.title = if (MediaNameAdapter.removeEpisodeNumberCompletely(episode.title ?: "").isBlank()) kTitle else episode.title
+                                }
+                            }
+                        }
+
+                        // 3. AniZip (Highest for Desc, Title, Thumb, Date, Rating)
+                        if (media.anime?.anifyEpisodes != null) {
+                            if (media.anime!!.anifyEpisodes!!.containsKey(i)) {
+                                val anifyEp = media.anime!!.anifyEpisodes!![i]
+                                episode.desc = anifyEp?.desc ?: episode.desc
+                                episode.thumb = anifyEp?.thumb ?: episode.thumb
+                                val aTitle = anifyEp?.title
+                                if (!aTitle.isNullOrBlank()) {
+                                    episode.title = if (MediaNameAdapter.removeEpisodeNumberCompletely(episode.title ?: "").isBlank()) aTitle else episode.title
+                                }
+                                episode.rating = anifyEp?.extra?.get("rating") ?: episode.rating
+                                val airDate = anifyEp?.extra?.get("airDate")
+                                if (!airDate.isNullOrBlank()) {
+                                    episode.date = airDate.substringBefore("T")
+                                }
                             }
                         }
                     }
