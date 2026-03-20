@@ -84,27 +84,6 @@
                         android:textColor="?attr/colorPrimary"
                         android:textSize="18sp" />
 
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/tokenExpiryBadge"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginBottom="2dp"
-                        android:fontFamily="@font/poppins_semi_bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:textSize="11sp"
-                        android:visibility="gone"
-                        app:chipCornerRadius="10dp"
-                        app:chipMinHeight="28dp"
-                        app:chipStartPadding="10dp"
-                        app:chipEndPadding="10dp"
-                        app:chipIconVisible="false"
-                        app:ensureMinTouchTargetSize="false"
-                        style="@style/Widget.MaterialComponents.Chip.Action"
-                        tools:text="Reconnect in 30 days"
-                        tools:visibility="visible" />
-
                     <Button
                         android:id="@+id/followButton"
                         style="@style/Widget.Material3.Button.OutlinedButton"
