@@ -95,44 +95,37 @@
                     android:textColor="?attr/colorSecondary"
                     android:textSize="16sp" />
 
-                <LinearLayout
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/settingsAnilistTokenExpiry"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="2dp"
+                    android:fontFamily="@font/poppins_semi_bold"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="11sp"
+                    android:visibility="gone"
+                    app:chipCornerRadius="10dp"
+                    app:chipMinHeight="26dp"
+                    app:chipStartPadding="10dp"
+                    app:chipEndPadding="10dp"
+                    app:chipIconVisible="false"
+                    app:ensureMinTouchTargetSize="false"
+                    style="@style/Widget.MaterialComponents.Chip.Action"
+                    tools:text="Reconnect in 30 days"
+                    tools:visibility="visible" />
 
-                    <TextView
-                        android:id="@+id/settingsAnilistLogin"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="-16dp"
-                        android:layout_marginTop="-16dp"
-                        android:layout_marginBottom="-16dp"
-                        android:fontFamily="@font/poppins_bold"
-                        android:padding="16dp"
-                        android:text="@string/logout"
-                        android:textSize="14sp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/settingsAnilistTokenExpiry"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:fontFamily="@font/poppins_semi_bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:textSize="11sp"
-                        android:visibility="gone"
-                        app:chipCornerRadius="10dp"
-                        app:chipMinHeight="26dp"
-                        app:chipStartPadding="10dp"
-                        app:chipEndPadding="10dp"
-                        app:chipIconVisible="false"
-                        app:ensureMinTouchTargetSize="false"
-                        style="@style/Widget.MaterialComponents.Chip.Action"
-                        tools:text="Reconnect in 30 days"
-                        tools:visibility="visible" />
-
-                </LinearLayout>
+                <TextView
+                    android:id="@+id/settingsAnilistLogin"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="-16dp"
+                    android:layout_marginTop="-16dp"
+                    android:layout_marginBottom="-16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:padding="16dp"
+                    android:text="@string/logout"
+                    android:textSize="14sp" />
 
             </LinearLayout>
 
