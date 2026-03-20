@@ -11,6 +11,7 @@ data class Episode(
     var desc: String? = null,
     var thumb: FileUrl? = null,
     var filler: Boolean = false,
+    var date: String? = null,
     var selectedExtractor: String? = null,
     var selectedVideo: Int = 0,
     var selectedSubtitle: Int? = -1,

@@ -82,6 +82,20 @@
             android:textSize="14sp"
             app:lineHeight="14sp" />
 
+        <TextView
+            android:id="@+id/itemEpisodeDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2sp"
+            android:alpha="0.5"
+            android:fontFamily="@font/poppins_bold"
+            android:maxLines="1"
+            android:textColor="@color/bg_white"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:text="2026-01-09"
+            tools:visibility="visible" />
+
     </LinearLayout>
 
     <LinearLayout

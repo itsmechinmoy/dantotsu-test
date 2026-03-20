@@ -117,6 +117,14 @@ class EpisodeAdapter(
                     binding.itemEpisodeFiller.visibility = View.GONE
                     binding.itemEpisodeFillerView.visibility = View.GONE
                 }
+
+                if (ep.date != null) {
+                    binding.itemEpisodeDate.visibility = View.VISIBLE
+                    binding.itemEpisodeDate.text = ep.date
+                } else {
+                    binding.itemEpisodeDate.visibility = View.GONE
+                }
+
                 binding.itemEpisodeDesc.isVisible = !ep.desc.isNullOrBlank()
                 binding.itemEpisodeDesc.text = ep.desc ?: ""
                 holder.bind(ep.number, ep.downloadProgress, ep.desc)
@@ -158,6 +166,14 @@ class EpisodeAdapter(
 
                 binding.itemEpisodeNumber.text = ep.number
                 binding.itemEpisodeTitle.text = title
+
+                if (ep.date != null) {
+                    binding.itemEpisodeDate.visibility = View.VISIBLE
+                    binding.itemEpisodeDate.text = ep.date
+                } else {
+                    binding.itemEpisodeDate.visibility = View.GONE
+                }
+
                 if (ep.filler) {
                     binding.itemEpisodeFiller.visibility = View.VISIBLE
                     binding.itemEpisodeFillerView.visibility = View.VISIBLE

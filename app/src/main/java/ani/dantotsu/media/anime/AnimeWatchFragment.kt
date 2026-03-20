@@ -250,6 +250,7 @@ class AnimeWatchFragment : Fragment() {
                                 episode.title =
                                     episode.title ?: media.anime!!.fillerEpisodes!![i]?.title
                                 episode.filler = media.anime!!.fillerEpisodes!![i]?.filler ?: false
+                                episode.date = media.anime!!.fillerEpisodes!![i]?.date ?: episode.date
                             }
                         }
                         if (media.anime?.kitsuEpisodes != null) {
