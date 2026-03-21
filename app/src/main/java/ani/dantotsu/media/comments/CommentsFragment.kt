@@ -15,6 +15,7 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.core.animation.doOnEnd
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import ani.dantotsu.R
@@ -99,7 +100,21 @@ class CommentsFragment : Fragment() {
             )
         )
 
+        val isOfflineOrLocal = !ani.dantotsu.isOnline(activity)
+
         binding.commentsRefresh.setOnRefreshListener {
+            val refreshOffline = !ani.dantotsu.isOnline(activity)
+            if (refreshOffline) {
+                binding.commentsRefresh.isRefreshing = false
+                return@setOnRefreshListener
+            }
+            binding.commentsOfflineText.visibility = View.GONE
+            binding.commentsListContainer.visibility = View.VISIBLE
+            binding.openRules.visibility = View.VISIBLE
+            binding.commentFilter.visibility = View.VISIBLE
+            binding.commentSort.visibility = View.VISIBLE
+            activity.binding.commentMessageContainer.visibility = if (CommentsAPI.authToken != null) View.VISIBLE else View.GONE
+
             lifecycleScope.launch {
                 loadAndDisplayComments()
                 binding.commentsRefresh.isRefreshing = false
@@ -110,17 +125,32 @@ class CommentsFragment : Fragment() {
         binding.commentsList.adapter = adapter
         binding.commentsList.layoutManager = LinearLayoutManager(activity)
 
-        if (CommentsAPI.authToken != null) {
-            lifecycleScope.launch {
-                val commentId = arguments?.getInt("commentId")
-                if (commentId != null && commentId > 0) {
-                    loadSingleComment(commentId)
+        val model: ani.dantotsu.media.MediaDetailsViewModel by activityViewModels()
+        model.getMedia().observe(viewLifecycleOwner) { newMedia ->
+            if (newMedia != null && newMedia.id != 0 && newMedia.id != this.mediaId) {
+                this.mediaId = newMedia.id
+
+                if (isOfflineOrLocal) {
+                    binding.commentsOfflineText.visibility = View.VISIBLE
+                    binding.commentsListContainer.visibility = View.GONE
+                    binding.openRules.visibility = View.GONE
+                    binding.commentFilter.visibility = View.GONE
+                    binding.commentSort.visibility = View.GONE
+                    binding.commentsProgressBar.visibility = View.GONE
+                    activity.binding.commentMessageContainer.visibility = View.GONE
+                } else if (CommentsAPI.authToken != null) {
+                    lifecycleScope.launch {
+                        val commentId = arguments?.getInt("commentId")
+                        if (commentId != null && commentId > 0) {
+                            loadSingleComment(commentId)
+                        } else {
+                            loadAndDisplayComments()
+                        }
+                    }
                 } else {
-                    loadAndDisplayComments()
+                    activity.binding.commentMessageContainer.visibility = View.GONE
                 }
             }
-        } else {
-            activity.binding.commentMessageContainer.visibility = View.GONE
         }
 
         binding.commentSort.setOnClickListener { sortView ->

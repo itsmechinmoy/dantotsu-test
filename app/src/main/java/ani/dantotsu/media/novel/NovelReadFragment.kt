@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import ani.dantotsu.R
 import ani.dantotsu.currContext
 import ani.dantotsu.databinding.FragmentMediaSourceBinding
+import ani.dantotsu.dp
 import ani.dantotsu.download.DownloadedType
 import ani.dantotsu.download.DownloadsManager
 import ani.dantotsu.download.novel.NovelDownloaderService
@@ -40,6 +41,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.max
+import kotlin.math.roundToInt
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -51,13 +54,17 @@ class NovelReadFragment : Fragment(),
     private val binding get() = _binding!!
     private val model: MediaDetailsViewModel by activityViewModels()
 
-    private lateinit var media: Media
+    lateinit var media: Media
     var source = 0
     lateinit var novelName: String
 
     private lateinit var headerAdapter: NovelReadAdapter
     private lateinit var novelResponseAdapter: NovelResponseAdapter
     private var progress = View.VISIBLE
+
+
+    var style: Int = 2
+    var reverse: Boolean = false
 
     private var continueEp: Boolean = false
     var loaded = false
@@ -102,6 +109,22 @@ class NovelReadFragment : Fragment(),
     }
 
     override fun downloadedCheckWithStart(novel: ShowResponse): Boolean {
+        if (media.format == "LOCAL" || media.format == "LOCAL_NOVEL") {
+            try {
+                val fileUri = android.net.Uri.parse(novel.link)
+                val intent = Intent(context, NovelReaderActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    setDataAndType(fileUri, "application/epub+zip")
+                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                }
+                startActivity(intent)
+                return true
+            } catch (e: Exception) {
+                Logger.log(e)
+                return false
+            }
+        }
+
         val downloadsManager = Injekt.get<DownloadsManager>()
         if (downloadsManager.queryDownload(
                 DownloadedType(
@@ -140,6 +163,8 @@ class NovelReadFragment : Fragment(),
     }
 
     override fun downloadedCheck(novel: ShowResponse): Boolean {
+        if (media.format == "LOCAL") return true
+
         val downloadsManager = Injekt.get<DownloadsManager>()
         return downloadsManager.queryDownload(
             DownloadedType(
@@ -197,6 +222,33 @@ class NovelReadFragment : Fragment(),
         }
     }
 
+    fun onNovelClick(novel: ShowResponse) {
+        if (novelResponseAdapter.isDownloading(novel.link)) {
+            return
+        }
+        ani.dantotsu.settings.saving.PrefManager.setCustomVal("${media.id}_last_read_volume", novel.name)
+        if (downloadedCheckWithStart(novel)) {
+            return
+        }
+
+        val bookDialog = BookDialog.newInstance(novelName, novel, source)
+
+        bookDialog.setCallback(object : BookDialog.Callback {
+            override fun onDownloadTriggered(link: String) {
+                downloadTrigger(
+                    NovelDownloadPackage(
+                        link,
+                        media.cover ?: novel.coverUrl.url,
+                        novel.name,
+                        novel.link
+                    )
+                )
+                bookDialog.dismiss()
+            }
+        })
+        bookDialog.show(parentFragmentManager, "dialog")
+    }
+
     var response: List<ShowResponse>? = null
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -216,7 +268,23 @@ class NovelReadFragment : Fragment(),
 
         binding.mediaSourceRecycler.updatePadding(bottom = binding.mediaSourceRecycler.paddingBottom + navBarHeight)
 
-        binding.mediaSourceRecycler.layoutManager = LinearLayoutManager(requireContext())
+        val screenWidth = resources.displayMetrics.widthPixels.dp
+        var maxGridSize = (screenWidth / 100f).roundToInt()
+        maxGridSize = max(4, maxGridSize - (maxGridSize % 2))
+
+        val gridLayoutManager = androidx.recyclerview.widget.GridLayoutManager(requireContext(), maxGridSize)
+        gridLayoutManager.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+
+                if (position == 0 && ::headerAdapter.isInitialized) return maxGridSize
+                return when (style) {
+                    1 -> 1
+                    else -> maxGridSize
+                }
+            }
+        }
+        binding.mediaSourceRecycler.layoutManager = gridLayoutManager
+
         model.scrolledToTop.observe(viewLifecycleOwner) {
             if (it) binding.mediaSourceRecycler.scrollToPosition(0)
         }
@@ -230,18 +298,20 @@ class NovelReadFragment : Fragment(),
                 binding.mediaInfoProgressBar.visibility = progress
                 if (!loaded) {
                     val sel = media.selected
-                    searchQuery = sel?.server ?: media.name ?: media.nameRomaji
+                    val isLocal = sel?.server == "Local" || media.format == "LOCAL_NOVEL" || media.format == "LOCAL"
+                    searchQuery = if (isLocal) (media.name ?: media.nameRomaji) else (sel?.server ?: media.name ?: media.nameRomaji)
                     headerAdapter = NovelReadAdapter(media, this, model.novelSources)
                     novelResponseAdapter = NovelResponseAdapter(
                         this,
                         this,
                         this
-                    )  // probably a better way to do this but it works
+                    )
+
                     binding.mediaSourceRecycler.adapter =
                         ConcatAdapter(headerAdapter, novelResponseAdapter)
                     loaded = true
                     Handler(Looper.getMainLooper()).postDelayed({
-                        search(searchQuery, sel?.sourceIndex ?: 0, auto = sel?.server == null)
+                        search(searchQuery, sel?.sourceIndex ?: 0, auto = sel?.server == null || isLocal)
                     }, 100)
                 }
             }
@@ -250,7 +320,9 @@ class NovelReadFragment : Fragment(),
             if (it != null) {
                 response = it
                 searching = false
-                novelResponseAdapter.submitList(it)
+                val sortedList = if (reverse) it.reversed() else it
+                novelResponseAdapter.submitList(sortedList)
+                headerAdapter.updateContinue(it)
                 headerAdapter.progress?.visibility = View.GONE
             }
         }
@@ -283,6 +355,22 @@ class NovelReadFragment : Fragment(),
         selected.server = null
         model.saveSelected(media.id, selected)
         media.selected = selected
+    }
+
+    fun onLayoutChanged(newStyle: Int, newReverse: Boolean) {
+        val styleChanged = style != newStyle
+        val reverseChanged = reverse != newReverse
+        style = newStyle
+        reverse = newReverse
+
+        if (styleChanged) {
+            novelResponseAdapter.updateType(newStyle)
+        }
+        if (reverseChanged && response != null) {
+            novelResponseAdapter.clear()
+            val sortedList = if (reverse) response!!.reversed() else response!!
+            novelResponseAdapter.submitList(sortedList)
+        }
     }
 
     override fun onCreateView(
