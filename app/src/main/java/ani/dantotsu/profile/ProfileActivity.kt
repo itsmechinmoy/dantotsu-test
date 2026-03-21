@@ -194,26 +194,6 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
                         copyToClipboard(profileUserName.text.toString(), true)
                     }
 
-                    // Token expiry badge — only shown on own profile
-                    val isSelf = user.id == Anilist.userid
-                    if (isSelf) {
-                        val daysLeft = Anilist.getTokenExpiryDays()
-                        if (daysLeft != null) {
-                            tokenExpiryBadge.visibility = View.VISIBLE
-                            tokenExpiryBadge.text = when {
-                                daysLeft <= 0 -> "Reconnect Now"
-                                else -> "Reconnect in $daysLeft days"
-                            }
-                            tokenExpiryBadge.setOnClickListener {
-                                Anilist.loginIntent(context)
-                            }
-                        } else {
-                            tokenExpiryBadge.visibility = View.GONE
-                        }
-                    } else {
-                        tokenExpiryBadge.visibility = View.GONE
-                    }
-
                     val bannerAnimations: ImageView =
                         if (PrefManager.getVal(PrefName.BannerAnimations)) profileBannerImage else profileBannerImageNoKen
 
