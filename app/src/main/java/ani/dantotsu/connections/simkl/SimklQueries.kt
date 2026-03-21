@@ -203,6 +203,9 @@ class SimklQueries(private val client: HttpClient) {
 
             Log.d(TAG, "✅ Successfully updated: Status=$status, Progress=$newProgress, Score=$score")
             true
+        } catch (e: java.net.UnknownHostException) {
+            Log.e(TAG, "❌ Network error (offline?)", e)
+            false
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error: ${e.message}", e)
             false

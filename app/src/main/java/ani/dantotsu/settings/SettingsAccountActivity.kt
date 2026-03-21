@@ -115,11 +115,6 @@ class SettingsAccountActivity : AppCompatActivity() {
             fun reload() {
                 if (Anilist.token != null) {
                     settingsAnilistLogin.setText(R.string.logout)
-                    settingsAnilistLogin.setOnClickListener {
-                        showLogoutConfirmationDialog(context, "AniList") {
-                            Anilist.removeSavedToken()
-                            Toast.makeText(context, "Logout successfully", Toast.LENGTH_SHORT).show()
-                            startMainActivity(this@SettingsAccountActivity)
                         }
                     }
                     settingsAnilistUsername.visibility = View.VISIBLE
@@ -141,11 +136,6 @@ class SettingsAccountActivity : AppCompatActivity() {
                     if (MAL.token != null) {
                         settingsMALLogin.setText(R.string.logout)
                         settingsMALLogin.setOnClickListener {
-                            showLogoutConfirmationDialog(context, "MAL") {
-                                MAL.removeSavedToken()
-                                Toast.makeText(context, "Logout successfully", Toast.LENGTH_SHORT)
-                                    .show()
-                                startMainActivity(this@SettingsAccountActivity)
                             }
                         }
                         settingsMALUsername.visibility = View.VISIBLE
@@ -193,11 +183,6 @@ class SettingsAccountActivity : AppCompatActivity() {
                         username ?: Discord.token?.replace(Regex("."), "*")
                     settingsDiscordLogin.setText(R.string.logout)
                     settingsDiscordLogin.setOnClickListener {
-                        showLogoutConfirmationDialog(context, "Discord") {
-                            Discord.removeSavedToken(context)
-                            Toast.makeText(context, "Logout successfully", Toast.LENGTH_SHORT)
-                                .show()
-                            startMainActivity(this@SettingsAccountActivity)
                         }
                     }
 

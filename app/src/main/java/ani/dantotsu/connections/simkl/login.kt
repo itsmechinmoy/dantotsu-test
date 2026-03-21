@@ -2,6 +2,8 @@ package ani.dantotsu.connections.simkl
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewGroup
+import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import ani.dantotsu.startMainActivity
@@ -21,6 +23,13 @@ class Login : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        setContentView(ProgressBar(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        })
+
         if (intent == null || intent.data == null) {
             toast("Simkl Error: Login intent was null.")
             startMainActivity(this@Login)

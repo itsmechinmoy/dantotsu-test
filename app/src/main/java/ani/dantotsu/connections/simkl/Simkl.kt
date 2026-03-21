@@ -5,6 +5,7 @@ import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import kotlin.math.roundToInt
 
 class Simkl private constructor() {
@@ -36,7 +37,13 @@ class Simkl private constructor() {
     }
 
 
-    private val client = HttpClient(CIO)
+    private val client = HttpClient(CIO) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = 15000
+            connectTimeoutMillis = 10000
+            socketTimeoutMillis = 15000
+        }
+    }
     val queries = SimklQueries(client)
     val auth = SimklAuth(client)
 
