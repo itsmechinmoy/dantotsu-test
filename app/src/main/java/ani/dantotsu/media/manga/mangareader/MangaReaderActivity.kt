@@ -99,14 +99,6 @@ import java.util.Timer
 import java.util.TimerTask
 import kotlin.math.min
 import kotlin.properties.Delegates
-import android.graphics.Color
-import android.widget.FrameLayout
-import android.widget.TextView
-import ani.dantotsu.media.manga.mangareader.ExtraReaderPrefs
-import ani.dantotsu.media.manga.mangareader.LongPressPageActionsDialog
-import ani.dantotsu.media.manga.mangareader.ReaderAutoScrollManager
-import ani.dantotsu.media.manga.mangareader.ReaderEinkRefreshManager
-import ani.dantotsu.media.manga.mangareader.ReaderOverlayManager
 
 class MangaReaderActivity : AppCompatActivity() {
     private val mangaCache = Injekt.get<MangaCache>()
@@ -136,11 +128,6 @@ class MangaReaderActivity : AppCompatActivity() {
 
     var sliding = false
     var isAnimating = false
-
-    val autoScrollManager = ReaderAutoScrollManager()
-    lateinit var overlayManager: ReaderOverlayManager
-    lateinit var einkManager: ReaderEinkRefreshManager
-    private var pageIndicatorOverlay: TextView? = null
 
     private val directionRLBT
         get() = defaultSettings.direction == RIGHT_TO_LEFT
@@ -193,12 +180,6 @@ class MangaReaderActivity : AppCompatActivity() {
         ThemeManager(this).applyTheme()
         binding = ActivityMangaReaderBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        val rootFrame = binding.root as FrameLayout
-        overlayManager = ReaderOverlayManager(rootFrame)
-        overlayManager.attach()
-        einkManager = ReaderEinkRefreshManager(rootFrame)
-        einkManager.attach()
-        setupPageIndicatorOverlay(rootFrame)
         binding.mangaReaderBack.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
@@ -342,8 +323,6 @@ class MangaReaderActivity : AppCompatActivity() {
 
         //Chapter Change
         fun change(index: Int) {
-            autoScrollManager.destroy()
-            einkManager.destroy()
             mangaCache.clear()
             PrefManager.setCustomVal(
                 "${media.id}_${chaptersArr[currentChapterIndex]}",
@@ -381,11 +360,13 @@ class MangaReaderActivity : AppCompatActivity() {
         }
         binding.mangaReaderNextChapter.setOnClickListener {
             if (directionRLBT) {
-                if (currentChapterIndex > 0) showChapterTransition(currentChapterIndex - 1) { change(currentChapterIndex - 1) }
+                if (currentChapterIndex > 0) change(currentChapterIndex - 1)
                 else snackString(getString(R.string.first_chapter))
             } else {
                 if (chaptersArr.size > currentChapterIndex + 1) progress {
-                    showChapterTransition(currentChapterIndex + 1) { change(currentChapterIndex + 1) }
+                    change(
+                        currentChapterIndex + 1
+                    )
                 }
                 else snackString(getString(R.string.next_chapter_not_found))
             }
@@ -397,11 +378,13 @@ class MangaReaderActivity : AppCompatActivity() {
         binding.mangaReaderPreviousChapter.setOnClickListener {
             if (directionRLBT) {
                 if (chaptersArr.size > currentChapterIndex + 1) progress {
-                    showChapterTransition(currentChapterIndex + 1) { change(currentChapterIndex + 1) }
+                    change(
+                        currentChapterIndex + 1
+                    )
                 }
                 else snackString(getString(R.string.next_chapter_not_found))
             } else {
-                if (currentChapterIndex > 0) showChapterTransition(currentChapterIndex - 1) { change(currentChapterIndex - 1) }
+                if (currentChapterIndex > 0) change(currentChapterIndex - 1)
                 else snackString(getString(R.string.first_chapter))
             }
         }
@@ -786,7 +769,6 @@ class MangaReaderActivity : AppCompatActivity() {
             onVolumeDown = {
                 binding.mangaReaderPager.currentItem += 1
             }
-            applyExtraSettings()
         }
     }
 
@@ -824,8 +806,6 @@ class MangaReaderActivity : AppCompatActivity() {
         override fun onPageSelected(position: Int) {
             updatePageNumber(position.toLong() * (dualPage { 2 } ?: 1) + 1)
             handleController(position == 0 || position + 1 >= maxChapterPage)
-            if (PrefManager.getCustomVal(ExtraReaderPrefs.PREF_EINK_ENABLED, false))
-                einkManager.flash()
             super.onPageSelected(position)
         }
     }
@@ -1026,7 +1006,6 @@ class MangaReaderActivity : AppCompatActivity() {
                 )
                 loading = false
             }
-        pageIndicatorOverlay?.text = "${currentChapterPage}/$maxChapterPage"
     }
 
     private fun progress(runnable: Runnable) {
@@ -1170,85 +1149,5 @@ class MangaReaderActivity : AppCompatActivity() {
             show(supportFragmentManager, "image")
         }
         return true
-    }
-
-    fun applyExtraSettings() {
-        val brightnessEnabled = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_BRIGHTNESS_ENABLED, false)
-        val brightnessLevel   = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_BRIGHTNESS_LEVEL, 0)
-        overlayManager.setBrightnessLevel(if (brightnessEnabled) brightnessLevel else 0)
-
-        val cfEnabled = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_COLOR_FILTER_ENABLED, false)
-        val r = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_CF_RED,   0)
-        val g = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_CF_GREEN, 0)
-        val b = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_CF_BLUE,  0)
-        val a = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_CF_ALPHA, 128)
-        overlayManager.setColorFilter(cfEnabled, Color.argb(a, r, g, b))
-
-        val grayscale = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_GRAYSCALE,     false)
-        val invert    = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_INVERT_COLORS, false)
-        val targetView = if (defaultSettings.layout !=
-                ani.dantotsu.settings.CurrentReaderSettings.Layouts.PAGED)
-            binding.mangaReaderRecyclerContainer
-        else
-            binding.mangaReaderPager
-        overlayManager.applyColorEffects(targetView, grayscale, invert)
-
-        einkManager.flashDurationMs  = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_EINK_DURATION_MS, 200)
-        einkManager.flashEveryNPages = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_EINK_INTERVAL,    1)
-        einkManager.flashWhite       = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_EINK_WHITE,       false)
-
-        autoScrollManager.speedSeconds = PrefManager.getCustomVal(
-            ExtraReaderPrefs.PREF_AUTO_SCROLL_SPEED, 3).toFloat()
-        autoScrollManager.updateLayout(
-            recyclerView     = binding.mangaReaderRecycler,
-            viewPager        = binding.mangaReaderPager,
-            currentLayout    = defaultSettings.layout,
-            currentDirection = defaultSettings.direction,
-        )
-
-        val showIndicator = PrefManager.getCustomVal(ExtraReaderPrefs.PREF_PAGE_INDICATOR, false)
-        pageIndicatorOverlay?.visibility =
-            if (showIndicator) View.VISIBLE else View.GONE
-    }
-
-    private fun setupPageIndicatorOverlay(root: FrameLayout) {
-        pageIndicatorOverlay = TextView(this).apply {
-            textSize = 12f
-            setTextColor(android.graphics.Color.WHITE)
-            setShadowLayer(4f, 0f, 1f, android.graphics.Color.BLACK)
-            setPadding(16, 8, 16, 8)
-            elevation = 900f
-            visibility = View.GONE
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
-            ).apply { bottomMargin = 64 }
-        }
-        root.addView(pageIndicatorOverlay)
-    }
-
-    fun showChapterTransition(targetIndex: Int, proceed: () -> Unit) {
-        if (!PrefManager.getCustomVal(ExtraReaderPrefs.PREF_CHAPTER_TRANSITION, false)) {
-            proceed()
-            return
-        }
-        val currentTitle = chaptersTitleArr.getOrNull(currentChapterIndex) ?: ""
-        val nextTitle    = chaptersTitleArr.getOrNull(targetIndex) ?: getString(R.string.no_chapter)
-        val isNext       = targetIndex > currentChapterIndex
-        val gap          = if (isNext) targetIndex - currentChapterIndex - 1
-                           else currentChapterIndex - targetIndex - 1
-        val message = buildString {
-            append("Finished: $currentTitle\n\n")
-            if (gap > 0) append("⚠ $gap missing chapter${if (gap == 1) "" else "s"}\n\n")
-            append("${if (isNext) "Next" else "Previous"}: $nextTitle")
-        }
-        customAlertDialog().apply {
-            setTitle("Chapter Transition")
-            setMessage(message)
-            setPosButton(R.string.continue_reading) { proceed() }
-            setNegButton(android.R.string.cancel) {}
-            show()
-        }
     }
 }

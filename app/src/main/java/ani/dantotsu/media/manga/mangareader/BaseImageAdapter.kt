@@ -30,7 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.api.get
-import ani.dantotsu.media.manga.mangareader.LongPressPageActionsDialog
 import java.io.File
 
 abstract class BaseImageAdapter(
@@ -107,16 +106,14 @@ abstract class BaseImageAdapter(
                 override fun onSingleClick(event: MotionEvent) =
                     activity.handleController(event = event)
             })
-            setOnLongClickListener {
+            view.findViewById<View>(R.id.imgProgCover).apply {
+                setOnTouchListener { _, event ->
+                    detector.onTouchEvent(event)
+                    false
+                }
+                setOnLongClickListener {
                     val pos = holder.bindingAdapterPosition
                     val image = images.getOrNull(pos) ?: return@setOnLongClickListener false
-                    val url     = image.url.url
-                    val headers = HashMap(image.url.headers)
-                    if (url.isNotEmpty()) {
-                        LongPressPageActionsDialog.newInstance(url, headers)
-                            .show(activity.supportFragmentManager, "page_actions")
-                        return@setOnLongClickListener true
-                    }
                     activity.onImageLongClicked(pos, image, null) { dialog ->
                         activity.lifecycleScope.launch {
                             loadImage(pos, view)
