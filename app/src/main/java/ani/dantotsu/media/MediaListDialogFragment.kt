@@ -2,6 +2,7 @@ package ani.dantotsu.media
 
 import android.os.Bundle
 import android.text.InputFilter.LengthFilter
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -18,6 +19,7 @@ import ani.dantotsu.Refresh
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.api.FuzzyDate
 import ani.dantotsu.connections.mal.MAL
+import ani.dantotsu.connections.simkl.Simkl
 import ani.dantotsu.databinding.BottomSheetMediaListBinding
 import ani.dantotsu.navBarHeight
 import ani.dantotsu.settings.saving.PrefManager
@@ -225,18 +227,16 @@ class MediaListDialogFragment : BottomSheetDialogFragment() {
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             if (media != null) {
-                                val progress =
-                                    _binding?.mediaListProgress?.text.toString().toIntOrNull()
-                                val score =
-                                    (_binding?.mediaListScore?.text.toString().toDoubleOrNull()
-                                        ?.times(10))?.toInt()
-                                val status =
-                                    statuses[statusStrings.indexOf(_binding?.mediaListStatus?.text.toString())]
-                                val rewatch =
-                                    _binding?.mediaListRewatch?.text?.toString()?.toIntOrNull()
+                                val progress = _binding?.mediaListProgress?.text.toString().toIntOrNull()
+                                val score = (_binding?.mediaListScore?.text.toString().toDoubleOrNull()?.times(10))?.toInt()
+                                Log.d("SimklSync", "📍 Dialog score (raw): ${_binding?.mediaListScore?.text}")
+                                Log.d("SimklSync", "📍 Dialog score (calculated): $score")
+                                val status = statuses[statusStrings.indexOf(_binding?.mediaListStatus?.text.toString())]
+                                val rewatch = _binding?.mediaListRewatch?.text?.toString()?.toIntOrNull()
                                 val notes = _binding?.mediaListNotes?.text?.toString()
                                 val startD = start.date
                                 val endD = end.date
+
                                 Anilist.mutation.editList(
                                     media!!.id,
                                     progress,
@@ -259,6 +259,19 @@ class MediaListDialogFragment : BottomSheetDialogFragment() {
                                     startD,
                                     endD
                                 )
+
+                                if (Simkl.getInstance().isLoggedIn() && media!!.anime != null) {
+                                    val previousProgress = media!!.userProgress ?: 0
+                                    Log.d("SimklSync", "🔍 DEBUG: Raw AniList status = '$status'")
+
+                                    Simkl.getInstance().updateAnimeProgress(
+                                        anilistAnimeId = media!!.id,
+                                        previousProgress = previousProgress,
+                                        newProgress = progress ?: previousProgress,
+                                        status = status,
+                                        score = score
+                                    )
+                                }
                             }
                         }
                         if (remove == true) {
@@ -274,20 +287,38 @@ class MediaListDialogFragment : BottomSheetDialogFragment() {
 
                 binding.mediaListDelete.setOnClickListener {
                     scope.launch {
+                        var simklDeleted = false
+                        if (Simkl.getInstance().isLoggedIn() && media?.anime != null) {
+                            try {
+                                Log.d("SimklDelete", "🗑️ Attempting to delete anime ${media?.id} from Simkl")
+                                simklDeleted = Simkl.getInstance().removeAnime(media!!.id)
+                                if (simklDeleted) {
+                                    Log.d("SimklDelete", "✅ Successfully deleted from Simkl")
+                                } else {
+                                    Log.e("SimklDelete", "❌ Failed to delete from Simkl")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("SimklDelete", "❌ Error deleting from Simkl: ${e.message}", e)
+                            }
+                        }
                         media?.deleteFromList(scope, onSuccess = {
                             Refresh.all()
-                            snackString(getString(R.string.deleted_from_list))
+                            withContext(Dispatchers.Main) {
+                                if (simklDeleted) {
+                                    snackString("✅ Deleted from all lists (including Simkl)")
+                                } else {
+                                    snackString(getString(R.string.deleted_from_list))
+                                }
+                            }
                             dismissAllowingStateLoss()
                         }, onError = { e ->
                             withContext(Dispatchers.Main) {
-                                snackString(
-                                    getString(
-                                        R.string.delete_fail_reason, e.message
-                                    )
-                                )
+                                snackString(getString(R.string.delete_fail_reason, e.message))
                             }
                         }, onNotFound = {
-                            snackString(getString(R.string.no_list_id))
+                            withContext(Dispatchers.Main) {
+                                snackString(getString(R.string.no_list_id))
+                            }
                         })
 
                     }
