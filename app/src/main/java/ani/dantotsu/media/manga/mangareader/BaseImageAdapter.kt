@@ -107,7 +107,12 @@ abstract class BaseImageAdapter(
                 override fun onSingleClick(event: MotionEvent) =
                     activity.handleController(event = event)
             })
-            setOnLongClickListener {
+            view.findViewById<View>(R.id.imgProgCover).apply {
+                setOnTouchListener { _, event ->
+                    detector.onTouchEvent(event)
+                    false
+                }
+                setOnLongClickListener {
                     val pos = holder.bindingAdapterPosition
                     val image = images.getOrNull(pos) ?: return@setOnLongClickListener false
                     val url     = image.url.url
@@ -124,6 +129,7 @@ abstract class BaseImageAdapter(
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         dialog.dismiss()
                     }
+                    true
                 }
             }
         }
