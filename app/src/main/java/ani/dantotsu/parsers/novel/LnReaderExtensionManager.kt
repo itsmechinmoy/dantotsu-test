@@ -71,7 +71,7 @@ class LnReaderExtensionManager(private val context: Context) {
         (defaultRepoUrls + extraRepoUrls).forEach { repoUrl ->
             try {
                 val response = http.newCall(Request.Builder().url(repoUrl).build()).execute()
-                val body = response.body()?.string() ?: return@forEach
+                val body = response.body?.string() ?: return@forEach
                 val items = json.decodeFromString<List<LnReaderPluginItem>>(body)
                 items.forEach { item ->
                     if (seen.add(item.id)) all.add(item)
@@ -104,11 +104,11 @@ class LnReaderExtensionManager(private val context: Context) {
             ).execute()
 
             if (!response.isSuccessful) {
-                Logger.log("LnReaderExtensionManager: HTTP ${response.code()} for ${item.url}")
+                Logger.log("LnReaderExtensionManager: HTTP ${response.code} for ${item.url}")
                 return@withContext false
             }
 
-            val jsCode = response.body()?.string()
+            val jsCode = response.body?.string()
                 ?: return@withContext false
 
             val dir = File(pluginDir, item.id).also { it.mkdirs() }

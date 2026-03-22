@@ -7,11 +7,16 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 object LnReaderJsEngine {
@@ -93,9 +98,8 @@ object LnReaderJsEngine {
 
             when (method.uppercase()) {
                 "POST" -> {
-                    val mediaType = okhttp3.MediaType.parse(
-                        parsedHeaders["content-type"] ?: "application/json; charset=utf-8"
-                    )
+                    val fallback = "application/json; charset=utf-8"
+                    val mediaType = (parsedHeaders["content-type"] ?: fallback).toMediaTypeOrNull()
                     reqBuilder.post(okhttp3.RequestBody.create(mediaType, body ?: ""))
                 }
                 "HEAD" -> reqBuilder.head()
@@ -103,26 +107,20 @@ object LnReaderJsEngine {
             }
 
             val response = httpClient.newCall(reqBuilder.build()).execute()
-            val responseBody = response.body()?.string() ?: ""
-            val responseHeaders = response.headers().toMultimap()
+            val responseBody = response.body?.string() ?: ""
+            val responseHeaders = response.headers.toMultimap()
                 .entries.associate { it.key to it.value.firstOrNull().orEmpty() }
 
             Json.encodeToString(
                 kotlinx.serialization.json.JsonObject.serializer(),
                 kotlinx.serialization.json.buildJsonObject {
-                    put("statusCode", kotlinx.serialization.json.JsonPrimitive(response.code()))
-                    put("reasonPhrase", kotlinx.serialization.json.JsonPrimitive(response.message()))
+                    put("statusCode", kotlinx.serialization.json.JsonPrimitive(response.code))
+                    put("reasonPhrase", kotlinx.serialization.json.JsonPrimitive(response.message))
                     put("body", kotlinx.serialization.json.JsonPrimitive(responseBody))
                     put("isRedirect", kotlinx.serialization.json.JsonPrimitive(false))
-                    put("headers", Json.parseToJsonElement(
-                        json.encodeToString(
-                            kotlinx.serialization.json.MapSerializer(
-                                kotlinx.serialization.json.serializer(),
-                                kotlinx.serialization.json.serializer()
-                            ),
-                            responseHeaders
-                        )
-                    ))
+                    put("headers", kotlinx.serialization.json.buildJsonObject {
+                        responseHeaders.forEach { (k, v) -> put(k, kotlinx.serialization.json.JsonPrimitive(v)) }
+                    })
                 }
             )
         } catch (e: Exception) {
