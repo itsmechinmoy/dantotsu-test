@@ -75,15 +75,17 @@ class NovelReadAdapter(
             if (novelReadSources.names.isNotEmpty() && source in 0 until novelReadSources.names.size) {
                 binding.mediaSource.setText(novelReadSources.names[source], false)
             }
+            val displayNames = novelReadSources.names.filter { it != "Local" }
             binding.mediaSource.setAdapter(
                 ArrayAdapter(
                     fragment.requireContext(),
                     R.layout.item_dropdown,
-                    novelReadSources.names
+                    displayNames
                 )
             )
             binding.mediaSource.setOnItemClickListener { _, _, i, _ ->
-                fragment.onSourceChange(i)
+                val actualIndex = novelReadSources.names.indexOf(displayNames[i])
+                fragment.onSourceChange(actualIndex)
                 search()
             }
 
