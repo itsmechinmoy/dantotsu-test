@@ -686,7 +686,7 @@
     <string name="answer_18">The reason this happens is probably because you\'re not using the default browser.\n\n>You have to set Chrome as your default browser to login to Anilist.\n\n>It takes a few seconds for the login button to display changes.\n\nIf it doesn\'t work then you could possibly be IP banned from Anilist or your ISP banned Anilist themselves. We believe that this is highly unlikely so open [Anilist](https://anilist.co) in your browser to see if that\`s the case.</string>
 
     <string name="question_19">What is torrent? How do I use it?</string>
-    <string name="answer_19">Torrent or formally known as BitTorrent is an internet communication protocol for peer\-to\-peer file sharing. A torrent network doesn\'t use a centralised server to host files. It shares files in a decentralised manner. A torrent network has two types of peers. Seeders &amp; Leachers.\n\n• Seeders : These are peers who completed downloading and has the full file. And now they are sharing this file to other peers which is called seeding. A torrent cannot work without at least one seeder. The more seeder a torrent has, the better.\n\n• Leachers : These are peers who are currently downloading the file. If they currently have 40&#37; downloaded then they will share the 40&#37; to any other peers who requests it.\n\nUnlike a centralised server, torrents have no bandwidth limit. You can get your files from hundreds of seeders at the highest possible speed your internet can offer. But many ISP throttle torrent to slow them down because it\'s demanding on their infrastructure. Use a VPN to circumvent this.\n\n• How to use torrents :\n\n1. Install the Torrent Add-on from \`Dantotsu &gt; Settings &gt; Add-ons &gt; Torrent Add-on.\` \n2. Get a source that provides torrents.\n3. USE A VPN. Using VPN while torrenting only has upsides. Without a VPN your IP address will be exposed, your ISP will throttle your network and you could possibly be fined if you live in a country first world country. DO NOT USE IT WITHOUT A VPN IF YOU DON\'T KNOW WHAT YOU\'RE DOING.\n4. Now use that source to start torrenting.</string>
+    <string name="answer_19" formatted="false">Torrent or formally known as BitTorrent is an internet communication protocol for peer\-to\-peer file sharing. A torrent network doesn\'t use a centralised server to host files. It shares files in a decentralised manner. A torrent network has two types of peers. Seeders &amp; Leachers.\n\n• Seeders : These are peers who completed downloading and has the full file. And now they are sharing this file to other peers which is called seeding. A torrent cannot work without at least one seeder. The more seeder a torrent has, the better.\n\n• Leachers : These are peers who are currently downloading the file. If they currently have 40&#37; downloaded then they will share the 40&#37; to any other peers who requests it.\n\nUnlike a centralised server, torrents have no bandwidth limit. You can get your files from hundreds of seeders at the highest possible speed your internet can offer. But many ISP throttle torrent to slow them down because it\'s demanding on their infrastructure. Use a VPN to circumvent this.\n\n• How to use torrents :\n\n1. Install the Torrent Add-on from \`Dantotsu &gt; Settings &gt; Add-ons &gt; Torrent Add-on.\` \n2. Get a source that provides torrents.\n3. USE A VPN. Using VPN while torrenting only has upsides. Without a VPN your IP address will be exposed, your ISP will throttle your network and you could possibly be fined if you live in a country first world country. DO NOT USE IT WITHOUT A VPN IF YOU DON\'T KNOW WHAT YOU\'RE DOING.\n4. Now use that source to start torrenting.</string>
 
     <string name="subscribed_notification">Subscribed! Receiving notifications, when new episodes are released on %1$s.</string>
 
@@ -1104,5 +1104,42 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="privacy_policy_desc">Read our privacy policy</string>
     <string name="failed_to_load">Failed to load</string>
     <string name="studios">Studios</string>
+
+    <string name="page_actions_title">Page Actions</string>
+    <string name="save_page">Save page</string>
+    <string name="share_page">Share page</string>
+    <string name="copy_page_url">Copy image URL</string>
+    <string name="saving_page">Saving page…</string>
+    <string name="copied_page_url">URL copied to clipboard</string>
+    <string name="error_saving_page">Failed to save: %s</string>
+    <string name="error_sharing_page">Failed to share: %s</string>
+    <string name="persistent_page_indicator">Persistent page indicator</string>
+    <string name="chapter_transition">Chapter transition</string>
+    <string name="auto_scroll">Auto scroll</string>
+    <string name="auto_scroll_speed">Auto scroll speed</string>
+    <string name="custom_brightness">Custom brightness</string>
+    <string name="brightness_level">Brightness level</string>
+    <string name="grayscale">Grayscale</string>
+    <string name="invert_colors">Invert colors</string>
+    <string name="color_filter">Color filter</string>
+    <string name="color_filter_red">Red</string>
+    <string name="color_filter_green">Green</string>
+    <string name="color_filter_blue">Blue</string>
+    <string name="color_filter_alpha">Alpha</string>
+    <string name="eink_refresh">E-ink refresh</string>
+    <string name="eink_flash_white">Flash white</string>
+    <string name="eink_duration">Flash duration</string>
+    <string name="eink_interval">Refresh interval</string>
+    <string name="novel_font_size">Font Size</string>
+    <string name="novel_letter_spacing">Letter Spacing</string>
+    <string name="novel_word_spacing">Word Spacing</string>
+    <string name="novel_paragraph_spacing">Paragraph Spacing</string>
+    <string name="novel_horizontal_padding">Horizontal Padding</string>
+    <string name="novel_text_align">Text Alignment</string>
+    <string name="novel_auto_scroll">Auto-Scroll</string>
+    <string name="novel_auto_scroll_speed">Auto-Scroll Speed (sec)</string>
+    <string name="novel_show_status_bar">Show Battery &amp; Time</string>
+    <string name="novel_show_progress">Show Reading Progress</string>
+    <string name="novel_translate_lang">Translate Selection</string>
 
 </resources>
