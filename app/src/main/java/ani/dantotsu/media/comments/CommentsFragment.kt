@@ -516,11 +516,19 @@ class CommentsFragment : Fragment() {
         pagesLoaded = 1
 
         val sortOrder = PrefManager.getVal(PrefName.CommentSortOrder, "newest")
+        // FIX 1: Use filterTag for filtering, but auto-set to userProgress if no manual filter is applied
+        // and user has progress > 0
+        val effectiveFilter = when {
+            filterTag != null -> filterTag  // Manual filter takes priority
+            userProgress != null && userProgress!! > 0 -> userProgress  // Auto-filter based on progress
+            else -> null  // Show all comments
+        }
+        
         val comments = withContext(Dispatchers.IO) {
             CommentsAPI.getCommentsForId(
                 mediaId,
                 page = 1,
-                tag = if (userProgress != null && userProgress!! > 0) filterTag else null,
+                tag = effectiveFilter,
                 sort = sortOrder
             )
         }
