@@ -16,15 +16,82 @@ object Kitsu {
         Logger.log("Kitsu : title=${media.mainName()}")
         return try {
             tryWithSuspend {
-                // 1. Search for Anime by Title
+                // 1. Try GraphQL Method (Primary Priority)
+                var returnedEpisodes: Map<String, Episode>? = null
+                try {
+                    val query =
+                        """
+                        query {
+                          lookupMapping(externalId: ${media.id}, externalSite: ANILIST_ANIME) {
+                            __typename
+                            ... on Anime {
+                              id
+                              episodes(first: 2000) {
+                                nodes {
+                                  number
+                                  titles {
+                                    canonical
+                                  }
+                                  description(locales: ["en", "en-us"])
+                                  thumbnail {
+                                    original {
+                                      url
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }""".trimIndent()
+
+                    val headers = mapOf(
+                        "Content-Type" to "application/json",
+                        "Accept" to "application/json",
+                    )
+                    
+                    val graphqlRes = client.post(
+                        "https://kitsu.io/api/graphql",
+                        headers,
+                        data = mapOf("query" to query)
+                    ).parsed<KitsuGraphQLResponse>()
+                    
+                    if (graphqlRes.data?.lookupMapping != null) {
+                        Logger.log("Kitsu : Used GraphQL Method (1st Priority)")
+                        val mapping = graphqlRes.data.lookupMapping
+                        media.idKitsu = mapping.id
+                        val nodes = mapping.episodes?.nodes
+                        if (!nodes.isNullOrEmpty()) {
+                            returnedEpisodes = nodes.mapNotNull { ep ->
+                                val num = ep?.number?.toString() ?: return@mapNotNull null
+                                num to Episode(
+                                    number = num,
+                                    title = ep.titles?.canonical,
+                                    desc = ep.description?.en ?: ep.description?.enUs,
+                                    thumb = FileUrl[ep.thumbnail?.original?.url]
+                                )
+                            }.toMap()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Logger.log("Kitsu GraphQL failed: ${e.message}")
+                }
+
+                if (!returnedEpisodes.isNullOrEmpty()) {
+                    return@tryWithSuspend returnedEpisodes
+                }
+
+                // 2. Fallback to REST API Method (Secondary Priority)
+                // Search for Anime by Title
                 val title = URLEncoder.encode(media.mainName(), "utf-8")
                 val searchUrl = "https://kitsu.io/api/edge/anime?filter[text]=$title&page[limit]=1"
                 val searchRes = client.get(searchUrl).parsed<KitsuAnimeSearch>()
                 
                 val animeId = searchRes.data?.firstOrNull()?.id ?: return@tryWithSuspend null
                 media.idKitsu = animeId
+                
+                Logger.log("Kitsu : Used REST API Method (2nd Priority)")
 
-                // 2. Fetch Episodes with Pagination
+                // Fetch Episodes with Pagination
                 val allEpisodes = mutableMapOf<String, Episode>()
                 var offset = 0
                 val limit = 20
@@ -68,6 +135,56 @@ object Kitsu {
             null
         }
     }
+
+    @Serializable
+    data class KitsuGraphQLResponse(
+        val data: GraphQLData? = null
+    )
+
+    @Serializable
+    data class GraphQLData(
+        val lookupMapping: LookupMapping? = null
+    )
+
+    @Serializable
+    data class LookupMapping(
+        val id: String? = null,
+        val episodes: GraphQLEpisodes? = null
+    )
+
+    @Serializable
+    data class GraphQLEpisodes(
+        val nodes: List<GraphQLNode?>? = null
+    )
+
+    @Serializable
+    data class GraphQLNode(
+        val number: Int? = null,
+        val titles: GraphQLTitles? = null,
+        val description: GraphQLDescription? = null,
+        val thumbnail: GraphQLThumbnail? = null
+    )
+
+    @Serializable
+    data class GraphQLDescription(
+        val en: String? = null,
+        @SerialName("en-us") val enUs: String? = null
+    )
+
+    @Serializable
+    data class GraphQLThumbnail(
+        val original: GraphQLOriginal? = null
+    )
+
+    @Serializable
+    data class GraphQLOriginal(
+        val url: String? = null
+    )
+
+    @Serializable
+    data class GraphQLTitles(
+        val canonical: String? = null
+    )
 
     @Serializable
     data class KitsuAnimeSearch(
