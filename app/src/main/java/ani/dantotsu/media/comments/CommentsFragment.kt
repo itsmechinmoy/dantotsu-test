@@ -513,21 +513,23 @@ class CommentsFragment : Fragment() {
         binding.commentsList.visibility = View.GONE
         adapter.clear()
         section.clear()
+        pagesLoaded = 1
 
+        val sortOrder = PrefManager.getVal(PrefName.CommentSortOrder, "newest")
         val comments = withContext(Dispatchers.IO) {
             CommentsAPI.getCommentsForId(
                 mediaId,
-                tag = filterTag,
-                sort = PrefManager.getVal(PrefName.CommentSortOrder, "newest")
+                page = 1,
+                tag = if (userProgress != null && userProgress!! > 0) filterTag else null,
+                sort = sortOrder
             )
         }
 
-        val sortedComments = sortComments(comments?.comments)
-        sortedComments.forEach {
+        comments?.comments?.forEach { comment ->
             withContext(Dispatchers.Main) {
                 section.add(
                     CommentItem(
-                        it,
+                        comment,
                         buildMarkwon(activity, fragment = this@CommentsFragment),
                         section,
                         this@CommentsFragment,
