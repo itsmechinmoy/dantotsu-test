@@ -86,6 +86,15 @@ class SettingsAccountActivity : AppCompatActivity() {
                         )
                         openLinkInBrowser(anilistLink)
                     }
+
+                    if (Anilist.bg != null) {
+                        settingsAnilistBanner.visibility = View.VISIBLE
+                        settingsAnilistScrim.visibility = View.VISIBLE
+                        settingsAnilistBanner.loadImage(Anilist.bg)
+                    } else {
+                        settingsAnilistBanner.visibility = View.GONE
+                        settingsAnilistScrim.visibility = View.GONE
+                    }
                     
                     val daysLeft = Anilist.getTokenExpiryDays()
                     if (daysLeft != null) {
@@ -131,6 +140,8 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsAnilistAvatar.setImageResource(R.drawable.ic_round_person_24)
                     settingsAnilistUsername.visibility = View.GONE
                     settingsAnilistTokenExpiry.visibility = View.GONE
+                    settingsAnilistBanner.visibility = View.GONE
+                    settingsAnilistScrim.visibility = View.GONE
                     settingsRecyclerView.visibility = View.GONE
                     settingsAnilistLogin.setText(R.string.login)
                     settingsAnilistLogin.setOnClickListener {
