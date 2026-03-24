@@ -31,7 +31,7 @@
                     android:id="@+id/commentCurrentProgress"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="4dp"
                     android:alpha="0.6"
                     android:background="@drawable/btn_transparent_round"
                     android:fontFamily="@font/poppins_semi_bold"
@@ -48,8 +48,8 @@
 
                 <ImageView
                     android:id="@+id/openRules"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginEnd="12dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/open_rules"
@@ -58,8 +58,8 @@
 
                 <ImageView
                     android:id="@+id/commentFilter"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginEnd="12dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/sort_by"
@@ -68,8 +68,8 @@
 
                 <ImageView
                     android:id="@+id/commentSort"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginEnd="12dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/sort_by"

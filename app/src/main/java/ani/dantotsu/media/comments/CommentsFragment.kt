@@ -65,6 +65,7 @@ class CommentsFragment : Fragment() {
     private var totalEpisodesOrChapters: Int? = null
     private var isAnime: Boolean = true
     private var commentsLoaded = false
+    private var isAutoFilterOn = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -256,6 +257,21 @@ class CommentsFragment : Fragment() {
         binding.commentCurrentProgress.setOnClickListener {
             val progress = userProgress ?: return@setOnClickListener
             if (progress <= 0) return@setOnClickListener
+            if (filterTag != null && filterTag != progress) {
+                filterTag = null
+                isAutoFilterOn = false
+            } else {
+                isAutoFilterOn = !isAutoFilterOn
+            }
+            updateCurrentProgressButton()
+            lifecycleScope.launch {
+                loadAndDisplayComments()
+            }
+        }
+
+        binding.commentCurrentProgress.setOnLongClickListener {
+            val progress = userProgress ?: return@setOnLongClickListener false
+            if (progress <= 0) return@setOnLongClickListener false
             val total = totalEpisodesOrChapters ?: progress
             val maxEp = maxOf(total, progress)
             val label = if (isAnime) "Ep" else "Ch"
@@ -266,6 +282,7 @@ class CommentsFragment : Fragment() {
                 setTitle("Filter by ${if (isAnime) "Episode" else "Chapter"}")
                 singleChoiceItems(items, currentSelection) { selected ->
                     filterTag = selected + 1
+                    isAutoFilterOn = true
                     updateCurrentProgressButton()
                     lifecycleScope.launch {
                         loadAndDisplayComments()
@@ -273,6 +290,7 @@ class CommentsFragment : Fragment() {
                 }
                 show()
             }
+            true
         }
 
         var isFetching = false
@@ -463,7 +481,7 @@ class CommentsFragment : Fragment() {
      */
     private fun getEffectiveFilter(): Int? = when {
         filterTag != null -> filterTag
-        userProgress != null && userProgress!! > 0 -> userProgress
+        isAutoFilterOn && userProgress != null && userProgress!! > 0 -> userProgress
         else -> null
     }
 
@@ -478,40 +496,52 @@ class CommentsFragment : Fragment() {
         val activeFilter = filterTag ?: progress
 
         val badge = binding.commentCurrentProgress
-        if (isManualFilter) {
-            badge.text = "$label $activeFilter  ✕"
-            badge.alpha = 1f
-            val primaryColor = resolveColorAttr(com.google.android.material.R.attr.colorPrimary)
-            badge.setTextColor(
-                resolveColorAttr(com.google.android.material.R.attr.colorOnPrimary)
-            )
-            badge.background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = 16f * resources.displayMetrics.density
-                setColor(primaryColor)
-            }
-            badge.setOnLongClickListener {
-                filterTag = null
-                updateCurrentProgressButton()
-                lifecycleScope.launch { loadAndDisplayComments() }
-                true
-            }
-        } else {
-            badge.text = "$label $progress"
-            badge.alpha = 1f
-            badge.setTextColor(
-                resolveColorAttr(android.R.attr.textColorPrimary)
-            )
-            badge.background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = 16f * resources.displayMetrics.density
-                setColor(android.graphics.Color.TRANSPARENT)
-                setStroke(
-                    (1f * resources.displayMetrics.density).toInt(),
-                    android.graphics.Color.WHITE
+        when {
+            isManualFilter -> {
+                badge.text = "$label $activeFilter  ✕"
+                badge.alpha = 1f
+                val primaryColor = resolveColorAttr(com.google.android.material.R.attr.colorPrimary)
+                badge.setTextColor(
+                    resolveColorAttr(com.google.android.material.R.attr.colorOnPrimary)
                 )
+                badge.background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = 16f * resources.displayMetrics.density
+                    setColor(primaryColor)
+                }
             }
-            badge.setOnLongClickListener(null)
+            isAutoFilterOn -> {
+                badge.text = "$label $progress"
+                badge.alpha = 1f
+                badge.setTextColor(
+                    resolveColorAttr(android.R.attr.textColorPrimary)
+                )
+                badge.background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = 16f * resources.displayMetrics.density
+                    setColor(android.graphics.Color.TRANSPARENT)
+                    setStroke(
+                        (1f * resources.displayMetrics.density).toInt(),
+                        android.graphics.Color.WHITE
+                    )
+                }
+            }
+            else -> {
+                badge.text = "$label $progress"
+                badge.alpha = 0.33f
+                badge.setTextColor(
+                    resolveColorAttr(android.R.attr.textColorPrimary)
+                )
+                badge.background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = 16f * resources.displayMetrics.density
+                    setColor(android.graphics.Color.TRANSPARENT)
+                    setStroke(
+                        (1f * resources.displayMetrics.density).toInt(),
+                        android.graphics.Color.WHITE
+                    )
+                }
+            }
         }
         badge.visibility = View.VISIBLE
     }
