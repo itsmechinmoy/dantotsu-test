@@ -148,7 +148,7 @@
                     android:layout_height="64dp"
                     android:layout_margin="8dp"
                     android:padding="6dp"
-                    android:src="@drawable/ic_github"
+                    android:src="@drawable/ic_forgejo"
                     app:tint="?attr/colorOnBackground"
                     tools:ignore="ContentDescription" />
 
