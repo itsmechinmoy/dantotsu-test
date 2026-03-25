@@ -77,14 +77,12 @@ class UpcomingWidget : AppWidgetProvider() {
                 putExtra("fromWidget", true)
             }
 
-            // Create gradient drawable like in legacy code
             val gradientDrawable = ResourcesCompat.getDrawable(
                 context.resources,
                 R.drawable.linear_gradient_black,
                 null
             ) as GradientDrawable
             gradientDrawable.colors = intArrayOf(backgroundColor, backgroundFade)
-            
             val widgetSizeProvider = WidgetSizeProvider(context)
             var (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
             if (width > 0 && height > 0) {
@@ -95,9 +93,7 @@ class UpcomingWidget : AppWidgetProvider() {
             }
 
             fun buildViews(): RemoteViews = RemoteViews(context.packageName, R.layout.upcoming_widget).apply {
-                // Set background using gradient drawable bitmap
                 setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
-                
                 setTextColor(R.id.text_show_title, titleTextColor)
                 setTextColor(R.id.text_show_countdown, countdownTextColor)
                 setTextColor(R.id.widgetTitle, titleTextColor)
