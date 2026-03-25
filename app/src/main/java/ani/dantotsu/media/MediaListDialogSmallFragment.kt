@@ -2,6 +2,7 @@ package ani.dantotsu.media
 
 import android.os.Bundle
 import android.text.InputFilter.LengthFilter
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -15,6 +16,7 @@ import ani.dantotsu.R
 import ani.dantotsu.Refresh
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.mal.MAL
+import ani.dantotsu.connections.simkl.Simkl
 import ani.dantotsu.databinding.BottomSheetMediaListSmallBinding
 import ani.dantotsu.navBarHeight
 import ani.dantotsu.others.getSerialized
@@ -64,24 +66,40 @@ class MediaListDialogSmallFragment : BottomSheetDialogFragment() {
         val scope = viewLifecycleOwner.lifecycleScope
         binding.mediaListDelete.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
-                scope.launch {
-                    media.deleteFromList(scope, onSuccess = {
-                        Refresh.all()
-                        snackString(getString(R.string.deleted_from_list))
-                        dismissAllowingStateLoss()
-                    }, onError = { e ->
-                        withContext(Dispatchers.Main) {
-                            snackString(
-                                getString(
-                                    R.string.delete_fail_reason, e.message
-                                )
-                            )
+                var simklDeleted = false
+                if (Simkl.getInstance().isLoggedIn() && media.anime != null) {
+                    try {
+                        Log.d("SimklDelete", "🗑️ Attempting to delete anime ${media.id} from Simkl")
+                        simklDeleted = Simkl.getInstance().removeAnime(media.id)
+                        if (simklDeleted) {
+                            Log.d("SimklDelete", "✅ Successfully deleted from Simkl")
+                        } else {
+                            Log.e("SimklDelete", "❌ Failed to delete from Simkl")
                         }
-                    }, onNotFound = {
-                        snackString(getString(R.string.no_list_id))
-                    })
-
+                    } catch (e: Exception) {
+                        Log.e("SimklDelete", "❌ Error deleting from Simkl: ${e.message}", e)
+                    }
                 }
+                media.deleteFromList(scope, onSuccess = {
+                    Refresh.all()
+                    withContext(Dispatchers.Main) {
+                        if (simklDeleted) {
+                            snackString("✅ Deleted from all lists (including Simkl)")
+                        } else {
+                            snackString(getString(R.string.deleted_from_list))
+                        }
+                    }
+                    dismissAllowingStateLoss()
+                }, onError = { e ->
+                    withContext(Dispatchers.Main) {
+                        snackString(getString(R.string.delete_fail_reason, e.message))
+                    }
+                }, onNotFound = {
+                    withContext(Dispatchers.Main) {
+                        snackString(getString(R.string.no_list_id))
+                    }
+                })
+
             }
         }
 
@@ -107,18 +125,22 @@ class MediaListDialogSmallFragment : BottomSheetDialogFragment() {
 
         var total: Int? = null
         binding.mediaListProgress.setText(if (media.userProgress != null) media.userProgress.toString() else "")
-        if (media.anime != null) if (media.anime!!.totalEpisodes != null) {
-            total = media.anime!!.totalEpisodes!!;binding.mediaListProgress.filters =
-                arrayOf(
+        if (media.anime != null) {
+            if (media.anime!!.totalEpisodes != null) {
+                total = media.anime!!.totalEpisodes!!
+                binding.mediaListProgress.filters = arrayOf(
                     InputFilterMinMax(0.0, total.toDouble(), binding.mediaListStatus),
                     LengthFilter(total.toString().length)
                 )
-        } else if (media.manga != null) if (media.manga!!.totalChapters != null) {
-            total = media.manga!!.totalChapters!!;binding.mediaListProgress.filters =
-                arrayOf(
+            }
+        } else if (media.manga != null) {
+            if (media.manga!!.totalChapters != null) {
+                total = media.manga!!.totalChapters!!
+                binding.mediaListProgress.filters = arrayOf(
                     InputFilterMinMax(0.0, total.toDouble(), binding.mediaListStatus),
                     LengthFilter(total.toString().length)
                 )
+            }
         }
         binding.mediaListProgressLayout.suffixText = " / ${total ?: '?'}"
         binding.mediaListProgressLayout.suffixTextView.updateLayoutParams {
@@ -168,27 +190,38 @@ class MediaListDialogSmallFragment : BottomSheetDialogFragment() {
         binding.mediaListSave.setOnClickListener {
             scope.launch {
                 withContext(Dispatchers.IO) {
-                    withContext(Dispatchers.IO) {
-                        val progress = _binding?.mediaListProgress?.text.toString().toIntOrNull()
-                        val score = (_binding?.mediaListScore?.text.toString().toDoubleOrNull()
-                            ?.times(10))?.toInt()
-                        val status =
-                            statuses[statusStrings.indexOf(_binding?.mediaListStatus?.text.toString())]
-                        Anilist.mutation.editList(
-                            media.id,
-                            progress,
-                            score,
-                            null,
-                            null,
-                            status,
-                            media.isListPrivate
-                        )
-                        MAL.query.editList(
-                            media.idMAL,
-                            media.anime != null,
-                            progress,
-                            score,
-                            status
+                    val progress = _binding?.mediaListProgress?.text.toString().toIntOrNull()
+                    val score = (_binding?.mediaListScore?.text.toString().toDoubleOrNull()?.times(10))?.toInt()
+                    Log.d("SimklSync", "📍 Dialog score (raw): ${_binding?.mediaListScore?.text}")
+                    Log.d("SimklSync", "📍 Dialog score (calculated): $score")
+                    val status = statuses[statusStrings.indexOf(_binding?.mediaListStatus?.text.toString())]
+
+                    Anilist.mutation.editList(
+                        media.id,
+                        progress,
+                        score,
+                        null,
+                        null,
+                        status,
+                        media.isListPrivate
+                    )
+                    MAL.query.editList(
+                        media.idMAL,
+                        media.anime != null,
+                        progress,
+                        score,
+                        status
+                    )
+                    if (Simkl.getInstance().isLoggedIn() && media.anime != null) {
+                        val previousProgress = media.userProgress ?: 0
+                        Log.d("SimklSync", "🔍 DEBUG: Raw AniList status = '$status'")
+
+                        Simkl.getInstance().updateAnimeProgress(
+                            anilistAnimeId = media.id,
+                            previousProgress = previousProgress,
+                            newProgress = progress ?: previousProgress,
+                            status = status,
+                            score = score
                         )
                     }
                 }

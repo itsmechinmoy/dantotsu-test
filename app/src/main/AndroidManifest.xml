@@ -235,6 +235,9 @@
             android:name=".media.MediaListViewActivity"
             android:parentActivityName=".MainActivity" />
         <activity
+            android:name=".media.FullListActivity"
+            android:parentActivityName=".media.MediaDetailsActivity" />
+        <activity
             android:name=".media.MediaDetailsActivity"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Dantotsu.NeverCutout"
@@ -254,7 +257,24 @@
             android:label="@string/video"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
-            tools:targetApi="n" />
+            tools:targetApi="n">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="video/mp4" />
+                <data android:mimeType="video/x-matroska" />
+                <data android:mimeType="video/avi" />
+                <data android:mimeType="video/x-msvideo" />
+                <data android:mimeType="video/quicktime" />
+                <data android:mimeType="video/webm" />
+                <data android:mimeType="video/3gpp" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".connections.anilist.Login"
             android:configChanges="orientation|screenSize|layoutDirection"
@@ -286,6 +306,23 @@
 
                 <data
                     android:host="mal"
+                    android:scheme="dantotsu" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".connections.simkl.Login"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter android:label="Simkl Login for Dantotsu">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="simkl"
                     android:scheme="dantotsu" />
             </intent-filter>
         </activity>

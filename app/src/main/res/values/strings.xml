@@ -8,6 +8,67 @@
 
     <string name="login">Login</string>
     <string name="logout">Logout</string>
+    <!-- Simkl -->
+    <string name="simkl">Simkl</string>
+    <string name="simkl_login">Login to Simkl</string>
+    <string name="simkl_logout">Logout from Simkl</string>
+    <string name="simkl_username">Simkl Username</string>
+    <string name="simkl_sync_enabled">Simkl anime sync enabled</string>
+    <string name="simkl_link">https://simkl.com</string>
+    <string name="simkl_help">SIMKL Help</string>
+    <string name="full_simkl_help">
+        **SIMKL Integration**\n
+        \n
+        SIMKL is a cross-platform tracking service that syncs your anime watching history across multiple devices and apps.\n
+        \n
+        **Features**\n
+        • Automatic episode sync when you watch anime\n
+        • Status tracking (Watching, Completed, Plan to Watch, On Hold, Dropped)\n
+        • Rating/score synchronization\n
+        • Episode history tracking\n
+        • Cross-platform access via SIMKL website and apps\n
+        \n
+        **Requirements**\n
+        • You **must** login to AniList first\n
+        • Only works for **anime** (manga is not supported)\n
+        • Requires both login AND enabling the sync toggle\n
+        \n
+        **How It Works**\n
+        1. Login to SIMKL via OAuth (opens in browser)\n
+        2. Enable "SIMKL Sync" toggle in settings\n
+        3. Watch anime - progress syncs automatically\n
+        4. Visit simkl.com to view your history\n
+        \n
+        **Status Mapping**\n
+        • Watching/Current/Repeating → Watching\n
+        • Completed → Completed\n
+        • Planning → Plan to Watch\n
+        • Paused/On Hold → On Hold\n
+        • Dropped → Dropped\n
+        \n
+        **Score Sync**\n
+        Ratings are automatically converted:\n
+        • 100-point scale → 10-point scale\n
+        • 10-point scale → kept as-is\n
+        • Clearing your score removes it from SIMKL\n
+        \n
+        **Troubleshooting**\n
+        If sync fails:\n
+        1. Make sure you\'re logged into AniList\n
+        2. Check that SIMKL sync toggle is enabled\n
+        3. Verify you\'re watching anime (not manga)\n
+        4. Re-login to SIMKL if issues persist\n
+        \n
+        **Privacy**\n
+        • SIMKL only syncs when you watch anime\n
+        • Incognito mode disables all syncing\n
+        • Logout removes all saved credentials\n
+        \n
+        Learn more at ** [simkl.com](https://simkl.com)**
+    </string>
+    <!-- Simkl Sync Settings -->
+    <string name="enable_simkl_sync">Enable Simkl Sync</string>
+    <string name="enable_simkl_sync_desc">Automatically sync anime progress, status, and ratings with Simkl</string>
 
     <string name="dantotsu" translatable="false">https://dantotsu.app/</string>
     <string name="discord" translatable="false">https://discord.gg/4HPZ5nAWwM</string>
@@ -822,6 +883,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="radius">Radius</string>
     <string name="sampling">Sampling</string>
     <string name="blur_banners">Blur Banners</string>
+
     <string name="blur">Blur</string>
     <string name="hide_scroll_bar">Hide Scroll Bar</string>
     <string name="view_on_anilist" translatable="false">View on AniList</string>

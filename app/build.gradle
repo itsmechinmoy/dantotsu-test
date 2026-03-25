@@ -11,7 +11,19 @@ def gitCommitHash = providers.exec {
 }.standardOutput.asText.get().trim()
 
 android {
+    // vvvvv THIS IS THE NEW, CORRECT PLACEMENT for the loading logic vvvvv
+    // We define and load the properties file here, inside the android block.
+    def apikeyProperties = new Properties()
+    def apikeyPropertiesFile = rootProject.file("apikey.properties")
+    if (apikeyPropertiesFile.exists()) {
+        apikeyPropertiesFile.withReader('UTF-8') { reader ->
+            apikeyProperties.load(reader)
+        }
+    }
     compileSdk 35
+
+
+
 
     defaultConfig {
         applicationId "ani.dantotsu"
@@ -22,6 +34,9 @@ android {
         versionCode versionName.split("\\.").collect { it.toInteger() * 100 }.join("") as Integer
         signingConfig signingConfigs.debug
 
+        // simkl
+        buildConfigField "String", "SIMKL_CLIENT_ID", "\"${apikeyProperties['SIMKL_CLIENT_ID'] ?: System.getenv("SIMKL_CLIENT_ID") ?: ""}\""
+        buildConfigField "String", "SIMKL_CLIENT_SECRET", "\"${apikeyProperties['SIMKL_CLIENT_SECRET'] ?: System.getenv("SIMKL_CLIENT_SECRET") ?: ""}\""
     }
 
     flavorDimensions += "store"
@@ -107,6 +122,14 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.13.0'
     implementation "com.anggrayudi:storage:1.5.5"
     implementation "androidx.biometric:biometric:1.1.0"
+
+// Ktor
+    def ktor_version = "2.3.12"
+    implementation "io.ktor:ktor-client-core:$ktor_version"
+    implementation "io.ktor:ktor-client-cio:$ktor_version"
+    implementation "io.ktor:ktor-client-content-negotiation:$ktor_version"
+    implementation "io.ktor:ktor-serialization-kotlinx-json:$ktor_version"
+    implementation "io.ktor:ktor-client-logging:$ktor_version"
 
 
 //  Glide
