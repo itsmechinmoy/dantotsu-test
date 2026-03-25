@@ -65,13 +65,18 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 val seen = mutableSetOf<Int>()
                 upcoming.forEach { media ->
                     if (seen.add(media.id)) {
+                        // Get the next episode number from anime.nextAiringEpisode
+                        // Add 1 because nextAiringEpisode is 0-indexed (episode - 1)
+                        val nextEpisode = media.anime?.nextAiringEpisode?.let { it + 1 }
+                        Logger.log("Episode for ${media.userPreferredName}: $nextEpisode")
+                        
                         widgetItems.add(
                             WidgetItem(
                                 title = media.userPreferredName,
                                 countdown = timeUntil(media.timeUntilAiring ?: 0),
                                 image = media.cover ?: "",
                                 id = media.id,
-                                episode = media.anime?.nextAiringEpisode?.let { it + 1 }
+                                episode = nextEpisode
                             )
                         )
                     }
@@ -95,13 +100,14 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 media.forEach { mediaItem ->
                     if (seen.add(mediaItem.id)) {
                         val remainingTime = (mediaItem.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0).coerceAtLeast(0)
+                        val nextEpisode = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
                         widgetItems.add(
                             WidgetItem(
                                 title = mediaItem.userPreferredName,
                                 countdown = timeUntil(remainingTime),
                                 image = mediaItem.cover ?: "",
                                 id = mediaItem.id,
-                                episode = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
+                                episode = nextEpisode
                             )
                         )
                     }
@@ -171,16 +177,15 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
         val rv = RemoteViews(context.packageName, R.layout.item_upcoming_widget).apply {
             setTextViewText(R.id.text_show_title, item.title)
             setTextViewText(R.id.text_show_countdown, item.countdown)
-            try {
-                val episodeText = item.episode?.let { "Ep $it" } ?: ""
-                setTextViewText(R.id.text_show_episode, episodeText)
-                setTextColor(R.id.text_show_episode, countdownTextColor)
-            } catch (e: Exception) {
-                Logger.log("Error setting episode text: $e")
+            val episodeText = if (item.episode != null) {
+                "Episode ${item.episode}"
+            } else {
+                ""
             }
-            
+            setTextViewText(R.id.text_show_episode, episodeText)
             setTextColor(R.id.text_show_title, titleTextColor)
             setTextColor(R.id.text_show_countdown, countdownTextColor)
+            setTextColor(R.id.text_show_episode, countdownTextColor)
             
             val bitmap = downloadImageAsBitmap(item.image)
             setImageViewBitmap(R.id.image_show_icon, bitmap)
