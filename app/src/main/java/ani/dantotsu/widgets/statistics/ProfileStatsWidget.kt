@@ -63,14 +63,12 @@ class ProfileStatsWidget : AppWidgetProvider() {
             val titleTextColor = prefs.getInt(PREF_TITLE_TEXT_COLOR, Color.WHITE)
             val statsTextColor = prefs.getInt(PREF_STATS_TEXT_COLOR, Color.WHITE)
 
-            // Create gradient drawable like in legacy code
             val gradientDrawable = ResourcesCompat.getDrawable(
                 context.resources,
                 R.drawable.linear_gradient_black,
                 null
             ) as GradientDrawable
             gradientDrawable.colors = intArrayOf(backgroundColor, backgroundFade)
-            
             val widgetSizeProvider = WidgetSizeProvider(context)
             var (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
             if (width > 0 && height > 0) {
@@ -88,9 +86,7 @@ class ProfileStatsWidget : AppWidgetProvider() {
                         withContext(Dispatchers.Main) {
                             fun buildViews(): RemoteViews =
                                 RemoteViews(context.packageName, R.layout.statistics_widget).apply {
-                                    // Set background using gradient drawable bitmap
                                     setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
-                                    
                                     setOnClickPendingIntent(
                                         R.id.userAvatar,
                                         PendingIntent.getActivity(
@@ -164,7 +160,6 @@ class ProfileStatsWidget : AppWidgetProvider() {
         ) {
             withContext(Dispatchers.Main) {
                 val views = RemoteViews(context.packageName, R.layout.statistics_widget).apply {
-                    // Set background for login state too
                     setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
                     setTextViewText(R.id.topLeftItem, "")
                     setTextViewText(R.id.topLeftLabel, context.getString(R.string.please))
