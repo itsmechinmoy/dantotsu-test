@@ -39,6 +39,9 @@ class ProfileStatsWidget : AppWidgetProvider() {
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { appWidgetId ->
+            context.getSharedPreferences(getPrefsName(appWidgetId), Context.MODE_PRIVATE).edit().clear().apply()
+        }
         super.onDeleted(context, appWidgetIds)
     }
 
@@ -48,6 +51,18 @@ class ProfileStatsWidget : AppWidgetProvider() {
 
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context?,
+        appWidgetManager: AppWidgetManager?,
+        appWidgetId: Int,
+        newOptions: Bundle?
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        if (context != null && appWidgetManager != null) {
+            updateAppWidget(context, appWidgetManager, appWidgetId)
+        }
     }
 
     companion object {
@@ -77,6 +92,7 @@ class ProfileStatsWidget : AppWidgetProvider() {
                 width = 300
                 height = 300
             }
+            val backgroundBitmap = gradientDrawable.toBitmap(width, height)
 
             launchIO {
                 val userPref = PrefManager.getVal(PrefName.AnilistUserId, "")
@@ -86,7 +102,9 @@ class ProfileStatsWidget : AppWidgetProvider() {
                         withContext(Dispatchers.Main) {
                             fun buildViews(): RemoteViews =
                                 RemoteViews(context.packageName, R.layout.statistics_widget).apply {
-                                    setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
+                                    // Set background on the root RelativeLayout's backgroundView
+                                    setImageViewBitmap(R.id.backgroundView, backgroundBitmap)
+                                    
                                     setOnClickPendingIntent(
                                         R.id.userAvatar,
                                         PendingIntent.getActivity(
@@ -108,10 +126,13 @@ class ProfileStatsWidget : AppWidgetProvider() {
                                     setTextColor(R.id.bottomLeftLabel, statsTextColor)
                                     setTextColor(R.id.bottomRightItem, titleTextColor)
                                     setTextColor(R.id.bottomRightLabel, statsTextColor)
-                                    setImageViewBitmap(
-                                        R.id.userAvatar,
-                                        user.avatar?.medium?.let { downloadImageAsBitmap(it) }
-                                    )
+                                    
+                                    // Load and set avatar
+                                    user.avatar?.medium?.let { avatarUrl ->
+                                        val avatarBitmap = downloadImageAsBitmap(avatarUrl)
+                                        setImageViewBitmap(R.id.userAvatar, avatarBitmap)
+                                    }
+                                    
                                     setTextViewText(
                                         R.id.userLabel,
                                         context.getString(R.string.user_stats, user.name)
@@ -124,6 +145,7 @@ class ProfileStatsWidget : AppWidgetProvider() {
                                     setTextViewText(R.id.bottomLeftLabel, context.getString(R.string.manga_read))
                                     setTextViewText(R.id.bottomRightItem, user.statistics.manga.chaptersRead.toString())
                                     setTextViewText(R.id.bottomRightLabel, context.getString(R.string.chapters_read_n))
+                                    
                                     val intent = Intent(context, ProfileActivity::class.java)
                                         .putExtra("userId", userPref.toInt())
                                     val pendingIntent = PendingIntent.getActivity(
@@ -145,8 +167,8 @@ class ProfileStatsWidget : AppWidgetProvider() {
 
                             appWidgetManager.updateAppWidget(appWidgetId, views)
                         }
-                    } ?: showLoginCascade(context, appWidgetManager, appWidgetId, gradientDrawable, width, height)
-                } else showLoginCascade(context, appWidgetManager, appWidgetId, gradientDrawable, width, height)
+                    } ?: showLoginCascade(context, appWidgetManager, appWidgetId, backgroundBitmap)
+                } else showLoginCascade(context, appWidgetManager, appWidgetId, backgroundBitmap)
             }
         }
 
@@ -154,13 +176,11 @@ class ProfileStatsWidget : AppWidgetProvider() {
             context: Context, 
             appWidgetManager: AppWidgetManager, 
             appWidgetId: Int,
-            gradientDrawable: GradientDrawable,
-            width: Int,
-            height: Int
+            backgroundBitmap: android.graphics.Bitmap
         ) {
             withContext(Dispatchers.Main) {
                 val views = RemoteViews(context.packageName, R.layout.statistics_widget).apply {
-                    setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
+                    setImageViewBitmap(R.id.backgroundView, backgroundBitmap)
                     setTextViewText(R.id.topLeftItem, "")
                     setTextViewText(R.id.topLeftLabel, context.getString(R.string.please))
                     setTextViewText(R.id.topRightItem, "")
