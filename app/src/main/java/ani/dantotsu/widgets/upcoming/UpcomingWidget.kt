@@ -6,13 +6,17 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
 import android.widget.RemoteViews
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import ani.dantotsu.MainActivity
 import ani.dantotsu.R
+import ani.dantotsu.widgets.WidgetSizeProvider
 
 class UpcomingWidget : AppWidgetProvider() {
     override fun onUpdate(
@@ -73,7 +77,22 @@ class UpcomingWidget : AppWidgetProvider() {
             }
 
             fun buildViews(): RemoteViews = RemoteViews(context.packageName, R.layout.upcoming_widget).apply {
-                setInt(R.id.widgetRootContainer, "setBackgroundColor", backgroundColor)
+                // Set background color directly on the root container
+                try {
+                    setInt(R.id.widgetRootContainer, "setBackgroundColor", backgroundColor)
+                } catch (e: Exception) {
+                    // Fallback to gradient background if root container doesn't exist
+                    val gradientDrawable = ResourcesCompat.getDrawable(
+                        context.resources,
+                        R.drawable.linear_gradient_black,
+                        null
+                    ) as GradientDrawable
+                    gradientDrawable.colors = intArrayOf(backgroundColor, backgroundColor)
+                    val widgetSizeProvider = WidgetSizeProvider(context)
+                    val (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
+                    setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1)))
+                }
+                
                 setTextColor(R.id.text_show_title, titleTextColor)
                 setTextColor(R.id.text_show_countdown, countdownTextColor)
                 setTextColor(R.id.widgetTitle, titleTextColor)
