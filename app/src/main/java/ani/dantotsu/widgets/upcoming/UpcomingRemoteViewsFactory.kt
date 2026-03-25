@@ -31,14 +31,14 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
         context.getSharedPreferences(UpcomingWidget.PREFS_NAME, Context.MODE_PRIVATE)
 
     override fun onCreate() {
+        Logger.log("UpcomingRemoteViewsFactory onCreate")
         fillWidgetItems()
     }
 
     private fun formatTime(timeUntil: Long): String {
-        val absTime = kotlin.math.abs(timeUntil)
-        val days = absTime / (1000 * 60 * 60 * 24)
-        val hours = (absTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-        val minutes = ((absTime % (1000 * 60 * 60 * 24)) % (1000 * 60 * 60)) / (1000 * 60)
+        val days = timeUntil / (1000 * 60 * 60 * 24)
+        val hours = (timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        val minutes = ((timeUntil % (1000 * 60 * 60 * 24)) % (1000 * 60 * 60)) / (1000 * 60)
         
         return if (timeUntil >= 0) {
             buildString {
@@ -47,17 +47,21 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 append("$minutes minute${if (minutes > 1) "s" else ""}")
             }.trim()
         } else {
+            val elapsedDays = -days
+            val elapsedHours = -hours
+            val elapsedMinutes = -minutes
             buildString {
                 append("Aired ")
-                if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
-                if (hours > 0 || days > 0) append("$hours hour${if (hours > 1) "s" else ""} ")
-                append("$minutes minute${if (minutes > 1) "s" else ""} ago")
+                if (elapsedDays > 0) append("$elapsedDays day${if (elapsedDays > 1) "s" else ""} ")
+                if (elapsedHours > 0 || elapsedDays > 0) append("$elapsedHours hour${if (elapsedHours > 1) "s" else ""} ")
+                append("$elapsedMinutes minute${if (elapsedMinutes > 1) "s" else ""} ago")
             }.trim()
         }
     }
 
     override fun onDataSetChanged() {
         if (refreshing) return
+        Logger.log("UpcomingRemoteViewsFactory onDataSetChanged")
         widgetItems.clear()
         fillWidgetItems()
     }
@@ -74,7 +78,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 val seen = mutableSetOf<Int>()
                 upcoming.forEach { media ->
                     if (seen.add(media.id)) {
-                        val episodeNumber = media.anime?.nextAiringEpisode
+                        val episodeNumber = media.anime?.nextAiringEpisode?.let { it + 1 }
                         widgetItems.add(
                             WidgetItem(
                                 title = media.userPreferredName,
@@ -92,6 +96,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                     prefs.edit().putString(UpcomingWidget.PREF_SERIALIZED_MEDIA, serialized).apply()
                 } else {
                     prefs.edit().putString(UpcomingWidget.PREF_SERIALIZED_MEDIA, "").apply()
+                    Logger.log("Error serializing media")
                 }
                 refreshing = false
             }
@@ -103,12 +108,12 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 val seen = mutableSetOf<Int>()
                 media.forEach { mediaItem ->
                     if (seen.add(mediaItem.id)) {
-                        val remainingTime = (mediaItem.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0).coerceAtLeast(0)
-                        val episodeNumber = mediaItem.anime?.nextAiringEpisode
+                        val timeUntilAiring = (mediaItem.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0)
+                        val episodeNumber = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
                         widgetItems.add(
                             WidgetItem(
                                 title = mediaItem.userPreferredName,
-                                countdown = formatTime(remainingTime),
+                                countdown = formatTime(timeUntilAiring),
                                 image = mediaItem.cover ?: "",
                                 id = mediaItem.id,
                                 episode = episodeNumber
@@ -119,6 +124,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
             } else {
                 prefs.edit().putString(UpcomingWidget.PREF_SERIALIZED_MEDIA, "").apply()
                 prefs.edit().putLong(UpcomingWidget.LAST_UPDATE, 0).apply()
+                Logger.log("Error deserializing media")
                 fillWidgetItems()
             }
         }
@@ -139,6 +145,8 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 .create()
             gson.toJson(media)
         } catch (e: Exception) {
+            Logger.log("Error serializing media: $e")
+            Logger.log(e)
             null
         }
     }
@@ -158,6 +166,8 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                 .create()
             gson.fromJson(json, Array<Media>::class.java).toList()
         } catch (e: Exception) {
+            Logger.log("Error deserializing media: $e")
+            Logger.log(e)
             null
         }
     }
@@ -169,6 +179,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
     override fun getCount(): Int = widgetItems.size
 
     override fun getViewAt(position: Int): RemoteViews {
+        Logger.log("UpcomingRemoteViewsFactory getViewAt")
         val item = widgetItems[position]
         val titleTextColor = prefs.getInt(UpcomingWidget.PREF_TITLE_TEXT_COLOR, Color.WHITE)
         val countdownTextColor = prefs.getInt(UpcomingWidget.PREF_COUNTDOWN_TEXT_COLOR, Color.WHITE)
@@ -176,11 +187,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
             setTextViewText(R.id.text_show_title, item.title)
             setTextViewText(R.id.text_show_countdown, item.countdown)
             
-            val episodeText = if (item.episode != null && item.episode > 0) {
-                "Episode ${item.episode}"
-            } else {
-                ""
-            }
+            val episodeText = item.episode?.let { "Episode $it" } ?: ""
             setTextViewText(R.id.text_show_episode, episodeText)
             
             setTextColor(R.id.text_show_title, titleTextColor)
