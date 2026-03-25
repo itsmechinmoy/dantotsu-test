@@ -40,9 +40,9 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
         val hours = (timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
         val minutes = ((timeUntil % (1000 * 60 * 60 * 24)) % (1000 * 60 * 60)) / (1000 * 60)
         return buildString {
-            if (days > 0) append("$days days ")
-            if (hours > 0 || days > 0) append("$hours hours ")
-            append("$minutes minutes")
+            if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
+            if (hours > 0 || days > 0) append("$hours hour${if (hours > 1) "s" else ""} ")
+            append("$minutes minute${if (minutes > 1) "s" else ""}")
         }.trim()
     }
 
@@ -63,15 +63,15 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
             runBlocking(Dispatchers.IO) {
                 val upcoming = Anilist.query.getUpcomingAnime(userId)
                 val seen = mutableSetOf<Int>()
-                upcoming.forEach {
-                    if (seen.add(it.id)) {
+                upcoming.forEach { media ->
+                    if (seen.add(media.id)) {
                         widgetItems.add(
                             WidgetItem(
-                                it.userPreferredName,
-                                timeUntil(it.timeUntilAiring ?: 0),
-                                it.cover ?: "",
-                                it.id,
-                                it.anime?.nextAiringEpisode?.let { ep -> ep + 1 }
+                                title = media.userPreferredName,
+                                countdown = timeUntil(media.timeUntilAiring ?: 0),
+                                image = media.cover ?: "",
+                                id = media.id,
+                                episode = media.anime?.nextAiringEpisode?.let { it + 1 }
                             )
                         )
                     }
@@ -92,15 +92,16 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
             val media = deserializeMedia(serializedMedia)
             if (media != null) {
                 val seen = mutableSetOf<Int>()
-                media.forEach {
-                    if (seen.add(it.id)) {
+                media.forEach { mediaItem ->
+                    if (seen.add(mediaItem.id)) {
+                        val remainingTime = (mediaItem.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0).coerceAtLeast(0)
                         widgetItems.add(
                             WidgetItem(
-                                it.userPreferredName,
-                                timeUntil(it.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0),
-                                it.cover ?: "",
-                                it.id,
-                                it.anime?.nextAiringEpisode?.let { ep -> ep + 1 }
+                                title = mediaItem.userPreferredName,
+                                countdown = timeUntil(remainingTime),
+                                image = mediaItem.cover ?: "",
+                                id = mediaItem.id,
+                                episode = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
                             )
                         )
                     }
@@ -170,12 +171,20 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
         val rv = RemoteViews(context.packageName, R.layout.item_upcoming_widget).apply {
             setTextViewText(R.id.text_show_title, item.title)
             setTextViewText(R.id.text_show_countdown, item.countdown)
-            setTextViewText(R.id.text_show_episode, item.episode?.let { "Ep $it" } ?: "")
+            try {
+                val episodeText = item.episode?.let { "Ep $it" } ?: ""
+                setTextViewText(R.id.text_show_episode, episodeText)
+                setTextColor(R.id.text_show_episode, countdownTextColor)
+            } catch (e: Exception) {
+                Logger.log("Error setting episode text: $e")
+            }
+            
             setTextColor(R.id.text_show_title, titleTextColor)
             setTextColor(R.id.text_show_countdown, countdownTextColor)
-            setTextColor(R.id.text_show_episode, countdownTextColor)
+            
             val bitmap = downloadImageAsBitmap(item.image)
             setImageViewBitmap(R.id.image_show_icon, bitmap)
+            
             val fillInIntent = Intent().apply {
                 putExtra("mediaId", item.id)
             }
