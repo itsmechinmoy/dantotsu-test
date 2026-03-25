@@ -59,8 +59,26 @@ class ProfileStatsWidget : AppWidgetProvider() {
         ) {
             val prefs = context.getSharedPreferences(getPrefsName(appWidgetId), Context.MODE_PRIVATE)
             val backgroundColor = prefs.getInt(PREF_BACKGROUND_COLOR, Color.parseColor("#80000000"))
+            val backgroundFade = prefs.getInt(PREF_BACKGROUND_FADE, Color.parseColor("#00000000"))
             val titleTextColor = prefs.getInt(PREF_TITLE_TEXT_COLOR, Color.WHITE)
             val statsTextColor = prefs.getInt(PREF_STATS_TEXT_COLOR, Color.WHITE)
+
+            // Create gradient drawable like in legacy code
+            val gradientDrawable = ResourcesCompat.getDrawable(
+                context.resources,
+                R.drawable.linear_gradient_black,
+                null
+            ) as GradientDrawable
+            gradientDrawable.colors = intArrayOf(backgroundColor, backgroundFade)
+            
+            val widgetSizeProvider = WidgetSizeProvider(context)
+            var (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
+            if (width > 0 && height > 0) {
+                gradientDrawable.cornerRadius = 64f
+            } else {
+                width = 300
+                height = 300
+            }
 
             launchIO {
                 val userPref = PrefManager.getVal(PrefName.AnilistUserId, "")
@@ -70,20 +88,8 @@ class ProfileStatsWidget : AppWidgetProvider() {
                         withContext(Dispatchers.Main) {
                             fun buildViews(): RemoteViews =
                                 RemoteViews(context.packageName, R.layout.statistics_widget).apply {
-                                    try {
-                                        setInt(R.id.widgetContainer, "setBackgroundColor", backgroundColor)
-                                    } catch (e: Exception) {
-                                        // Fallback to gradient background
-                                        val gradientDrawable = ResourcesCompat.getDrawable(
-                                            context.resources,
-                                            R.drawable.linear_gradient_black,
-                                            null
-                                        ) as GradientDrawable
-                                        gradientDrawable.colors = intArrayOf(backgroundColor, backgroundColor)
-                                        val widgetSizeProvider = WidgetSizeProvider(context)
-                                        val (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
-                                        setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1)))
-                                    }
+                                    // Set background using gradient drawable bitmap
+                                    setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
                                     
                                     setOnClickPendingIntent(
                                         R.id.userAvatar,
@@ -143,29 +149,37 @@ class ProfileStatsWidget : AppWidgetProvider() {
 
                             appWidgetManager.updateAppWidget(appWidgetId, views)
                         }
-                    } ?: showLoginCascade(context, appWidgetManager, appWidgetId)
-                } else showLoginCascade(context, appWidgetManager, appWidgetId)
+                    } ?: showLoginCascade(context, appWidgetManager, appWidgetId, gradientDrawable, width, height)
+                } else showLoginCascade(context, appWidgetManager, appWidgetId, gradientDrawable, width, height)
             }
         }
 
         private suspend fun showLoginCascade(
-            context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int
+            context: Context, 
+            appWidgetManager: AppWidgetManager, 
+            appWidgetId: Int,
+            gradientDrawable: GradientDrawable,
+            width: Int,
+            height: Int
         ) {
             withContext(Dispatchers.Main) {
-                val views = RemoteViews(context.packageName, R.layout.statistics_widget)
-                views.setTextViewText(R.id.topLeftItem, "")
-                views.setTextViewText(R.id.topLeftLabel, context.getString(R.string.please))
-                views.setTextViewText(R.id.topRightItem, "")
-                views.setTextViewText(R.id.topRightLabel, context.getString(R.string.log_in))
-                views.setTextViewText(R.id.bottomLeftItem, context.getString(R.string.or_join))
-                views.setTextViewText(R.id.bottomLeftLabel, "")
-                views.setTextViewText(R.id.bottomRightItem, context.getString(R.string.anilist))
-                views.setTextViewText(R.id.bottomRightLabel, "")
-                val intent = Intent(context, MainActivity::class.java)
-                val pendingIntent = PendingIntent.getActivity(
-                    context, 0, intent, PendingIntent.FLAG_IMMUTABLE
-                )
-                views.setOnClickPendingIntent(R.id.widgetContainer, pendingIntent)
+                val views = RemoteViews(context.packageName, R.layout.statistics_widget).apply {
+                    // Set background for login state too
+                    setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
+                    setTextViewText(R.id.topLeftItem, "")
+                    setTextViewText(R.id.topLeftLabel, context.getString(R.string.please))
+                    setTextViewText(R.id.topRightItem, "")
+                    setTextViewText(R.id.topRightLabel, context.getString(R.string.log_in))
+                    setTextViewText(R.id.bottomLeftItem, context.getString(R.string.or_join))
+                    setTextViewText(R.id.bottomLeftLabel, "")
+                    setTextViewText(R.id.bottomRightItem, context.getString(R.string.anilist))
+                    setTextViewText(R.id.bottomRightLabel, "")
+                    val intent = Intent(context, MainActivity::class.java)
+                    val pendingIntent = PendingIntent.getActivity(
+                        context, 0, intent, PendingIntent.FLAG_IMMUTABLE
+                    )
+                    setOnClickPendingIntent(R.id.widgetContainer, pendingIntent)
+                }
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             }
         }
