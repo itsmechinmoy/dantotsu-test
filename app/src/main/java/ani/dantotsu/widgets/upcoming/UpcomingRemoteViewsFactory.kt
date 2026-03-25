@@ -35,15 +35,26 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
         fillWidgetItems()
     }
 
-    private fun timeUntil(timeUntil: Long): String {
-        val days = timeUntil / (1000 * 60 * 60 * 24)
-        val hours = (timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-        val minutes = ((timeUntil % (1000 * 60 * 60 * 24)) % (1000 * 60 * 60)) / (1000 * 60)
-        return buildString {
-            if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
-            if (hours > 0 || days > 0) append("$hours hour${if (hours > 1) "s" else ""} ")
-            append("$minutes minute${if (minutes > 1) "s" else ""}")
-        }.trim()
+    private fun formatTime(timeUntil: Long): String {
+        val absTime = kotlin.math.abs(timeUntil)
+        val days = absTime / (1000 * 60 * 60 * 24)
+        val hours = (absTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        val minutes = ((absTime % (1000 * 60 * 60 * 24)) % (1000 * 60 * 60)) / (1000 * 60)
+        
+        return if (timeUntil >= 0) {
+            buildString {
+                if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
+                if (hours > 0 || days > 0) append("$hours hour${if (hours > 1) "s" else ""} ")
+                append("$minutes minute${if (minutes > 1) "s" else ""}")
+            }.trim()
+        } else {
+            buildString {
+                append("Aired ")
+                if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
+                if (hours > 0 || days > 0) append("$hours hour${if (hours > 1) "s" else ""} ")
+                append("$minutes minute${if (minutes > 1) "s" else ""} ago")
+            }.trim()
+        }
     }
 
     override fun onDataSetChanged() {
@@ -68,7 +79,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                         widgetItems.add(
                             WidgetItem(
                                 title = media.userPreferredName,
-                                countdown = timeUntil(media.timeUntilAiring ?: 0),
+                                countdown = formatTime(media.timeUntilAiring ?: 0),
                                 image = media.cover ?: "",
                                 id = media.id,
                                 episode = media.anime?.nextAiringEpisode
@@ -98,7 +109,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
                         widgetItems.add(
                             WidgetItem(
                                 title = mediaItem.userPreferredName,
-                                countdown = timeUntil(remainingTime),
+                                countdown = formatTime(remainingTime),
                                 image = mediaItem.cover ?: "",
                                 id = mediaItem.id,
                                 episode = mediaItem.anime?.nextAiringEpisode
@@ -172,7 +183,6 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
             setTextViewText(R.id.text_show_title, item.title)
             setTextViewText(R.id.text_show_countdown, item.countdown)
             
-            // Show episode number if available
             val episodeText = item.episode?.let { "Episode $it" } ?: ""
             setTextViewText(R.id.text_show_episode, episodeText)
             
