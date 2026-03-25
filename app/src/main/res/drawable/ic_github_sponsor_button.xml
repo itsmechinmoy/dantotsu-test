@@ -12,7 +12,7 @@
         android:pathData="M24.48,2.5H520.2C532.35,2.5 542.18,12.33 542.18,24.48V128.52C542.18,140.67 532.35,150.5 520.2,150.5H24.48C12.33,150.5 2.5,140.67 2.5,128.52V24.48C2.5,12.33 12.33,2.5 24.48,2.5Z" />
 
     <group
-        android:translateX="55"
+        android:translateX="75"
         android:translateY="35"
         android:scaleX="3.5"
         android:scaleY="3.5">
@@ -22,8 +22,8 @@
     </group>
 
     <group
-        android:translateX="165"
-        android:translateY="42"
+        android:translateX="185"
+        android:translateY="38"
         android:scaleX="1.35"
         android:scaleY="1.35">
         <path android:fillColor="#DA60A2" android:pathData="M16,40c-6,0-9-3-9-7.5h6c0,1.5,1,2.5,3,2.5s3-1,3-2s-1-1.5-4-2.5c-4.5-1.5-7-3-7-7s2.5-7,7.5-7c5.5,0,8.5,2.5,8.5,7h-6c0-1.5-1-2.5-2.5-2.5s-2.5,1-2.5,2s1,1.5,4,2.5c4.5,1.5,7.5,3,7.5,7.5S22,40,16,40z"/>
