@@ -18,6 +18,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
 import ani.dantotsu.currContext
 import ani.dantotsu.databinding.FragmentMediaSourceBinding
@@ -32,6 +33,8 @@ import ani.dantotsu.media.MediaDetailsViewModel
 import ani.dantotsu.media.MediaType
 import ani.dantotsu.media.novel.novelreader.NovelReaderActivity
 import ani.dantotsu.navBarHeight
+import ani.dantotsu.setBaseline
+import ani.dantotsu.toPx
 import ani.dantotsu.parsers.ShowResponse
 import ani.dantotsu.snackString
 import ani.dantotsu.util.Logger
@@ -266,7 +269,12 @@ class NovelReadFragment : Fragment(),
             ContextCompat.RECEIVER_EXPORTED
         )
 
-        binding.mediaSourceRecycler.updatePadding(bottom = binding.mediaSourceRecycler.paddingBottom + navBarHeight)
+        val baselineAnchor = (activity as MediaDetailsActivity).binding.mediaBottomBarContainer ?: (activity as MediaDetailsActivity).binding.commentMessageContainer
+        baselineAnchor?.let {
+            val includeSystemPaddings = it != (activity as MediaDetailsActivity).binding.mediaBottomBarContainer
+            binding.mediaSourceRecycler.setBaseline(it, includeSystemNavBar = includeSystemPaddings)
+            binding.mediaSourceRecycler.clipToPadding = false
+        }
 
         val screenWidth = resources.displayMetrics.widthPixels.dp
         var maxGridSize = (screenWidth / 100f).roundToInt()
@@ -285,6 +293,23 @@ class NovelReadFragment : Fragment(),
         }
         binding.mediaSourceRecycler.layoutManager = gridLayoutManager
 
+        binding.ScrollTop.setOnClickListener {
+            binding.mediaSourceRecycler.scrollToPosition(10)
+            binding.mediaSourceRecycler.smoothScrollToPosition(0)
+        }
+        binding.mediaSourceRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val position = gridLayoutManager.findFirstVisibleItemPosition()
+                if (position > 2) {
+                    binding.ScrollTop.translationY = -(navBarHeight + 12.toPx).toFloat()
+                    binding.ScrollTop.visibility = View.VISIBLE
+                } else {
+                    binding.ScrollTop.visibility = View.GONE
+                }
+            }
+        })
         model.scrolledToTop.observe(viewLifecycleOwner) {
             if (it) binding.mediaSourceRecycler.scrollToPosition(0)
         }
