@@ -88,6 +88,7 @@ data class Media(
     var selected: Selected? = null,
     var streamingEpisodes: List<MediaStreamingEpisode>? = null,
     var idKitsu: String? = null,
+    var idIMDB: String? = null,
     var externalLinks: ArrayList<MediaExternalLink>? = null,
 
     var cameFromContinue: Boolean = false
