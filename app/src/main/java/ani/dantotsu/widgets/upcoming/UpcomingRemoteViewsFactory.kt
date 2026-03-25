@@ -72,22 +72,39 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
         val prefs = context.getSharedPreferences(UpcomingWidget.PREFS_NAME, Context.MODE_PRIVATE)
         val lastUpdated = prefs.getLong(UpcomingWidget.LAST_UPDATE, 0)
         val serializedMedia = prefs.getString(UpcomingWidget.PREF_SERIALIZED_MEDIA, "")
-        if (System.currentTimeMillis() - lastUpdated > 1000 * 60 * 60 * 4 || serializedMedia.isNullOrEmpty()) {
+        val timeSinceLastUpdate = System.currentTimeMillis() - lastUpdated
+        val media = if (!serializedMedia.isNullOrEmpty()) deserializeMedia(serializedMedia) else null
+        var forceRefresh = false
+        
+        if (media != null) {
+            for (mediaItem in media) {
+                val timeUntilAiring = (mediaItem.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0)
+                if (timeUntilAiring <= 0) {
+                    forceRefresh = true
+                    break
+                }
+            }
+        }
+
+        if (timeSinceLastUpdate > 1000 * 60 * 60 * 4 || serializedMedia.isNullOrEmpty() || forceRefresh) {
             runBlocking(Dispatchers.IO) {
                 val upcoming = Anilist.query.getUpcomingAnime(userId)
                 val seen = mutableSetOf<Int>()
-                upcoming.forEach { media ->
-                    if (seen.add(media.id)) {
-                        val episodeNumber = media.anime?.nextAiringEpisode?.let { it + 1 }
-                        widgetItems.add(
-                            WidgetItem(
-                                title = media.userPreferredName,
-                                countdown = formatTime(media.timeUntilAiring ?: 0),
-                                image = media.cover ?: "",
-                                id = media.id,
-                                episode = episodeNumber
+                upcoming.forEach { mediaItem ->
+                    if (seen.add(mediaItem.id)) {
+                        val timeUntilAiring = mediaItem.timeUntilAiring ?: 0
+                        if (timeUntilAiring > 0) {
+                            val episodeNumber = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
+                            widgetItems.add(
+                                WidgetItem(
+                                    title = mediaItem.userPreferredName,
+                                    countdown = formatTime(timeUntilAiring),
+                                    image = mediaItem.cover ?: "",
+                                    id = mediaItem.id,
+                                    episode = episodeNumber
+                                )
                             )
-                        )
+                        }
                     }
                 }
                 prefs.edit().putLong(UpcomingWidget.LAST_UPDATE, System.currentTimeMillis()).apply()
@@ -102,23 +119,23 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
             }
         } else {
             refreshing = false
-            val timeSinceLastUpdate = System.currentTimeMillis() - lastUpdated
-            val media = deserializeMedia(serializedMedia)
             if (media != null) {
                 val seen = mutableSetOf<Int>()
                 media.forEach { mediaItem ->
                     if (seen.add(mediaItem.id)) {
                         val timeUntilAiring = (mediaItem.timeUntilAiring?.minus(timeSinceLastUpdate) ?: 0)
-                        val episodeNumber = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
-                        widgetItems.add(
-                            WidgetItem(
-                                title = mediaItem.userPreferredName,
-                                countdown = formatTime(timeUntilAiring),
-                                image = mediaItem.cover ?: "",
-                                id = mediaItem.id,
-                                episode = episodeNumber
+                        if (timeUntilAiring > 0) {
+                            val episodeNumber = mediaItem.anime?.nextAiringEpisode?.let { it + 1 }
+                            widgetItems.add(
+                                WidgetItem(
+                                    title = mediaItem.userPreferredName,
+                                    countdown = formatTime(timeUntilAiring),
+                                    image = mediaItem.cover ?: "",
+                                    id = mediaItem.id,
+                                    episode = episodeNumber
+                                )
                             )
-                        )
+                        }
                     }
                 }
             } else {
