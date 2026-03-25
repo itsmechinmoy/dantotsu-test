@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.api.FuzzyDate
 import ani.dantotsu.connections.anilist.api.MediaEdge
+import ani.dantotsu.connections.anilist.api.MediaExternalLink
 import ani.dantotsu.connections.anilist.api.MediaList
 import ani.dantotsu.connections.anilist.api.MediaStreamingEpisode
 import ani.dantotsu.connections.anilist.api.MediaType
@@ -87,6 +88,7 @@ data class Media(
     var selected: Selected? = null,
     var streamingEpisodes: List<MediaStreamingEpisode>? = null,
     var idKitsu: String? = null,
+    var externalLinks: ArrayList<MediaExternalLink>? = null,
 
     var cameFromContinue: Boolean = false
 ) : Serializable {
