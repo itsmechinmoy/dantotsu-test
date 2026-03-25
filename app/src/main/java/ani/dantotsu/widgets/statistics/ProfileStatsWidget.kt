@@ -6,10 +6,13 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.util.SizeF
 import android.widget.RemoteViews
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import ani.dantotsu.MainActivity
 import ani.dantotsu.R
 import ani.dantotsu.connections.anilist.Anilist
@@ -17,6 +20,7 @@ import ani.dantotsu.profile.ProfileActivity
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.util.BitmapUtil.downloadImageAsBitmap
+import ani.dantotsu.widgets.WidgetSizeProvider
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -66,7 +70,21 @@ class ProfileStatsWidget : AppWidgetProvider() {
                         withContext(Dispatchers.Main) {
                             fun buildViews(): RemoteViews =
                                 RemoteViews(context.packageName, R.layout.statistics_widget).apply {
-                                    setInt(R.id.widgetContainer, "setBackgroundColor", backgroundColor)
+                                    try {
+                                        setInt(R.id.widgetContainer, "setBackgroundColor", backgroundColor)
+                                    } catch (e: Exception) {
+                                        // Fallback to gradient background
+                                        val gradientDrawable = ResourcesCompat.getDrawable(
+                                            context.resources,
+                                            R.drawable.linear_gradient_black,
+                                            null
+                                        ) as GradientDrawable
+                                        gradientDrawable.colors = intArrayOf(backgroundColor, backgroundColor)
+                                        val widgetSizeProvider = WidgetSizeProvider(context)
+                                        val (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
+                                        setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1)))
+                                    }
+                                    
                                     setOnClickPendingIntent(
                                         R.id.userAvatar,
                                         PendingIntent.getActivity(
