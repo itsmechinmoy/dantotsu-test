@@ -63,6 +63,7 @@ class UpcomingWidget : AppWidgetProvider() {
         fun updateAppWidget(context: Context, appWidgetId: Int): RemoteViews {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val backgroundColor = prefs.getInt(PREF_BACKGROUND_COLOR, Color.parseColor("#80000000"))
+            val backgroundFade = prefs.getInt(PREF_BACKGROUND_FADE, Color.parseColor("#00000000"))
             val titleTextColor = prefs.getInt(PREF_TITLE_TEXT_COLOR, Color.WHITE)
             val countdownTextColor = prefs.getInt(PREF_COUNTDOWN_TEXT_COLOR, Color.WHITE)
 
@@ -76,22 +77,26 @@ class UpcomingWidget : AppWidgetProvider() {
                 putExtra("fromWidget", true)
             }
 
+            // Create gradient drawable like in legacy code
+            val gradientDrawable = ResourcesCompat.getDrawable(
+                context.resources,
+                R.drawable.linear_gradient_black,
+                null
+            ) as GradientDrawable
+            gradientDrawable.colors = intArrayOf(backgroundColor, backgroundFade)
+            
+            val widgetSizeProvider = WidgetSizeProvider(context)
+            var (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
+            if (width > 0 && height > 0) {
+                gradientDrawable.cornerRadius = 64f
+            } else {
+                width = 300
+                height = 300
+            }
+
             fun buildViews(): RemoteViews = RemoteViews(context.packageName, R.layout.upcoming_widget).apply {
-                // Set background color directly on the root container
-                try {
-                    setInt(R.id.widgetRootContainer, "setBackgroundColor", backgroundColor)
-                } catch (e: Exception) {
-                    // Fallback to gradient background if root container doesn't exist
-                    val gradientDrawable = ResourcesCompat.getDrawable(
-                        context.resources,
-                        R.drawable.linear_gradient_black,
-                        null
-                    ) as GradientDrawable
-                    gradientDrawable.colors = intArrayOf(backgroundColor, backgroundColor)
-                    val widgetSizeProvider = WidgetSizeProvider(context)
-                    val (width, height) = widgetSizeProvider.getWidgetsSize(appWidgetId)
-                    setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1)))
-                }
+                // Set background using gradient drawable bitmap
+                setImageViewBitmap(R.id.backgroundView, gradientDrawable.toBitmap(width, height))
                 
                 setTextColor(R.id.text_show_title, titleTextColor)
                 setTextColor(R.id.text_show_countdown, countdownTextColor)
