@@ -53,18 +53,6 @@ class ProfileStatsWidget : AppWidgetProvider() {
         super.onDisabled(context)
     }
 
-    override fun onAppWidgetOptionsChanged(
-        context: Context?,
-        appWidgetManager: AppWidgetManager?,
-        appWidgetId: Int,
-        newOptions: Bundle?
-    ) {
-        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-        if (context != null && appWidgetManager != null) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
-        }
-    }
-
     companion object {
         @OptIn(DelicateCoroutinesApi::class)
         fun updateAppWidget(
