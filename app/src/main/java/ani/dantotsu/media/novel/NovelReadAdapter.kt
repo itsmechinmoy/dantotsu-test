@@ -17,7 +17,6 @@ import ani.dantotsu.parsers.ShowResponse
 import ani.dantotsu.loadImage
 import ani.dantotsu.parsers.NovelReadSources
 import ani.dantotsu.settings.saving.PrefManager
-import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.util.customAlertDialog
 
 class NovelReadAdapter(
@@ -27,6 +26,7 @@ class NovelReadAdapter(
 ) : RecyclerView.Adapter<NovelReadAdapter.ViewHolder>() {
 
     var progress: View? = null
+    var _binding: ItemNovelHeaderBinding? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NovelReadAdapter.ViewHolder {
         val binding =
@@ -40,14 +40,14 @@ class NovelReadAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val binding = holder.binding
+        _binding = binding
         progress = binding.progress.root
 
         val isLocal = media.format == "LOCAL" || media.format == "LOCAL_NOVEL"
 
         if (isLocal) {
 
-            binding.mediaSource.visibility = View.GONE
-            (binding.mediaSource.parent as? View)?.visibility = View.GONE
+            binding.novelSourceContainer.visibility = View.GONE
             binding.divider.visibility = View.GONE
             binding.searchBar.visibility = View.GONE
 
@@ -83,9 +83,57 @@ class NovelReadAdapter(
                     displayNames
                 )
             )
+
+            fun updateLayoutForSource(idx: Int) {
+                val isLnReader = idx in 0 until novelReadSources.names.size
+                        && novelReadSources[idx] is ani.dantotsu.parsers.novel.LnReaderNovelParser
+                if (isLnReader) {
+                    binding.searchBar.visibility = View.GONE
+                    binding.divider.visibility = View.GONE
+                    binding.wrongTitleButton.visibility = View.VISIBLE
+                    binding.mediaSourceTitle.visibility = View.VISIBLE
+                    binding.mediaSourceTitle.text = "Found : ${media.name ?: media.nameRomaji}"
+                    binding.mediaSourceTitle.isSelected = true
+                    binding.chaptersHeaderRow.visibility = View.VISIBLE
+                } else {
+                    binding.searchBar.visibility = View.VISIBLE
+                    binding.divider.visibility = View.VISIBLE
+                    binding.wrongTitleButton.visibility = View.GONE
+                    binding.mediaSourceTitle.visibility = View.GONE
+                    binding.chaptersHeaderRow.visibility = View.GONE
+                }
+
+                // novel ext setting
+                binding.mediaSourceSettings.visibility = View.GONE
+            }
+            updateLayoutForSource(source)
+
+            // menu
+            binding.mediaNestedButton.setOnClickListener {
+                showFilterDialog()
+            }
+
+            binding.wrongTitleButton.setOnClickListener {
+                val dialog = ani.dantotsu.media.SourceSearchDialogFragment().apply {
+                    isNovel = true
+                    media = fragment.media
+                    onSourceSelected = { selected ->
+                        val isLnReader = fragment.model.novelSources[fragment.source] is ani.dantotsu.parsers.novel.LnReaderNovelParser
+                        if (isLnReader) {
+                            fragment.overrideNovelSource(selected)
+                        } else {
+                            fragment.resetChapterState()
+                            fragment.onNovelClick(selected)
+                        }
+                    }
+                }
+                dialog.show(fragment.requireActivity().supportFragmentManager, "SourceSearchDialogFragment")
+            }
+
             binding.mediaSource.setOnItemClickListener { _, _, i, _ ->
                 val actualIndex = novelReadSources.names.indexOf(displayNames[i])
                 fragment.onSourceChange(actualIndex)
+                updateLayoutForSource(actualIndex)
                 search()
             }
 
@@ -157,7 +205,32 @@ class NovelReadAdapter(
             }
 
 
-            animeDownloadContainer.visibility = View.GONE
+            if (fragment.media.format == "LOCAL") {
+                animeDownloadContainer.visibility = View.GONE
+            } else {
+                animeDownloadContainer.visibility = View.VISIBLE
+                mediaDownloadTop.visibility = View.VISIBLE
+                mediaDownloadTop.setOnClickListener {
+                    fragment.requireContext().customAlertDialog().apply {
+                        setTitle("Multi Chapter Downloader")
+                        setMessage("Enter the number of chapters to download")
+                        val input = View.inflate(ani.dantotsu.currContext(), R.layout.dialog_layout, null)
+                        val editText = input.findViewById<android.widget.EditText>(R.id.downloadNo)
+                        setCustomView(input)
+                        setPosButton(R.string.ok) {
+                            val value = editText.text.toString().toIntOrNull()
+                            if (value != null && value > 0) {
+                                downloadNo.setText(value.toString(), android.widget.TextView.BufferType.EDITABLE)
+                                fragment.multiDownload(value)
+                            } else {
+                                ani.dantotsu.toast("Please enter a valid number")
+                            }
+                        }
+                        setNegButton(R.string.cancel)
+                        show()
+                    }
+                }
+            }
             mangaScanlatorContainer.visibility = View.GONE
             mediaWebviewContainer.visibility = View.GONE
 
@@ -217,6 +290,28 @@ class NovelReadAdapter(
         } else {
             binding.sourceContinue.visibility = View.GONE
         }
+    }
+
+    fun updateChips(limit: Int, names: Array<String>, arr: Array<Int>, selected: Int = 0) {
+        val binding = _binding
+        if (binding != null) {
+            ani.dantotsu.util.PaginationChipHelper.buildChips(
+                context = fragment.requireContext(),
+                chipGroup = binding.mediaSourceChipGroup,
+                scrollView = binding.mediaWatchChipScroll,
+                limit = limit,
+                names = names,
+                arr = arr,
+                selected = selected,
+                onChipClicked = { position, start, end ->
+                    fragment.onChipClicked(position, start, end)
+                }
+            )
+        }
+    }
+
+    fun clearChips() {
+        _binding?.mediaSourceChipGroup?.removeAllViews()
     }
 
     override fun getItemCount(): Int = 1
