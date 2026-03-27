@@ -157,7 +157,7 @@ class NovelDownloaderService : Service() {
                 networkHelper.client.newCall(request).execute().use { response ->
                     val contentType = response.header("Content-Type")
                     val contentDisposition = response.header("Content-Disposition")
-                    contentType == "application/epub+zip" ||
+                    contentType?.contains("application/epub+zip", ignoreCase = true) == true ||
                             contentDisposition?.contains(".epub") == true
                 }
             } catch (e: Exception) {
@@ -199,13 +199,14 @@ class NovelDownloaderService : Service() {
                     task.title, task.chapter
                 ) ?: throw Exception("Directory not found")
 
-                directory.findFile("0.html")?.forceDelete(this@NovelDownloaderService)
-                val file = directory.createFile("text/html", "0.html")
-                    ?: throw Exception("Could not create 0.html")
+                directory.findFile("0.epub")?.forceDelete(this@NovelDownloaderService)
+                val file = directory.createFile("application/epub+zip", "0.epub")
+                    ?: throw Exception("Could not create 0.epub")
 
                 withContext(Dispatchers.IO) {
                     this@NovelDownloaderService.contentResolver.openOutputStream(file.uri)?.use { os ->
-                        os.write(html.toByteArray(Charsets.UTF_8))
+                        val epubBytes = HtmlToEpubUtils.createEpub(task.chapter, html)
+                        os.write(epubBytes)
                     } ?: throw Exception("Could not open OutputStream")
                 }
 

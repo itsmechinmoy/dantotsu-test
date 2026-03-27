@@ -136,7 +136,7 @@ class App : MultiDexApplication() {
                 novelExtensionManager.findAvailableExtensions()
             }
             Logger.log("Novel Extensions: ${novelExtensionManager.installedExtensionsFlow.first()}")
-            NovelSources.init(novelExtensionManager.installedExtensionsFlow)
+            NovelSources.init(novelExtensionManager.allInstalledExtensionsFlow)
         }
         GlobalScope.launch {
             torrentAddonManager = Injekt.get()
