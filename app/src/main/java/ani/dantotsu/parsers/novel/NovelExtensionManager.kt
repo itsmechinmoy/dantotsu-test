@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import ani.dantotsu.media.MediaType
 import ani.dantotsu.snackString
+import ani.dantotsu.settings.saving.PrefManager
+import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.util.Logger
 import eu.kanade.tachiyomi.extension.InstallStep
 import eu.kanade.tachiyomi.extension.api.ExtensionGithubApi
@@ -67,6 +69,13 @@ class NovelExtensionManager(private val context: Context) {
         _availableNovelExtensionsFlow.value = extensions
         updatedInstalledNovelExtensionsStatuses(extensions)
         setupAvailableNovelExtensionsSourcesDataMap(extensions)
+
+        try {
+            val novelRepos = PrefManager.getVal<Set<String>>(PrefName.NovelExtensionRepos).toList()
+            lnReaderManager.findAvailablePlugins(novelRepos)
+        } catch (e: Exception) {
+            Logger.log("Error finding LnReader plugins: ${e.message}")
+        }
     }
 
     private fun setupAvailableNovelExtensionsSourcesDataMap(novelExtensions: List<NovelExtension.Available>) {

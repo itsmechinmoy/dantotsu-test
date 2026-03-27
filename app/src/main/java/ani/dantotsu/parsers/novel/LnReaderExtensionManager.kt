@@ -24,14 +24,21 @@ class LnReaderExtensionManager(private val context: Context) {
     private val pluginDir: File
         get() = File(context.filesDir, "lnreader_plugins").also { it.mkdirs() }
 
+    private fun safePluginDir(pluginId: String): File {
+        val sanitized = pluginId.replace(Regex("""[^a-zA-Z0-9._-]"""), "_")
+        val dir = File(pluginDir, sanitized)
+        require(dir.canonicalPath.startsWith(pluginDir.canonicalPath)) {
+            "Invalid plugin ID: path traversal detected in '$pluginId'"
+        }
+        return dir
+    }
+
     private val _installedPluginsFlow = MutableStateFlow(emptyList<LnReaderInstalledPlugin>())
     val installedPluginsFlow = _installedPluginsFlow.asStateFlow()
 
     private val _availablePluginsFlow = MutableStateFlow(emptyList<LnReaderPluginItem>())
     val availablePluginsFlow = _availablePluginsFlow.asStateFlow()
-    private val defaultRepoUrls = listOf(
-        "https://raw.githubusercontent.com/LNReader/lnreader-plugins/master/plugins.min.json"
-    )
+    private val defaultRepoUrls = emptyList<String>()
 
     init {
         loadInstalledFromDisk()
@@ -55,12 +62,12 @@ class LnReaderExtensionManager(private val context: Context) {
     }
 
     private fun saveMetaToDisk(plugin: LnReaderInstalledPlugin) {
-        val dir = File(pluginDir, plugin.id).also { it.mkdirs() }
+        val dir = safePluginDir(plugin.id).also { it.mkdirs() }
         File(dir, "meta.json").writeText(json.encodeToString(plugin))
     }
 
     fun getJsFile(pluginId: String): File =
-        File(File(pluginDir, pluginId), "index.js")
+        File(safePluginDir(pluginId), "index.js")
 
     suspend fun findAvailablePlugins(
         extraRepoUrls: List<String> = emptyList()
@@ -84,7 +91,7 @@ class LnReaderExtensionManager(private val context: Context) {
         val installedMap = _installedPluginsFlow.value.associateBy { it.id }
         val withUpdate = all.map { item ->
             val installed = installedMap[item.id]
-            if (installed != null && item.version != installed.version)
+            if (installed != null && isNewerVersion(item.version, installed.version))
                 item.copy(hasUpdate = true)
             else item
         }
@@ -111,7 +118,7 @@ class LnReaderExtensionManager(private val context: Context) {
             val jsCode = response.body?.string()
                 ?: return@withContext false
 
-            val dir = File(pluginDir, item.id).also { it.mkdirs() }
+            val dir = safePluginDir(item.id).also { it.mkdirs() }
             File(dir, "index.js").writeText(jsCode)
 
             val plugin = LnReaderInstalledPlugin(
@@ -143,7 +150,7 @@ class LnReaderExtensionManager(private val context: Context) {
     }
 
     fun uninstallPlugin(pluginId: String) {
-        File(pluginDir, pluginId).deleteRecursively()
+        safePluginDir(pluginId).deleteRecursively()
         _installedPluginsFlow.value = _installedPluginsFlow.value.filter { it.id != pluginId }
     }
 
@@ -151,5 +158,20 @@ class LnReaderExtensionManager(private val context: Context) {
         val item = _availablePluginsFlow.value.find { it.id == pluginId }
             ?: return false
         return installPlugin(item)
+    }
+
+    private fun isNewerVersion(remote: String, installed: String): Boolean {
+        if (remote == installed) return false
+        val rParts = remote.split("-", limit = 2)[0].split(".").mapNotNull { it.toIntOrNull() }
+        val iParts = installed.split("-", limit = 2)[0].split(".").mapNotNull { it.toIntOrNull() }
+        if (rParts.isEmpty() || iParts.isEmpty()) return remote != installed
+        val len = maxOf(rParts.size, iParts.size)
+        for (i in 0 until len) {
+            val r = rParts.getOrElse(i) { 0 }
+            val l = iParts.getOrElse(i) { 0 }
+            if (r > l) return true
+            if (r < l) return false
+        }
+        return false
     }
 }

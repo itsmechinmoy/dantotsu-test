@@ -14,6 +14,7 @@ class LnReaderNovelParser(
     override val name: String    get() = plugin.name
     override val hostUrl: String get() = plugin.site
     override val saveName: String get() = "lnreader_${plugin.id}"
+    override val iconUrl: String get() = plugin.iconUrl
 
     override val volumeRegex = Regex(
         "vol\\.? (\\d+(\\.\\d+)?)|volume (\\d+(\\.\\d+)?)",
@@ -53,10 +54,10 @@ class LnReaderNovelParser(
             }
 
             val links = chapters.map { ch ->
-                FileUrl(
-                    url     = ch.path,
-                    headers = mapOf("X-Chapter-Name" to ch.name)
-                )
+                val headers = mutableMapOf("X-Chapter-Name" to ch.name)
+                ch.releaseTime?.let { headers["X-Release-Time"] = it }
+                ch.chapterNumber?.let { headers["X-Chapter-Number"] = it.toString() }
+                FileUrl(url = ch.path, headers = headers)
             }
 
             Book(

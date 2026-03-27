@@ -17,6 +17,7 @@ data class LnReaderPluginItem(
     val hasSettings: Boolean = false,
 )
 
+@Serializable
 data class LnReaderInstalledPlugin(
     val id: String,
     val name: String,
