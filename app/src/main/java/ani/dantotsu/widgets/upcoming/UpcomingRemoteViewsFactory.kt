@@ -88,6 +88,7 @@ class UpcomingRemoteViewsFactory(private val context: Context) :
 
         if (timeSinceLastUpdate > 1000 * 60 * 60 * 4 || serializedMedia.isNullOrEmpty() || forceRefresh) {
             runBlocking(Dispatchers.IO) {
+                Anilist.getSavedToken()
                 val upcoming = Anilist.query.getUpcomingAnime(userId)
                 val seen = mutableSetOf<Int>()
                 upcoming.forEach { mediaItem ->
