@@ -8,12 +8,12 @@ import java.net.URLEncoder
 
 object NovelTextTranslator {
 
-    private val cache = HashMap<String, String>()
+    private val cache = android.util.LruCache<String, String>(500)
     
     suspend fun translate(text: String, targetLang: String): String {
         if (text.isBlank() || targetLang == "none") return text
         val key = "$targetLang:$text"
-        cache[key]?.let { return it }
+        cache.get(key)?.let { return it }
 
         return withContext(Dispatchers.IO) {
             try {
@@ -28,7 +28,7 @@ object NovelTextTranslator {
                     sb.append(parts.getJSONArray(i).getString(0))
                 }
                 val result = sb.toString()
-                cache[key] = result
+                cache.put(key, result)
                 result
             } catch (e: Exception) {
                 text
@@ -102,5 +102,5 @@ object NovelTextTranslator {
         "cy"    to "Welsh",
     )
 
-    fun clearCache() = cache.clear()
+    fun clearCache() = cache.evictAll()
 }

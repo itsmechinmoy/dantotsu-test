@@ -59,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
@@ -83,8 +84,8 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
     lateinit var readerOverlay: NovelReaderOverlayManager
 
     private lateinit var book: Book
-    private lateinit var sanitizedBookId: String
-    private lateinit var toc: List<TocItem>
+    private var sanitizedBookId: String = "unknown_book"
+    private var toc: List<TocItem> = emptyList()
     private var currentTheme: ReaderTheme? = null
     private var currentCfi: String? = null
 
@@ -201,7 +202,11 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
     private fun setupViews() {
         binding.bookReader.useSafeScope(this)
 
-        scope.launch { binding.bookReader.openBook(intent.data!!) }
+        if (intent.data != null) {
+            scope.launch { binding.bookReader.openBook(intent.data!!) }
+        } else if (ani.dantotsu.media.novel.NovelReaderSession.isActive()) {
+            loadStreamingChapter(0)
+        }
         binding.bookReader.setEbookReaderListener(this)
 
         binding.novelReaderBack.setOnClickListener { finish() }
@@ -222,9 +227,21 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
         }
 
         binding.novelReaderNextChap.setOnClickListener { binding.novelReaderNextChapter.performClick() }
-        binding.novelReaderNextChapter.setOnClickListener { binding.bookReader.next() }
+        binding.novelReaderNextChapter.setOnClickListener {
+            if (ani.dantotsu.media.novel.NovelReaderSession.isActive() && ani.dantotsu.media.novel.NovelReaderSession.hasNext()) {
+                loadStreamingChapter(direction = 1)
+            } else {
+                binding.bookReader.next()
+            }
+        }
         binding.novelReaderPrevChap.setOnClickListener { binding.novelReaderPreviousChapter.performClick() }
-        binding.novelReaderPreviousChapter.setOnClickListener { binding.bookReader.prev() }
+        binding.novelReaderPreviousChapter.setOnClickListener {
+            if (ani.dantotsu.media.novel.NovelReaderSession.isActive() && ani.dantotsu.media.novel.NovelReaderSession.hasPrev()) {
+                loadStreamingChapter(direction = -1)
+            } else {
+                binding.bookReader.prev()
+            }
+        }
 
         binding.novelReaderSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
@@ -238,6 +255,40 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
         onVolumeUp = { binding.novelReaderNextChapter.performClick() }
 
         onVolumeDown = { binding.novelReaderPreviousChapter.performClick() }
+    }
+
+    private fun loadStreamingChapter(direction: Int) {
+        val session = ani.dantotsu.media.novel.NovelReaderSession
+        val chapter = when {
+            direction > 0 -> session.nextChapter()
+            direction < 0 -> session.prevChapter()
+            else -> session.currentChapter()
+        }
+        if (chapter == null || session.parser == null) {
+            snackString("No more chapters")
+            return
+        }
+        loaded = false
+        binding.progress.visibility = View.VISIBLE
+        val chapterName = chapter.headers?.get("X-Chapter-Name") ?: "Chapter"
+        binding.novelReaderTitle.text = chapterName
+        
+        scope.launch(Dispatchers.IO) {
+            try {
+                val html = session.parser!!.loadChapterHtml(chapter.url)
+                val intent = ani.dantotsu.download.novel.HtmlToEpubUtils.streamToReader(
+                    this@NovelReaderActivity, chapterName, html
+                )
+                val uri = intent.data!!
+                withContext(Dispatchers.Main) { binding.bookReader.openBook(uri) }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    snackString("Failed to load chapter: ${e.message}")
+                    binding.progress.visibility = View.GONE
+                    loaded = true
+                }
+            }
+        }
     }
 
     private fun setupBackPressedHandler() {
@@ -269,7 +320,7 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
 
     override fun onBookLoaded(book: Book) {
         this.book = book
-        val bookId = book.identifier!!
+        val bookId = book.identifier ?: "stream_${System.currentTimeMillis()}"
         toc = book.toc
 
         val illegalCharsRegex = Regex("[^a-zA-Z0-9._-]")
@@ -278,22 +329,52 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
         binding.novelReaderTitle.text = book.title
         binding.novelReaderSource.text = book.author?.joinToString(", ")
 
-        val tocLabels = book.toc.map { it.label ?: "" }
-        binding.novelReaderChapterSelect.adapter =
-            NoPaddingArrayAdapter(this, R.layout.item_dropdown, tocLabels)
-        binding.novelReaderChapterSelect.onItemSelectedListener =
-            object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    parent: AdapterView<*>?,
-                    view: View?,
-                    position: Int,
-                    id: Long
-                ) {
-                    binding.bookReader.goto(book.toc[position].href)
-                }
-
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
+        val session = ani.dantotsu.media.novel.NovelReaderSession
+        if (session.isActive()) {
+            val chapterLabels = session.chapters.mapIndexed { index, fileUrl ->
+                fileUrl.headers?.get("X-Chapter-Name") ?: "Chapter ${index + 1}"
             }
+            binding.novelReaderChapterSelect.adapter =
+                NoPaddingArrayAdapter(this, R.layout.item_dropdown, chapterLabels)
+            binding.novelReaderChapterSelect.setSelection(session.currentIndex, false)
+            binding.novelReaderChapterSelect.onItemSelectedListener =
+                object : AdapterView.OnItemSelectedListener {
+                    private var suppressSpinnerEvent = true
+                    override fun onItemSelected(
+                        parent: AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long
+                    ) {
+                        if (suppressSpinnerEvent) {
+                            suppressSpinnerEvent = false
+                            return
+                        }
+                        if (position != session.currentIndex) {
+                            session.currentIndex = position
+                            loadStreamingChapter(direction = 0)
+                        }
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
+        } else {
+            // Regular EPUB
+            val tocLabels = book.toc.map { it.label ?: "" }
+            binding.novelReaderChapterSelect.adapter =
+                NoPaddingArrayAdapter(this, R.layout.item_dropdown, tocLabels)
+            binding.novelReaderChapterSelect.onItemSelectedListener =
+                object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                        parent: AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long
+                    ) {
+                        binding.bookReader.goto(book.toc[position].href)
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
+        }
 
         binding.bookReader.getAppearance {
             currentTheme = it
@@ -318,10 +399,13 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
 
 
     override fun onProgressChanged(info: RelocationInfo) {
+        if (!loaded) return
         currentCfi = info.cfi
         binding.novelReaderSlider.value = info.fraction.toFloat()
-        val pos = info.tocItem?.let { item -> toc.indexOfFirst { it == item } }
-        if (pos != null) binding.novelReaderChapterSelect.setSelection(pos)
+        if (toc.isNotEmpty()) {
+            val pos = info.tocItem?.let { item -> toc.indexOfFirst { it == item } }
+            if (pos != null && pos >= 0) binding.novelReaderChapterSelect.setSelection(pos)
+        }
         PrefManager.setCustomVal("${sanitizedBookId}_progress", info.cfi)
         readerOverlay.progressFraction = info.fraction.toFloat()
     }
@@ -501,6 +585,7 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
 
 
     override fun onDestroy() {
+        ani.dantotsu.media.novel.NovelReaderSession.clear()
         autoScroll.destroy()
         readerOverlay.destroy()
         super.onDestroy()
