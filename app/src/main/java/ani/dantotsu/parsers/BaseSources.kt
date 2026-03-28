@@ -136,7 +136,7 @@ class EmptyNovelParser : NovelParser() {
     }
 
     override suspend fun search(query: String): List<ShowResponse> {
-        return listOf()  // Return an empty Book object or some default value
+        return listOf() // Return an empty list or some default value
     }
 }
 
