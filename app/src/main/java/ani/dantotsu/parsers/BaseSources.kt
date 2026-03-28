@@ -91,7 +91,7 @@ abstract class MangaReadSources : BaseSources() {
             tryWithSuspend(true) {
                 parser.loadChapters(show.link, show.extra, sManga).forEach {
                     val scanlator = it.scanlator.ifBlank { "" }
-                    map["${it.number}-${scanlator}"] = MangaChapter(it)
+                    map["${it.number}-${scanlator}-${it.link}"] = MangaChapter(it)
                 }
             }
         }
@@ -104,7 +104,7 @@ abstract class MangaReadSources : BaseSources() {
                 // Since we've checked, we can safely cast parser to OfflineMangaParser and call its methods
                 parser.loadChapters(show.link, show.extra, SManga.create()).forEach {
                     val scanlator = it.scanlator.ifBlank { "" }
-                    map["${it.number}-${scanlator}"] = MangaChapter(it)
+                    map["${it.number}-${scanlator}-${it.link}"] = MangaChapter(it)
                 }
             }
         } else {
