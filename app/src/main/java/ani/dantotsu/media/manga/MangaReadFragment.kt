@@ -283,13 +283,13 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
             if (chapters != null) {
                 headerAdapter.options = getScanlators(chapters)
                 val filteredChapters =
-                    if (model.mangaReadSources?.get(media.selected!!.sourceIndex) is OfflineMangaParser) {
-                        chapters
-                    } else {
-                        chapters.filterNot { (_, chapter) ->
-                            !chapter.scanlator.isNullOrBlank() && chapter.scanlator in headerAdapter.hiddenScanlators
-                        }
+                if (model.mangaReadSources?.get(media.selected!!.sourceIndex) is OfflineMangaParser) {
+                    chapters
+                } else {
+                    chapters.filterNot { (_, chapter) ->
+                        !chapter.scanlator.isNullOrBlank() && chapter.scanlator in headerAdapter.hiddenScanlators
                     }
+                }
 
                 media.manga?.chapters = filteredChapters.toMutableMap()
 
