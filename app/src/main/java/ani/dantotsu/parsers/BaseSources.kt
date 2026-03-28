@@ -90,7 +90,8 @@ abstract class MangaReadSources : BaseSources() {
         show.sManga?.let { sManga ->
             tryWithSuspend(true) {
                 parser.loadChapters(show.link, show.extra, sManga).forEach {
-                    map["${it.number}-${it.scanlator}"] = MangaChapter(it)
+                    val scanlator = it.scanlator.ifBlank { "" }
+                    map["${it.number}-${scanlator}"] = MangaChapter(it)
                 }
             }
         }
@@ -102,13 +103,13 @@ abstract class MangaReadSources : BaseSources() {
             tryWithSuspend(true) {
                 // Since we've checked, we can safely cast parser to OfflineMangaParser and call its methods
                 parser.loadChapters(show.link, show.extra, SManga.create()).forEach {
-                    map["${it.number}-${it.scanlator}"] = MangaChapter(it)
+                    val scanlator = it.scanlator.ifBlank { "" }
+                    map["${it.number}-${scanlator}"] = MangaChapter(it)
                 }
             }
         } else {
             Logger.log("Parser is not an instance of OfflineMangaParser")
         }
-
 
         Logger.log("map size ${map.size}")
         return map
@@ -131,11 +132,11 @@ class EmptyNovelParser : NovelParser() {
     override val volumeRegex: Regex = Regex("")
 
     override suspend fun loadBook(link: String, extra: Map<String, String>?): Book {
-        return Book("", "", null, emptyList())  // Return an empty Book object or some default value
+        return Book("", "", null, emptyList())
     }
 
     override suspend fun search(query: String): List<ShowResponse> {
-        return listOf() // Return an empty list or some default value
+        return listOf()
     }
 }
 
@@ -159,6 +160,3 @@ abstract class BaseSources {
         get(i)?.saveShowResponse(mediaId, response, true)
     }
 }
-
-
-
