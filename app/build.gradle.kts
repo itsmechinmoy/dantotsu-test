@@ -169,4 +169,7 @@ dependencies {
 
     // Archive
     implementation(libs.libarchive)
+
+    // Logging
+    implementation(libs.slf4j.android)
 }

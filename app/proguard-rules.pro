@@ -60,6 +60,9 @@
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class org.jsoup.** { *; }
 -keepclassmembers class org.jsoup.nodes.Document { *; }
+-keep class org.slf4j.** { *; }
+-keep class org.slf4j.impl.** { *; }
+-dontwarn org.slf4j.**
 
 
 

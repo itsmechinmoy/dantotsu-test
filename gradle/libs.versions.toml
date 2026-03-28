@@ -13,6 +13,7 @@ ass = "0.4.0"
 ktor = "2.3.12"
 xmlutil = "0.90.3"
 libarchive = "1.1.4"
+slf4j = "1.7.36"
 
 [libraries]
 
@@ -117,6 +118,9 @@ okio = "com.squareup.okio:okio:3.9.1"
 xmlutil-core = { module = "io.github.pdvrieze.xmlutil:core-android", version.ref = "xmlutil" }
 xmlutil-serialization = { module = "io.github.pdvrieze.xmlutil:serialization-android", version.ref = "xmlutil" }
 libarchive = { module = "me.zhanghai.android.libarchive:library", version.ref = "libarchive" }
+
+# Logging
+slf4j-android = { module = "org.slf4j:slf4j-android", version.ref = "slf4j" }
 
 # Ktor
 ktor-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

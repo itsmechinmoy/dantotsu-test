@@ -24,7 +24,7 @@ jobs:
       - name: Set version
         id: version
         run: |
-          VER=$(grep -E -o 'versionName "[^"]*"' app/build.gradle | cut -d'"' -f2)
+          VER=$(grep -E -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)
           SHA=$(git rev-parse HEAD)
           VERSION="${VER}+${SHA:0:7}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
@@ -78,16 +78,16 @@ jobs:
 
       - name: Add Split APK Configuration
         run: |
-          if ! grep -q "splits {" app/build.gradle; then
+          if ! grep -q "splits {" app/build.gradle.kts; then
             sed -i '/android {/a\
             \    splits {\
             \        abi {\
-            \            enable true\
+            \            isEnable = true\
             \            reset()\
-            \            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"\
-            \            universalApk true\
+            \            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")\
+            \            isUniversalApk = true\
             \        }\
-            \    }' app/build.gradle
+            \    }' app/build.gradle.kts
           fi
 
       - name: Decode keystore
