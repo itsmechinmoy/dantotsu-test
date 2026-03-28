@@ -11,6 +11,8 @@ groupie = "2.10.1"
 nextlib = "0.8.4"
 ass = "0.4.0"
 ktor = "2.3.12"
+xmlutil = "0.90.3"
+libarchive = "1.1.4"
 
 [libraries]
 
@@ -110,6 +112,11 @@ okhttp-logging = "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.14"
 okhttp-brotli = "com.squareup.okhttp3:okhttp-brotli:5.0.0-alpha.14"
 okhttp-doh = "com.squareup.okhttp3:okhttp-dnsoverhttps:5.0.0-alpha.14"
 okio = "com.squareup.okio:okio:3.9.1"
+
+# XML Util
+xmlutil-core = { module = "io.github.pdvrieze.xmlutil:core-android", version.ref = "xmlutil" }
+xmlutil-serialization = { module = "io.github.pdvrieze.xmlutil:serialization-android", version.ref = "xmlutil" }
+libarchive = { module = "me.zhanghai.android.libarchive:library", version.ref = "libarchive" }
 
 # Ktor
 ktor-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

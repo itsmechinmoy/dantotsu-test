@@ -162,4 +162,11 @@ dependencies {
 
     // Others
     implementation(libs.okio)
+
+    // XML Util
+    implementation(libs.xmlutil.core)
+    implementation(libs.xmlutil.serialization)
+
+    // Archive
+    implementation(libs.libarchive)
 }
