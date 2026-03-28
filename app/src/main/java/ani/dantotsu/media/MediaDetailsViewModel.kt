@@ -141,6 +141,7 @@ class MediaDetailsViewModel : ViewModel() {
                 e.printStackTrace()
             }
         }
+        loading = false
     }
 
     fun setMedia(m: Media) {
