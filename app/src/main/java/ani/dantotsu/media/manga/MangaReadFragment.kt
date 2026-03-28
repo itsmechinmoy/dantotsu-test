@@ -268,13 +268,13 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
             Toast.makeText(requireContext(), "All downloads completed!", Toast.LENGTH_SHORT).show()
         }
     }
+
     private suspend fun downloadChapterSequentially(chapter: MangaChapter) {
         withContext(Dispatchers.IO) {
             onMangaChapterDownloadClick(chapter)
             delay(2000) // A 2-second download
         }
     }
-
 
     private fun updateChapters() {
         val loadedChapters = model.getMangaChapters().value
@@ -287,7 +287,7 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
                         chapters
                     } else {
                         chapters.filterNot { (_, chapter) ->
-                            chapter.scanlator in headerAdapter.hiddenScanlators
+                            !chapter.scanlator.isNullOrBlank() && chapter.scanlator in headerAdapter.hiddenScanlators
                         }
                     }
 
@@ -330,7 +330,10 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
         if (chap != null) {
             val chapters = chap.values
             for (chapter in chapters) {
-                scanlators.add(chapter.scanlator ?: "Unknown")
+                val scanlator = chapter.scanlator
+                if (!scanlator.isNullOrBlank()) {
+                    scanlators.add(scanlator)
+                }
             }
         }
         return scanlators.distinct()
@@ -542,7 +545,6 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
         return true
     }
 
-
     fun onMangaChapterRemoveDownloadClick(i: MangaChapter) {
         downloadManager.removeDownload(
             DownloadedType(
@@ -605,7 +607,6 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
             }
         }
     }
-
 
     @SuppressLint("NotifyDataSetChanged")
     private fun reload() {
