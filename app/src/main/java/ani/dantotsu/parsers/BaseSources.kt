@@ -87,12 +87,24 @@ abstract class MangaReadSources : BaseSources() {
         val map = mutableMapOf<String, MangaChapter>()
         val parser = get(i)
 
+        fun addToMap(chapters: List<ani.dantotsu.parsers.MangaChapter>) {
+            chapters.forEach {
+                val scanlator = it.scanlator.ifBlank { "" }
+                var key = "${it.number}-${scanlator}"
+                if (map.containsKey(key)) {
+                    var index = 1
+                    while (map.containsKey("${key}-${index}")) {
+                        index++
+                    }
+                    key = "${key}-${index}"
+                }
+                map[key] = MangaChapter(it)
+            }
+        }
+
         show.sManga?.let { sManga ->
             tryWithSuspend(true) {
-                parser.loadChapters(show.link, show.extra, sManga).forEach {
-                    val scanlator = it.scanlator.ifBlank { "" }
-                    map["${it.number}-${scanlator}-${it.link}"] = MangaChapter(it)
-                }
+                addToMap(parser.loadChapters(show.link, show.extra, sManga))
             }
         }
         //must be downloaded
@@ -102,10 +114,7 @@ abstract class MangaReadSources : BaseSources() {
         if (parser is OfflineMangaParser && show.sManga == null) {
             tryWithSuspend(true) {
                 // Since we've checked, we can safely cast parser to OfflineMangaParser and call its methods
-                parser.loadChapters(show.link, show.extra, SManga.create()).forEach {
-                    val scanlator = it.scanlator.ifBlank { "" }
-                    map["${it.number}-${scanlator}-${it.link}"] = MangaChapter(it)
-                }
+                addToMap(parser.loadChapters(show.link, show.extra, SManga.create()))
             }
         } else {
             Logger.log("Parser is not an instance of OfflineMangaParser")
