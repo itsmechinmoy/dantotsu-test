@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.serialization)
@@ -14,6 +16,13 @@ android {
     namespace = "ani.dantotsu"
     compileSdk = 36
 
+
+    val apikeyProperties = Properties()
+    val apikeyPropertiesFile = rootProject.file("apikey.properties")
+    if (apikeyPropertiesFile.exists()) {
+        apikeyPropertiesFile.reader(Charsets.UTF_8).use<java.io.Reader, Unit> { apikeyProperties.load(it) }
+    }
+
     defaultConfig {
         applicationId = "ani.dantotsu"
         minSdk = 21
@@ -27,6 +36,10 @@ android {
             .toInt()
 
         signingConfig = signingConfigs.getByName("debug")
+
+        // Simkl
+        buildConfigField("String", "SIMKL_CLIENT_ID", "\"${apikeyProperties["SIMKL_CLIENT_ID"] ?: System.getenv("SIMKL_CLIENT_ID") ?: ""}\"")
+        buildConfigField("String", "SIMKL_CLIENT_SECRET", "\"${apikeyProperties["SIMKL_CLIENT_SECRET"] ?: System.getenv("SIMKL_CLIENT_SECRET") ?: ""}\"")
     }
 
     flavorDimensions += "store"
@@ -143,6 +156,9 @@ dependencies {
 
     // OkHttp
     implementation(libs.bundles.okhttp)
+
+    // Ktor
+    implementation(libs.bundles.ktor)
 
     // Others
     implementation(libs.okio)

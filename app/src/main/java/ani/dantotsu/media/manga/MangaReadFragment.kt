@@ -183,8 +183,11 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
                 progress = View.GONE
                 binding.mediaInfoProgressBar.visibility = progress
 
-                if (media.format == "MANGA" || media.format == "ONE SHOT") {
-                    media.selected = model.loadSelected(media)
+                if (media.format == "MANGA" || media.format == "ONE SHOT" || (media.format == "LOCAL" && media.manga != null)) {
+                    // For LOCAL
+                    if (media.format != "LOCAL" || media.selected == null) {
+                        media.selected = model.loadSelected(media)
+                    }
 
                     subscribed =
                         SubscriptionHelper.getSubscriptions().containsKey(media.id)
@@ -214,7 +217,7 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
                         lifecycleScope.launch(Dispatchers.IO) {
                             val offline =
                                 !isOnline(binding.root.context) || PrefManager.getVal(PrefName.OfflineMode)
-                            if (offline) media.selected!!.sourceIndex =
+                            if (offline && media.format != "LOCAL") media.selected!!.sourceIndex =
                                 model.mangaReadSources!!.list.lastIndex
                             model.loadMangaChapters(media, media.selected!!.sourceIndex)
                         }
@@ -265,13 +268,13 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
             Toast.makeText(requireContext(), "All downloads completed!", Toast.LENGTH_SHORT).show()
         }
     }
+
     private suspend fun downloadChapterSequentially(chapter: MangaChapter) {
         withContext(Dispatchers.IO) {
             onMangaChapterDownloadClick(chapter)
             delay(2000) // A 2-second download
         }
     }
-
 
     private fun updateChapters() {
         val loadedChapters = model.getMangaChapters().value
@@ -280,13 +283,13 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
             if (chapters != null) {
                 headerAdapter.options = getScanlators(chapters)
                 val filteredChapters =
-                    if (model.mangaReadSources?.get(media.selected!!.sourceIndex) is OfflineMangaParser) {
-                        chapters
-                    } else {
-                        chapters.filterNot { (_, chapter) ->
-                            chapter.scanlator in headerAdapter.hiddenScanlators
-                        }
+                if (model.mangaReadSources?.get(media.selected!!.sourceIndex) is OfflineMangaParser) {
+                    chapters
+                } else {
+                    chapters.filterNot { (_, chapter) ->
+                        !chapter.scanlator.isNullOrBlank() && chapter.scanlator in headerAdapter.hiddenScanlators
                     }
+                }
 
                 media.manga?.chapters = filteredChapters.toMutableMap()
 
@@ -327,7 +330,10 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
         if (chap != null) {
             val chapters = chap.values
             for (chapter in chapters) {
-                scanlators.add(chapter.scanlator ?: "Unknown")
+                val scanlator = chapter.scanlator
+                if (!scanlator.isNullOrBlank()) {
+                    scanlators.add(scanlator)
+                }
             }
         }
         return scanlators.distinct()
@@ -539,7 +545,6 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
         return true
     }
 
-
     fun onMangaChapterRemoveDownloadClick(i: MangaChapter) {
         downloadManager.removeDownload(
             DownloadedType(
@@ -602,7 +607,6 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
             }
         }
     }
-
 
     @SuppressLint("NotifyDataSetChanged")
     private fun reload() {

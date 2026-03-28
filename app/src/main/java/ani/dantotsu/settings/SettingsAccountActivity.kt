@@ -1,14 +1,18 @@
 package ani.dantotsu.settings
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -16,6 +20,8 @@ import ani.dantotsu.R
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.discord.Discord
 import ani.dantotsu.connections.mal.MAL
+import ani.dantotsu.connections.simkl.Simkl
+import ani.dantotsu.connections.simkl.SimklAuth
 import ani.dantotsu.databinding.ActivitySettingsAccountsBinding
 import ani.dantotsu.initActivity
 import ani.dantotsu.loadImage
@@ -28,6 +34,9 @@ import ani.dantotsu.snackString
 import ani.dantotsu.startMainActivity
 import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
+import ani.dantotsu.toast
+import ani.dantotsu.util.AlertDialogBuilder
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.noties.markwon.Markwon
 import io.noties.markwon.SoftBreakAddsNewLinePlugin
 import kotlinx.coroutines.launch
@@ -35,8 +44,32 @@ import ani.dantotsu.util.customAlertDialog
 
 class SettingsAccountActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsAccountsBinding
+
+    // 🔥 ADD THIS: At class level
+    private lateinit var settingsAdapter: SettingsAdapter
+
     private val restartMainActivity = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() = startMainActivity(this@SettingsAccountActivity)
+    }
+
+    private fun showLogoutConfirmationDialog(
+        context: Context,
+        serviceName: String,
+        onConfirm: () -> Unit
+    ) {
+        AlertDialogBuilder(context).apply {
+            setTitle("Logout $serviceName")
+            setMessage("Are you sure you want to logout?")
+            setPosButton("Yes") {
+                onConfirm.invoke()
+            }
+            setNegButton("No", null)
+            attach { dialog ->
+                val width = (context.resources.displayMetrics.widthPixels * 0.85).toInt()
+                dialog.window?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+            }
+            show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +96,18 @@ class SettingsAccountActivity : AppCompatActivity() {
                             val markWon = Markwon.builder(it.context)
                                 .usePlugin(SoftBreakAddsNewLinePlugin.create()).build()
                             markWon.setMarkdown(this, context.getString(R.string.full_account_help))
+                        }
+                    )
+                }.show(supportFragmentManager, "dialog")
+            }
+            settingsSimklHelp.setOnClickListener {
+                CustomBottomDialog.newInstance().apply {
+                    setTitleText(context.getString(R.string.simkl_help))
+                    addView(
+                        TextView(it.context).apply {
+                            val markWon = Markwon.builder(it.context)
+                                .usePlugin(SoftBreakAddsNewLinePlugin.create()).build()
+                            markWon.setMarkdown(this, context.getString(R.string.full_simkl_help))
                         }
                     )
                 }.show(supportFragmentManager, "dialog")
@@ -94,6 +139,29 @@ class SettingsAccountActivity : AppCompatActivity() {
                             PrefManager.getVal<String>(PrefName.AnilistUserName)
                         )
                         openLinkInBrowser(anilistLink)
+                    }
+
+                    if (Anilist.bg != null) {
+                        settingsAnilistBanner.visibility = View.VISIBLE
+                        settingsAnilistScrim.visibility = View.VISIBLE
+                        settingsAnilistBanner.loadImage(Anilist.bg)
+                    } else {
+                        settingsAnilistBanner.visibility = View.GONE
+                        settingsAnilistScrim.visibility = View.GONE
+                    }
+                    
+                    val daysLeft = Anilist.getTokenExpiryDays()
+                    if (daysLeft != null) {
+                        settingsAnilistTokenExpiry.visibility = View.VISIBLE
+                        settingsAnilistTokenExpiry.text = when {
+                            daysLeft <= 0 -> "Reconnect Now"
+                            else -> "Reconnect in $daysLeft days"
+                        }
+                        settingsAnilistTokenExpiry.setOnClickListener {
+                            Anilist.loginIntent(context)
+                        }
+                    } else {
+                        settingsAnilistTokenExpiry.visibility = View.GONE
                     }
 
                     settingsMALLoginRequired.visibility = View.GONE
@@ -133,6 +201,9 @@ class SettingsAccountActivity : AppCompatActivity() {
                 } else {
                     settingsAnilistAvatar.setImageResource(R.drawable.ic_round_person_24)
                     settingsAnilistUsername.visibility = View.GONE
+                    settingsAnilistTokenExpiry.visibility = View.GONE
+                    settingsAnilistBanner.visibility = View.GONE
+                    settingsAnilistScrim.visibility = View.GONE
                     settingsRecyclerView.visibility = View.GONE
                     settingsAnilistLogin.setText(R.string.login)
                     settingsAnilistLogin.setOnClickListener {
@@ -174,13 +245,14 @@ class SettingsAccountActivity : AppCompatActivity() {
                     }
 
                     settingsPresenceSwitcher.visibility = View.VISIBLE
-                    var initialStatus = when (PrefManager.getVal<String>(PrefName.DiscordStatus)) {
-                        "online" -> R.drawable.discord_status_online
-                        "idle" -> R.drawable.discord_status_idle
-                        "dnd" -> R.drawable.discord_status_dnd
-                        "invisible" -> R.drawable.discord_status_invisible
-                        else -> R.drawable.discord_status_online
-                    }
+                    var initialStatus =
+                        when (PrefManager.getVal<String>(PrefName.DiscordStatus)) {
+                            "online" -> R.drawable.discord_status_online
+                            "idle" -> R.drawable.discord_status_idle
+                            "dnd" -> R.drawable.discord_status_dnd
+                            "invisible" -> R.drawable.discord_status_invisible
+                            else -> R.drawable.discord_status_online
+                        }
                     settingsPresenceSwitcher.setImageResource(initialStatus)
 
                     val zoomInAnimation =
@@ -230,9 +302,16 @@ class SettingsAccountActivity : AppCompatActivity() {
                             .show(supportFragmentManager, "dialog")
                     }
                 }
+
+                // 🔥 ADD THIS: Refresh settings list when reloading
+                settingsAdapter = SettingsAdapter(getSettingsList())
+                binding.settingsRecyclerView.adapter = settingsAdapter
             }
             reload()
+            updateSimklUI()
         }
+
+        // 🔥 REPLACE THIS BLOCK with the new code below
         binding.settingsRecyclerView.adapter = SettingsAdapter(
             arrayListOf(
                 Settings(
@@ -245,6 +324,19 @@ class SettingsAccountActivity : AppCompatActivity() {
                         PrefManager.setVal(PrefName.rpcEnabled, isChecked)
                     },
                     isVisible = Discord.token != null
+                ),
+                // 🔥 ADD THIS - Simkl Sync Toggle
+                Settings(
+                    type = 2,
+                    name = getString(R.string.enable_simkl_sync),
+                    desc = getString(R.string.enable_simkl_sync_desc),
+                    icon = R.drawable.ic_simkl,
+                    isChecked = PrefManager.getVal(PrefName.SimklEnabled),
+                    switch = { isChecked, _ ->
+                        PrefManager.setVal(PrefName.SimklEnabled, isChecked)
+                        Simkl.getInstance().setEnabled(isChecked)
+                    },
+                    isVisible = Simkl.getInstance().isLoggedIn()  // Only show if logged in
                 ),
                 Settings(
                     type = 1,
@@ -273,18 +365,117 @@ class SettingsAccountActivity : AppCompatActivity() {
                 ),
             )
         )
-        binding.settingsRecyclerView.layoutManager =
-            LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
 
+        // 🔥 NEW CODE:
+        settingsAdapter = SettingsAdapter(getSettingsList())
+        binding.settingsRecyclerView.adapter = settingsAdapter
+        binding.settingsRecyclerView.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+    }
+
+    // New function to generate settings list (only includes visible items)
+    private fun getSettingsList(): ArrayList<Settings> {
+        return arrayListOf(
+
+            Settings(
+                type = 1,
+                name = getString(R.string.anilist_settings),
+                desc = getString(R.string.alsettings_desc),
+                icon = R.drawable.ic_anilist,
+                onClick = {
+                    lifecycleScope.launch {
+                        Anilist.query.getUserData()
+                        startActivity(Intent(this@SettingsAccountActivity, AnilistSettingsActivity::class.java))
+                    }
+                },
+                isActivity = true
+            ),
+            Settings(
+                type = 2,
+                name = getString(R.string.comments_button),
+                desc = getString(R.string.comments_button_desc),
+                icon = R.drawable.ic_round_comment_24,
+                isChecked = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1,
+                switch = { isChecked, _ ->
+                    PrefManager.setVal(PrefName.CommentsEnabled, if (isChecked) 1 else 2)
+                },
+                isVisible = Anilist.token != null
+            ),
+            Settings(
+                type = 2,
+                name = getString(R.string.enable_simkl_sync),
+                desc = getString(R.string.enable_simkl_sync_desc),
+                icon = R.drawable.ic_simkl,
+                isChecked = PrefManager.getVal(PrefName.SimklEnabled),
+                switch = { isChecked, _ ->
+                    PrefManager.setVal(PrefName.SimklEnabled, isChecked)
+                    Simkl.getInstance().setEnabled(isChecked)
+                },
+                isVisible = Simkl.getInstance().isLoggedIn()
+            ),
+            Settings(
+                type = 2,
+                name = getString(R.string.enable_rpc),
+                desc = getString(R.string.enable_rpc_desc),
+                icon = R.drawable.interests_24,
+                isChecked = PrefManager.getVal(PrefName.rpcEnabled),
+                switch = { isChecked, _ ->
+                    PrefManager.setVal(PrefName.rpcEnabled, isChecked)
+                },
+                isVisible = Discord.token != null
+            ),
+
+        ).filter { it.isVisible } as ArrayList<Settings>
+    }
+
+    // 🔥 UPDATE THIS: Modified updateSimklUI()
+    private fun updateSimklUI() {
+        val simkl = Simkl.getInstance()
+        binding.apply {
+            if (simkl.isLoggedIn()) {
+                // 🔥 REMOVE THE COROUTINE AND fetchAndSaveUser()
+                // Just use cached data like AniList/MAL
+                val username = simkl.username ?: simkl.user?.name ?: "Simkl User"
+                val avatarUrl = simkl.avatar ?: simkl.user?.avatar
+
+                settingsSimklUsername.text = username
+                settingsSimklAvatar.loadImage(avatarUrl)
+
+                settingsSimklAvatar.setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    val simklLink = getString(R.string.simkl_link, username)
+                    openLinkInBrowser(simklLink)
+                }
+
+                settingsSimklLogin.setText(R.string.logout)
+                settingsSimklLogin.setOnClickListener {
+                    showLogoutConfirmationDialog(this@SettingsAccountActivity, "Simkl") {
+                        simkl.logout()
+                        updateSimklUI()
+                        toast("Logged out from Simkl")
+
+                        settingsAdapter = SettingsAdapter(getSettingsList())
+                        binding.settingsRecyclerView.adapter = settingsAdapter
+                    }
+                }
+                settingsSimklUsername.isVisible = true
+            } else {
+                settingsSimklAvatar.setImageResource(R.drawable.ic_round_person_24)
+                settingsSimklUsername.isVisible = false
+                settingsSimklLogin.setText(R.string.login)
+                settingsSimklLogin.setOnClickListener {
+                    SimklAuth.startLogin(this@SettingsAccountActivity)
+                }
+
+                settingsSimklAvatar.setOnClickListener(null)
+
+                settingsAdapter = SettingsAdapter(getSettingsList())
+                binding.settingsRecyclerView.adapter = settingsAdapter
+            }
+        }
     }
 
     fun reload() {
         snackString(getString(R.string.restart_app_extra))
-        //snackString(R.string.restart_app_extra)
-        //?.setDuration(Snackbar.LENGTH_LONG)
-        //?.setAction(R.string.do_it) {
-        //startMainActivity(this@SettingsAccountActivity)
-        //} Disabled for now. Doesn't update the ADDRESS even after this
     }
 }
-

@@ -60,54 +60,89 @@
 
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/settingsAnilistLoginContainer"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/settingsAnilistCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:orientation="horizontal">
+            android:layout_marginBottom="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/transparent">
 
             <ImageView
-                android:layout_width="24dp"
+                android:id="@+id/settingsAnilistBanner"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="20dp"
-                android:contentDescription="@string/anilist"
-                app:srcCompat="@drawable/ic_anilist"
-                app:tint="?attr/colorPrimary" />
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <View
+                android:id="@+id/settingsAnilistScrim"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?attr/colorSurface"
+                android:alpha="0.75"
+                android:visibility="gone" />
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:id="@+id/settingsAnilistLoginContainer"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:minHeight="64dp"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:padding="8dp">
 
-                <TextView
-                    android:id="@+id/settingsAnilistUsername"
-                    android:layout_width="wrap_content"
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="20dp"
+                    android:contentDescription="@string/anilist"
+                    app:srcCompat="@drawable/ic_anilist"
+                    app:tint="?attr/colorPrimary" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="-4dp"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="@string/username"
-                    android:textColor="?attr/colorSecondary"
-                    android:textSize="16sp" />
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:minHeight="64dp"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/settingsAnilistLogin"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="-16dp"
-                    android:layout_marginTop="-16dp"
-                    android:layout_marginBottom="-16dp"
-                    android:fontFamily="@font/poppins_bold"
-                    android:padding="16dp"
-                    android:text="@string/logout"
-                    android:textSize="14sp" />
+                    <TextView
+                        android:id="@+id/settingsAnilistUsername"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/username"
+                        android:textColor="?attr/colorSecondary"
+                        android:textSize="16sp" />
 
-            </LinearLayout>
+                    <TextView
+                        android:id="@+id/settingsAnilistTokenExpiry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-4dp"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="12sp"
+                        android:visibility="gone"
+                        tools:text="Reconnect in 30 days"
+                        tools:visibility="visible" />
+
+                    <TextView
+                        android:id="@+id/settingsAnilistLogin"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="-16dp"
+                        android:layout_marginTop="-16dp"
+                        android:layout_marginBottom="-16dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:padding="16dp"
+                        android:text="@string/logout"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/settingsAnilistAvatarContainer"
@@ -128,6 +163,8 @@
             </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout
             android:id="@+id/settingsMalLoginContainer"
@@ -193,7 +230,7 @@
                 android:contentDescription="@string/account_help"
                 android:padding="16dp"
                 android:src="@drawable/ic_round_help_24"
-                app:tint="?attr/colorPrimary"/>
+                app:tint="?attr/colorPrimary" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/settingsMALAvatarContainer"
@@ -205,6 +242,81 @@
 
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/settingsMALAvatar"
+                    android:layout_width="51dp"
+                    android:layout_height="51dp"
+                    android:scaleType="center"
+                    app:srcCompat="@drawable/ic_round_person_24"
+                    tools:ignore="ContentDescription,ImageContrastCheck" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/settingsSimklLoginContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="31dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="@string/simkl"
+                app:srcCompat="@drawable/ic_simkl"
+                app:tint="?attr/colorPrimary" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:minHeight="64dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/settingsSimklUsername"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="-4dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:gravity="center"
+                    android:text="@string/username"
+                    android:textColor="?attr/colorSecondary"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/settingsSimklLogin"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="-16dp"
+                    android:layout_marginTop="-16dp"
+                    android:layout_marginBottom="-16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:padding="16dp"
+                    android:text="@string/logout"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+            <!-- ADD THIS HELP ICON -->
+            <ImageView
+                android:id="@+id/settingsSimklHelp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/simkl_help"
+                android:padding="16dp"
+                android:src="@drawable/ic_round_help_24"
+                app:tint="?attr/colorPrimary" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/settingsSimklAvatarContainer"
+                android:layout_width="51dp"
+                android:layout_height="51dp"
+                android:layout_marginTop="4dp"
+                android:backgroundTint="@color/nav_bg_inv"
+                app:cardCornerRadius="26dp">
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/settingsSimklAvatar"
                     android:layout_width="51dp"
                     android:layout_height="51dp"
                     android:scaleType="center"

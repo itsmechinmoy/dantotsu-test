@@ -154,20 +154,18 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             val res = source.getEpisodeList(sAnime)
 
             val sortedEpisodes = if (res[0].episode_number == -1f) {
-                // Find the number in the string and sort by that number
                 val sortedByStringNumber = res.sortedBy {
                     val matchResult = MediaNameAdapter.findEpisodeNumber(it.name)
                     val number = matchResult ?: Float.MAX_VALUE
-                    it.episode_number = number  // Store the found number in episode_number
+                    it.episode_number = number
                     number
                 }
 
-                // If there is no number, reverse the order and give them an incrementing number
                 var incrementingNumber = 1f
                 sortedByStringNumber.map {
                     if (it.episode_number == Float.MAX_VALUE) {
                         it.episode_number =
-                            incrementingNumber++  // Update episode_number with the incrementing number
+                            incrementingNumber++
                     }
                     it
                 }
@@ -175,13 +173,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 res.sortedBy { it.episode_number }
             } else {
                 var episodeCounter = 1f
-                // Group by season, sort within each season, and then renumber while keeping episode number 0 as is
                 val seasonGroups =
                     res.groupBy { MediaNameAdapter.findSeasonNumber(it.name) ?: 0 }
                 seasonGroups.keys.sortedBy { it }
                     .flatMap { season ->
                         seasonGroups[season]?.sortedBy { it.episode_number }?.map { episode ->
-                            if (episode.episode_number != 0f) { // Skip renumbering for episode number 0
+                            if (episode.episode_number != 0f) {
                                 val potentialNumber =
                                     MediaNameAdapter.findEpisodeNumber(episode.name)
                                 if (potentialNumber != null) {
@@ -239,6 +236,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         source: AnimeHttpSource,
         episode: SEpisode
     ): List<Video> {
+
 
         val hasHosters = checkHasHosters(source)
 
@@ -387,21 +385,16 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         }
     }
 
-
     private fun convertAnimesPageToShowResponse(animesPage: AnimesPage): List<ShowResponse> {
         return animesPage.animes.map { sAnime ->
-            // Extract required fields from sAnime
             val name = sAnime.title
             val link = sAnime.url
             val coverUrl = sAnime.thumbnail_url ?: ""
-
-            // Create a new ShowResponse
             ShowResponse(name, link, coverUrl, sAnime)
         }
     }
 
     private fun sEpisodeToEpisode(sEpisode: SEpisode): Episode {
-        //if the float episode number is a whole number, convert it to an int
         val episodeNumberInt =
             if (sEpisode.episode_number % 1 == 0f) {
                 sEpisode.episode_number.toInt()
@@ -476,7 +469,6 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
             emptyList()
         }
     }
-
 
     override suspend fun loadImages(chapterLink: String, sChapter: SChapter): List<MangaImage> {
         val source = try {
@@ -570,15 +562,11 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
         }
     }
 
-
     private fun convertMangasPageToShowResponse(mangasPage: MangasPage): List<ShowResponse> {
         return mangasPage.mangas.map { sManga ->
-            // Extract required fields from sManga
             val name = sManga.title
             val link = sManga.url
             val coverUrl = sManga.thumbnail_url ?: ""
-
-            // Create a new ShowResponse
             ShowResponse(name, link, coverUrl, sManga)
         }
     }
@@ -614,14 +602,13 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
         )
     }
 
-
     private fun sChapterToMangaChapter(sChapter: SChapter): MangaChapter {
         return MangaChapter(
             sChapter.name,
             sChapter.url,
             sChapter.name,
             null,
-            sChapter.scanlator ?: "Unknown",
+            sChapter.scanlator?.ifBlank { null }?.trim() ?: "Unknown",
             sChapter,
             sChapter.date_upload
         )
@@ -645,10 +632,8 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
     }
 
     private fun aniVideoToSaiVideo(aniVideo: Video): ani.dantotsu.parsers.Video {
-        // Find the number value from the .quality string
         val number = Regex("""\d+""").find(aniVideo.quality)?.value?.toInt() ?: 0
 
-        // Check for null video URL
         val videoUrl = aniVideo.videoUrl ?: throw Exception("Video URL is null")
 
         var format: VideoType?
@@ -668,18 +653,11 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
                     Pair(key, value)
                 }
 
-                // Assume the file is named under the "file" query parameter
                 val fileName = queryPairs.find { it.first == "file" }?.second ?: ""
 
                 format = getVideoType(fileName)
-                // this solves a problem no one has, so I'm commenting it out for now
-                //if (format == null) {
-                //    val networkHelper = Injekt.get<NetworkHelper>()
-                //    format = headRequest(videoUrl, networkHelper)
-                //}
             }
 
-            // If the format is still undetermined, log an error
             if (format == null) {
                 Logger.log("Unknown video format: $videoUrl")
                 format = VideoType.CONTAINER
@@ -692,7 +670,6 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
         }
         val headersMap: Map<String, String> =
             aniVideo.headers?.toMultimap()?.mapValues { it.value.joinToString() } ?: mapOf()
-
 
         return Video(
             number,
@@ -766,7 +743,6 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
     }
 
     private fun findSubtitleType(url: String): SubtitleType {
-        // First, try to determine the type based on the URL file extension
         val type: SubtitleType = when {
             url.endsWith(".vtt", true) -> SubtitleType.VTT
             url.endsWith(".ass", true) -> SubtitleType.ASS

@@ -227,11 +227,16 @@ enum class PrefName(val data: Pref) {
     ),
     UnreadCommentNotifications(Pref(Location.Irrelevant, Int::class, 0)),
     DownloadsDir(Pref(Location.Irrelevant, String::class, "")),
+    LocalDir(Pref(Location.Irrelevant, String::class, "")),
     OC(Pref(Location.Irrelevant, Boolean::class, false)),
     RefreshStatus(Pref(Location.Irrelevant, Boolean::class, false)),
     rpcEnabled(Pref(Location.Irrelevant, Boolean::class, true)),
+    SimklEnabled(Pref(Location.Irrelevant, Boolean::class, false)),
+    SimklUsername(Pref(Location.Irrelevant, String::class, "")),
+    SimklAvatar(Pref(Location.Irrelevant, String::class, "")),
 
     //Protected
+    SimklToken(Pref(Location.Protected, String::class, "")),
     DiscordToken(Pref(Location.Protected, String::class, "")),
     DiscordId(Pref(Location.Protected, String::class, "")),
     DiscordUserName(Pref(Location.Protected, String::class, "")),

@@ -83,10 +83,12 @@ data class Media(
     var crunchySlug: String? = null,
 
     var nameMAL: String? = null,
+    var folderName: String? = null,
     var shareLink: String? = null,
     var selected: Selected? = null,
     var streamingEpisodes: List<MediaStreamingEpisode>? = null,
     var idKitsu: String? = null,
+    var idIMDB: String? = null,
     var externalLinks: ArrayList<MediaExternalLink>? = null,
     var idIMDB: String? = null,
 
