@@ -47,7 +47,12 @@
 -keep class ani.dantotsu.download.DownloadsManager { *; }
 -keepattributes Signature
 -keep class uy.kohesive.injekt.** { *; }
--keep class eu.kanade.tachiyomi.** { *; }
+-keep class eu.kanade.** { *; }
+-keep,allowoptimization class kotlinx.serialization.** { public protected *; }
+-keep,allowoptimization class app.cash.quickjs.** { public protected *; }
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+
 -keep class kotlin.** { *; }
 -dontwarn kotlin.**
 -keep class kotlinx.** { *; }
@@ -63,12 +68,14 @@
 -keep class org.slf4j.** { *; }
 -keep class org.slf4j.impl.** { *; }
 -dontwarn org.slf4j.**
-
+-dontobfuscate
 # Keep WorkManager database
 -keep class androidx.work.impl.WorkDatabase_Impl { *; }
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
-
+-dontwarn okhttp3.**
+-dontwarn org.graalvm.nativeimage.**
+-dontwarn com.oracle.svm.core.annotate.**
 # @Serializable and @Polymorphic are used at runtime for polymorphic serialization.
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
 
