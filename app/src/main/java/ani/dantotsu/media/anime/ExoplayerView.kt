@@ -1882,7 +1882,6 @@ class ExoplayerView :
                         DefaultMediaSourceFactory(cacheFactory).createMediaSource(mediaItem)
                     }
                 }.toTypedArray()
-
         val isContentUri = video?.file?.url?.startsWith("content://") == true
         val videoMediaSource = if (isContentUri) {
             val localDataSourceFactory = DefaultDataSource.Factory(this)

@@ -27,6 +27,7 @@ object WyzieSubtitles {
                 val response = client.get(url)
                 val text = response.text
 
+
                 // Basic check for valid JSON array start
                 if (text.trim().startsWith("<") || !text.trim().startsWith("[")) {
                      Logger.log("WyzieSubtitles: Invalid response (likely 404/Error Page)")

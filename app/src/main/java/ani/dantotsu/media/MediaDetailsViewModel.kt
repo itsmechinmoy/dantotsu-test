@@ -142,6 +142,16 @@ class MediaDetailsViewModel : ViewModel() {
             }
         }
         loading = false
+        // Prefetch IMDB ID asynchronously to cache it before the player opens
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (m.idIMDB == null) {
+                    m.idIMDB = ani.dantotsu.others.IdMappers.getImdbId(m.id)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun setMedia(m: Media) {

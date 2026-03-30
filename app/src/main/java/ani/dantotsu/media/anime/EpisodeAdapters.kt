@@ -462,7 +462,6 @@ class EpisodeAdapter(
                         if (desc != null && desc.trim(' ') != "") View.VISIBLE else View.GONE
                   
                     binding.itemDownload.setImageResource(R.drawable.ic_download_24)
-                    binding.itemDownload.rotation = 0f
                 }
             }
 

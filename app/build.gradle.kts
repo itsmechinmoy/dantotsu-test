@@ -4,10 +4,14 @@ plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.serialization)
     alias(libs.plugins.ksp)
-
-    alias(libs.plugins.google)
-    alias(libs.plugins.crashlytics)
 }
+
+if (gradle.startParameter.taskNames.any { it.contains("google", true) }) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
+
 val gitCommitHash = providers.exec {
     commandLine("git", "rev-parse", "--verify", "--short", "HEAD")
 }.standardOutput.asText.get().trim()
@@ -15,7 +19,6 @@ val gitCommitHash = providers.exec {
 android {
     namespace = "ani.dantotsu"
     compileSdk = 36
-
 
     val apikeyProperties = Properties()
     val apikeyPropertiesFile = rootProject.file("apikey.properties")

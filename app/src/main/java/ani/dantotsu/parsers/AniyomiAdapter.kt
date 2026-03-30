@@ -237,7 +237,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         episode: SEpisode
     ): List<Video> {
 
-
         val hasHosters = checkHasHosters(source)
 
         val directVideos = if (!hasHosters) {
@@ -354,6 +353,8 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
         return video
     }
+
+
 
     override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor {
         return VideoServerPassthrough(server)
