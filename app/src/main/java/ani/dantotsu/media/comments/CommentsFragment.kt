@@ -509,7 +509,6 @@ class CommentsFragment : Fragment() {
         if (isAnime) {
             val ep = currentMedia.anime?.episodes?.get(tag)
             if (ep != null) {
-                // If a default server exists, this triggers playback; otherwise, it opens the server selection sheet.
                 model.onEpisodeClick(
                     currentMedia,
                     tag,
@@ -520,7 +519,8 @@ class CommentsFragment : Fragment() {
                 snackString("Episode $tag not found for this provider")
             }
         } else {
-            val chp = currentMedia.manga?.chapters?.get(tag)
+            // FIX: Match chapter by number property since keys in the map use uniqueNumber() (number-scanlator)
+            val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
             if (chp != null) {
                 if (currentMedia.selected?.sourceIndex != null) {
                     ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(chp, true)
