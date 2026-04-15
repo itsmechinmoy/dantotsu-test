@@ -509,15 +509,26 @@ class CommentsFragment : Fragment() {
         if (isAnime) {
             val ep = currentMedia.anime?.episodes?.get(tag)
             if (ep != null) {
-                model.onEpisodeClick(currentMedia, tag, childFragmentManager, true)
+                model.onEpisodeClick(
+                    currentMedia,
+                    tag,
+                    childFragmentManager,
+                    true
+                )
             } else {
                 snackString("Episode $tag not found for this provider")
             }
         } else {
-            // Handle Manga and Novels separately
+            // Ensure a source is selected to prevent crashes
+            if (currentMedia.selected?.sourceIndex == null) {
+                snackString("Please select an extension first")
+                return
+            }
+
             val isNovel = currentMedia.format == "NOVEL"
             if (isNovel) {
-                val chapters = model.getNovelChapters().value?.get(currentMedia.selected?.sourceIndex)
+                // Novels use ShowResponse chapters stored in the loaded map
+                val chapters = model.getNovelChapters().value?.get(currentMedia.selected!!.sourceIndex)
                 val chpResponse = chapters?.find { it.extra?.get("chapterNumber") == tag }
                 if (chpResponse != null) {
                     lifecycleScope.launch {
@@ -529,15 +540,16 @@ class CommentsFragment : Fragment() {
                     snackString("Novel chapter $tag not found")
                 }
             } else {
-                // For Manga: Match by the 'number' property in the chapter list
+                // For Manga: We must find the chapter object from the values list
                 val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
                 if (chp != null) {
-                    if (currentMedia.selected?.sourceIndex != null) {
-                        ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(chp, true)
-                            .show(childFragmentManager, "dialog")
-                    } else {
-                        snackString("Please select an extension first")
-                    }
+                    // Match the logic from MangaReadFragment.kt:
+                    model.continueMedia = false
+                    currentMedia.manga?.selectedChapter = chp
+                    model.saveSelected(currentMedia.id, currentMedia.selected!!)
+                    
+                    ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(chp, true)
+                        .show(childFragmentManager, "dialog")
                 } else {
                     snackString("Chapter $tag not found for this provider")
                 }
