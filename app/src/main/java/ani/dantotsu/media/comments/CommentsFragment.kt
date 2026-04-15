@@ -519,7 +519,6 @@ class CommentsFragment : Fragment() {
                 snackString("Episode $tag not found for this provider")
             }
         } else {
-            // FIX: Match chapter by number property since keys in the map use uniqueNumber() (number-scanlator)
             val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
             if (chp != null) {
                 if (currentMedia.selected?.sourceIndex != null) {
