@@ -75,8 +75,6 @@ class CommentItem(
             } else {
                 commentUserTagLayout.visibility = View.VISIBLE
                 commentUserTag.text = comment.tag.toString()
-                
-                // Add click listener to the tag layout
                 commentUserTagLayout.setOnClickListener {
                     commentsFragment.onTagClicked(comment.tag.toString())
                 }
