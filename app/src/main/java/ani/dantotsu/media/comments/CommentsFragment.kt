@@ -501,6 +501,39 @@ class CommentsFragment : Fragment() {
     enum class InteractionState {
         NONE, EDIT, REPLY
     }
+
+    fun onTagClicked(tag: String) {
+        val model: MediaDetailsViewModel by activityViewModels()
+        val currentMedia = model.getMedia().value ?: return
+
+        if (isAnime) {
+            val ep = currentMedia.anime?.episodes?.get(tag)
+            if (ep != null) {
+                // If a default server exists, this triggers playback; otherwise, it opens the server selection sheet.
+                model.onEpisodeClick(
+                    currentMedia,
+                    tag,
+                    childFragmentManager,
+                    true
+                )
+            } else {
+                snackString("Episode $tag not found for this provider")
+            }
+        } else {
+            val chp = currentMedia.manga?.chapters?.get(tag)
+            if (chp != null) {
+                if (currentMedia.selected?.sourceIndex != null) {
+                    ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(chp, true)
+                        .show(childFragmentManager, "dialog")
+                } else {
+                    snackString("Please select an extension first")
+                }
+            } else {
+                snackString("Chapter $tag not found for this provider")
+            }
+        }
+    }
+
     /**
      * Loads and displays the comments
      * Called when the activity is created
