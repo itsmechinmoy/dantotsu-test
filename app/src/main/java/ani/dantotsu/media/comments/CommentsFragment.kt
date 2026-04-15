@@ -509,17 +509,11 @@ class CommentsFragment : Fragment() {
         if (isAnime) {
             val ep = currentMedia.anime?.episodes?.get(tag)
             if (ep != null) {
-                model.onEpisodeClick(
-                    currentMedia,
-                    tag,
-                    childFragmentManager,
-                    true
-                )
+                model.onEpisodeClick(currentMedia, tag, childFragmentManager, true)
             } else {
                 snackString("Episode $tag not found for this provider")
             }
         } else {
-            // Ensure a source is selected to prevent crashes
             if (currentMedia.selected?.sourceIndex == null) {
                 snackString("Please select an extension first")
                 return
@@ -527,8 +521,8 @@ class CommentsFragment : Fragment() {
 
             val isNovel = currentMedia.format == "NOVEL"
             if (isNovel) {
-                // Novels use ShowResponse chapters stored in the loaded map
                 val chapters = model.getNovelChapters().value?.get(currentMedia.selected!!.sourceIndex)
+                // Search in novel chapters by matching the chapterNumber in the extra data
                 val chpResponse = chapters?.find { it.extra?.get("chapterNumber") == tag }
                 if (chpResponse != null) {
                     lifecycleScope.launch {
@@ -540,10 +534,11 @@ class CommentsFragment : Fragment() {
                     snackString("Novel chapter $tag not found")
                 }
             } else {
-                // For Manga: We must find the chapter object from the values list
+                // Find the chapter by comparing the 'number' property within the chapter values
                 val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
                 if (chp != null) {
-                    // Match the logic from MangaReadFragment.kt:
+                    // CRITICAL SYNC: These lines are copied from onMangaChapterClick in MangaReadFragment
+                    // They ensure the ViewModel and Media state are updated so the Dialog/Reader knows what to load.
                     model.continueMedia = false
                     currentMedia.manga?.selectedChapter = chp
                     model.saveSelected(currentMedia.id, currentMedia.selected!!)
@@ -557,6 +552,11 @@ class CommentsFragment : Fragment() {
         }
     }
 
+    /**
+     * Loads and displays the comments
+     * Called when the activity is created
+     * Or when the user refreshes the comments
+     */
     private fun getEffectiveFilter(): Int? = when {
         filterTag != null -> filterTag
         isAutoFilterOn && userProgress != null && userProgress!! > 0 -> userProgress
