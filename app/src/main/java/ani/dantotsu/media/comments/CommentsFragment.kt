@@ -521,11 +521,14 @@ class CommentsFragment : Fragment() {
 
             val isNovel = currentMedia.format == "NOVEL"
             if (isNovel) {
+                // For Novels: use getNovelChapters() from ViewModel
                 val chapters = model.getNovelChapters().value?.get(currentMedia.selected!!.sourceIndex)
-                // Search in novel chapters by matching the chapterNumber in the extra data
+                // Extra metadata in ShowResponse stores 'chapterNumber'
                 val chpResponse = chapters?.find { it.extra?.get("chapterNumber") == tag }
+                
                 if (chpResponse != null) {
                     lifecycleScope.launch {
+                        // Pre-load the book metadata (required by NovelReaderActivity)
                         model.loadBook(chpResponse, currentMedia.selected!!.sourceIndex)
                         val intent = android.content.Intent(activity, ani.dantotsu.media.novel.novelreader.NovelReaderActivity::class.java)
                         startActivity(intent)
@@ -534,11 +537,10 @@ class CommentsFragment : Fragment() {
                     snackString("Novel chapter $tag not found")
                 }
             } else {
-                // Find the chapter by comparing the 'number' property within the chapter values
+                // For Manga: Find the chapter object by value because map keys are uniqueNumber strings
                 val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
                 if (chp != null) {
-                    // CRITICAL SYNC: These lines are copied from onMangaChapterClick in MangaReadFragment
-                    // They ensure the ViewModel and Media state are updated so the Dialog/Reader knows what to load.
+                    // Sync state with ViewModel exactly like MangaReadFragment.kt
                     model.continueMedia = false
                     currentMedia.manga?.selectedChapter = chp
                     model.saveSelected(currentMedia.id, currentMedia.selected!!)
