@@ -522,7 +522,6 @@ class CommentsFragment : Fragment() {
             val isNovel = currentMedia.format == "NOVEL"
             if (isNovel) {
                 val chapters = model.getNovelChapters().value?.get(currentMedia.selected!!.sourceIndex)
-                // Search in novel chapters by matching the chapterNumber in the extra data
                 val chpResponse = chapters?.find { it.extra?.get("chapterNumber") == tag }
                 if (chpResponse != null) {
                     lifecycleScope.launch {
@@ -534,10 +533,8 @@ class CommentsFragment : Fragment() {
                     snackString("Novel chapter $tag not found")
                 }
             } else {
-                // Find the chapter by comparing the 'number' property within the chapter values
                 val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
                 if (chp != null) {
-                    // MIRROR MangaReadFragment logic: Sync state with ViewModel
                     model.continueMedia = false
                     currentMedia.manga?.selectedChapter = chp
                     model.saveSelected(currentMedia.id, currentMedia.selected!!)
@@ -545,7 +542,6 @@ class CommentsFragment : Fragment() {
                     ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(chp, true)
                         .show(childFragmentManager, "dialog")
                 } else {
-                    // Fallback: If map is not yet populated, try to load it
                     lifecycleScope.launch {
                         snackString("Loading chapter for tag...")
                         model.loadMangaChapters(currentMedia, currentMedia.selected!!.sourceIndex)
