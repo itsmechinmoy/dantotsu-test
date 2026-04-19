@@ -1706,7 +1706,10 @@ class ExoplayerView :
             CacheDataSource.Factory().apply {
                 setCache(VideoCache.getInstance(this@ExoplayerView))
                 setUpstreamDataSourceFactory(defaultDataSourceFactory)
-                // Enable disk cache writes so segments are reused across seeks and sessions
+                // Fall back to network when a cached segment cannot be read (e.g. stale/incomplete
+                // data left from a previous session), so seeks past already-cached positions don't
+                // hang indefinitely.
+                setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
             }
 
         // Set up libass for ASS/SSA subtitle rendering.
@@ -2680,7 +2683,7 @@ class ExoplayerView :
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         if (PrefManager.getVal(PrefName.FocusPause) && !epChanging) {
-            if (isInitialized && !hasFocus) wasPlaying = exoPlayer.isPlaying
+            if (isInitialized && !hasFocus) wasPlaying = exoPlayer.playWhenReady
             if (hasFocus) {
                 if (isInitialized && wasPlaying) exoPlayer.play()
             } else {
