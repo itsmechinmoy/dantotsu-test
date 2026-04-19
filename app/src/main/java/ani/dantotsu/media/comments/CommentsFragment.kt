@@ -27,6 +27,7 @@ import ani.dantotsu.connections.comments.CommentsAPI
 import ani.dantotsu.databinding.DialogEdittextBinding
 import ani.dantotsu.databinding.FragmentCommentsBinding
 import ani.dantotsu.loadImage
+import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.media.MediaDetailsActivity
 import ani.dantotsu.media.MediaDetailsViewModel
 import ani.dantotsu.setBaseline
@@ -533,7 +534,13 @@ class CommentsFragment : Fragment() {
                     snackString("Novel chapter $tag not found")
                 }
             } else {
-                val chp = currentMedia.manga?.chapters?.values?.find { it.number == tag }
+                val sourceIndex = currentMedia.selected!!.sourceIndex
+                val cachedChapters = model.getMangaChapters().value?.get(sourceIndex)
+                if (currentMedia.manga?.chapters.isNullOrEmpty() && cachedChapters != null) {
+                    currentMedia.manga?.chapters = cachedChapters
+                }
+
+                val chp = currentMedia.manga?.chapters?.values?.find { chapterMatchesTag(it.number, tag) }
                 if (chp != null) {
                     model.continueMedia = false
                     currentMedia.manga?.selectedChapter = chp
@@ -544,9 +551,13 @@ class CommentsFragment : Fragment() {
                 } else {
                     lifecycleScope.launch {
                         snackString("Loading chapter for tag...")
-                        model.loadMangaChapters(currentMedia, currentMedia.selected!!.sourceIndex)
-                        val refreshedChapters = model.getMangaChapters().value?.get(currentMedia.selected!!.sourceIndex)
-                        val foundChp = refreshedChapters?.values?.find { it.number == tag }
+                        model.loadMangaChapters(currentMedia, sourceIndex)
+                        val refreshedChapters = model.getMangaChapters().value?.get(sourceIndex)
+                        if (refreshedChapters != null) {
+                            currentMedia.manga?.chapters = refreshedChapters
+                        }
+                        val foundChp =
+                            currentMedia.manga?.chapters?.values?.find { chapterMatchesTag(it.number, tag) }
                         if (foundChp != null) {
                             model.continueMedia = false
                             currentMedia.manga?.selectedChapter = foundChp
@@ -560,6 +571,14 @@ class CommentsFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun chapterMatchesTag(chapterNumber: String, tag: String): Boolean {
+        if (chapterNumber == tag) return true
+
+        val chapterValue = MediaNameAdapter.findChapterNumber(chapterNumber)
+        val tagValue = MediaNameAdapter.findChapterNumber(tag)
+        return chapterValue != null && tagValue != null && chapterValue == tagValue
     }
 
     /**
