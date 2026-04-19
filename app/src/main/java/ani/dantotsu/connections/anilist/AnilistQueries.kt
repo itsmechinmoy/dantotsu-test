@@ -550,7 +550,7 @@ class AnilistQueries {
     }
 
     private fun allUserAnimeIdsQuery(): String {
-        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME) { lists { entries { media { id } } } } """
+        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED) { lists { entries { media { id } } } } """
     }
 
     private fun continueMediaQuery(type: String, status: String): String {
