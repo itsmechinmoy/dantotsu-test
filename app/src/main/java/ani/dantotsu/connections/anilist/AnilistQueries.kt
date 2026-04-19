@@ -42,6 +42,7 @@ import kotlin.system.measureTimeMillis
 class AnilistQueries {
     companion object {
         private const val MIN_PROGRESS_THRESHOLD_FOR_SEQUEL_CHECK = 1
+        private const val MISSING_SEQUELS_PAGE_SIZE = 50
         private val PLANNING_LIST_STATUS_NAME = MediaListStatus.PLANNING.name
         const val ITEMS_PER_PAGE = 25
     }
@@ -546,11 +547,11 @@ class AnilistQueries {
     }
 
     private fun missingSequelsQuery(): String {
-        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC) { lists { entries { progress media { id relations { edges { relationType(version: 2) node { id idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } mediaListEntry { status private } } } } } } } }"""
+        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC, perChunk: $MISSING_SEQUELS_PAGE_SIZE, chunk: 1) { lists { entries { progress media { id relations { edges { relationType(version: 2) node { id idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } mediaListEntry { status private } } } } } } } }"""
     }
 
     private fun allUserAnimeIdsQuery(): String {
-        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED) { lists { entries { media { id } } } } """
+        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME) { lists { entries { media { id } } } } """
     }
 
     private fun continueMediaQuery(type: String, status: String): String {
