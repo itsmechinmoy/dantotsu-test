@@ -43,6 +43,7 @@ class AnilistQueries {
     companion object {
         private const val MIN_PROGRESS_THRESHOLD_FOR_SEQUEL_CHECK = 1
         private val PLANNING_LIST_STATUS_NAME = MediaListStatus.PLANNING.name
+        const val ITEMS_PER_PAGE = 25
     }
 
     suspend fun getUserData(): Boolean {
@@ -1804,9 +1805,5 @@ Page(page:$page,perPage:50) {
             AnilistMutations.FavType.STUDIO -> res?.data?.user?.favourites?.studios?.nodes?.any { it.id == id }
                 ?: false
         }
-    }
-
-    companion object {
-        const val ITEMS_PER_PAGE = 25
     }
 }
