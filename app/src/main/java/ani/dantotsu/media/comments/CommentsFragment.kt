@@ -515,18 +515,20 @@ class CommentsFragment : Fragment() {
                 snackString("Episode $tag not found for this provider")
             }
         } else {
-            if (currentMedia.selected?.sourceIndex == null) {
+            val selected = currentMedia.selected
+            if (selected?.sourceIndex == null) {
                 snackString("Please select an extension first")
                 return
             }
+            val sourceIndex = selected.sourceIndex
 
             val isNovel = currentMedia.format == "NOVEL"
             if (isNovel) {
-                val chapters = model.getNovelChapters().value?.get(currentMedia.selected!!.sourceIndex)
+                val chapters = model.getNovelChapters().value?.get(sourceIndex)
                 val chpResponse = chapters?.find { it.extra?.get("chapterNumber") == tag }
                 if (chpResponse != null) {
                     lifecycleScope.launch {
-                        model.loadBook(chpResponse, currentMedia.selected!!.sourceIndex)
+                        model.loadBook(chpResponse, sourceIndex)
                         val intent = android.content.Intent(activity, ani.dantotsu.media.novel.novelreader.NovelReaderActivity::class.java)
                         startActivity(intent)
                     }
@@ -534,17 +536,20 @@ class CommentsFragment : Fragment() {
                     snackString("Novel chapter $tag not found")
                 }
             } else {
-                val sourceIndex = currentMedia.selected!!.sourceIndex
+                val manga = currentMedia.manga ?: run {
+                    snackString("Manga not available")
+                    return
+                }
                 val cachedChapters = model.getMangaChapters().value?.get(sourceIndex)
-                if (currentMedia.manga?.chapters.isNullOrEmpty() && cachedChapters != null) {
-                    currentMedia.manga?.chapters = cachedChapters
+                if (manga.chapters.isNullOrEmpty() && cachedChapters != null) {
+                    manga.chapters = cachedChapters
                 }
 
-                val chp = currentMedia.manga?.chapters?.values?.find { chapterMatchesTag(it.number, tag) }
+                val chp = manga.chapters?.values?.find { chapterMatchesTag(it.number, tag) }
                 if (chp != null) {
                     model.continueMedia = false
-                    currentMedia.manga?.selectedChapter = chp
-                    model.saveSelected(currentMedia.id, currentMedia.selected!!)
+                    manga.selectedChapter = chp
+                    model.saveSelected(currentMedia.id, selected)
                     
                     ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(chp, true)
                         .show(childFragmentManager, "dialog")
@@ -554,14 +559,14 @@ class CommentsFragment : Fragment() {
                         model.loadMangaChapters(currentMedia, sourceIndex)
                         val refreshedChapters = model.getMangaChapters().value?.get(sourceIndex)
                         if (refreshedChapters != null) {
-                            currentMedia.manga?.chapters = refreshedChapters
+                            manga.chapters = refreshedChapters
                         }
                         val foundChp =
-                            currentMedia.manga?.chapters?.values?.find { chapterMatchesTag(it.number, tag) }
+                            manga.chapters?.values?.find { chapterMatchesTag(it.number, tag) }
                         if (foundChp != null) {
                             model.continueMedia = false
-                            currentMedia.manga?.selectedChapter = foundChp
-                            model.saveSelected(currentMedia.id, currentMedia.selected!!)
+                            manga.selectedChapter = foundChp
+                            model.saveSelected(currentMedia.id, selected)
                             ani.dantotsu.media.manga.mangareader.ChapterLoaderDialog.newInstance(foundChp, true)
                                 .show(childFragmentManager, "dialog")
                         } else {
