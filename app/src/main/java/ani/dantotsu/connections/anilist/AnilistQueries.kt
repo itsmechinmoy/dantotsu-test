@@ -10,6 +10,7 @@ import ani.dantotsu.connections.anilist.api.FeedResponse
 import ani.dantotsu.connections.anilist.api.FuzzyDate
 import ani.dantotsu.connections.anilist.api.MediaEdge
 import ani.dantotsu.connections.anilist.api.MediaList
+import ani.dantotsu.connections.anilist.api.MediaListStatus
 import ani.dantotsu.connections.anilist.api.NotificationResponse
 import ani.dantotsu.connections.anilist.api.Page
 import ani.dantotsu.connections.anilist.api.Query
@@ -39,6 +40,10 @@ import java.util.Calendar
 import kotlin.system.measureTimeMillis
 
 class AnilistQueries {
+    companion object {
+        private const val MIN_PROGRESS_THRESHOLD_FOR_SEQUEL_CHECK = 1
+        private val PLANNING_LIST_STATUS_NAME = MediaListStatus.PLANNING.name
+    }
 
     suspend fun getUserData(): Boolean {
         val response: Query.Viewer?
@@ -540,7 +545,7 @@ class AnilistQueries {
     }
 
     private fun missingSequelsQuery(): String {
-        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME) { lists { entries { media {  id relations { edges { relationType(version: 2) node { id idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } mediaListEntry { status private } } } } } } } }"""
+        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC) { lists { entries { progress media { id relations { edges { relationType(version: 2) node { id idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } mediaListEntry { status private } } } } } } } }"""
     }
 
     private fun continueMediaQuery(type: String, status: String): String {
@@ -735,13 +740,17 @@ class AnilistQueries {
             response?.data?.missingSequelsQuery?.lists
                 ?.flatMap { it.entries ?: emptyList() }
                 ?.forEach { entry ->
+                    if ((entry.progress ?: 0) < MIN_PROGRESS_THRESHOLD_FOR_SEQUEL_CHECK) return@forEach
 
                     entry.media?.relations?.edges?.forEach { edge ->
 
                         if (edge.relationType?.name == "SEQUEL") {
 
                             val sequelNode = edge.node ?: return@forEach
-                            if (sequelNode.mediaListEntry != null) return@forEach
+                            val sequelListStatus = sequelNode.mediaListEntry?.status?.name
+                            val shouldShowSequel =
+                                sequelListStatus == null || sequelListStatus == PLANNING_LIST_STATUS_NAME
+                            if (!shouldShowSequel) return@forEach
                             val id = sequelNode.id
 
                             val releaseStatus = sequelNode.status?.name
