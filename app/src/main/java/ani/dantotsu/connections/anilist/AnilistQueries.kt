@@ -749,8 +749,7 @@ class AnilistQueries {
 
                             val sequelNode = edge.node ?: return@forEach
                             val sequelListStatus = sequelNode.mediaListEntry?.status?.name
-                            val shouldShowSequel =
-                                sequelListStatus == null || sequelListStatus == PLANNING_LIST_STATUS_NAME
+                            val shouldShowSequel = sequelListStatus == null
                             if (!shouldShowSequel) return@forEach
                             val id = sequelNode.id
 
