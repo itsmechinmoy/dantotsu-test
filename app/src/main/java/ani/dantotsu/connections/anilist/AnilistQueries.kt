@@ -577,10 +577,9 @@ class AnilistQueries {
 
     private fun missingSequelsLookupQuery(ids: List<Int>): String {
         val idsString = ids.joinToString(",")
-        val perPage = minOf(ids.size, MISSING_SEQUELS_LOOKUP_BATCH_SIZE)
         return """
             {
-              Page(page: 1, perPage: $perPage) {
+              Page(page: 1, perPage: $MISSING_SEQUELS_LOOKUP_BATCH_SIZE) {
                 media(
                   id_in: [$idsString],
                   type: ANIME,
@@ -637,9 +636,8 @@ class AnilistQueries {
     private suspend fun fetchMissingSequelMedia(ids: Set<Int>): ArrayList<Media> {
         if (ids.isEmpty()) return arrayListOf()
 
-        val sequels = linkedMapOf<Int, Media>()
         val batches = ids.toList().chunked(MISSING_SEQUELS_LOOKUP_BATCH_SIZE)
-        val batchResults = coroutineScope {
+        val batchResults: List<List<Media>> = coroutineScope {
             batches.map { batch ->
                 async {
                     executeQuery<Query.Page>(missingSequelsLookupQuery(batch))
@@ -652,11 +650,7 @@ class AnilistQueries {
             }
                 .awaitAll()
         }
-        batchResults.flatten().forEach { sequel ->
-            sequels[sequel.id] = sequel
-        }
-
-        return ArrayList(sequels.values)
+        return ArrayList(batchResults.flatten())
     }
 
     private fun continueMediaQuery(type: String, status: String): String {
