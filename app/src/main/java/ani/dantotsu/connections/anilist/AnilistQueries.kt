@@ -547,13 +547,67 @@ class AnilistQueries {
     }
 
     private fun missingSequelsSourceQuery(chunk: Int): String {
-        return """{ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC, perChunk: $MISSING_SEQUELS_COMPLETED_PAGE_SIZE, chunk: $chunk) { hasNextChunk lists { entries { media { relations { edges { relationType(version: 2) node { id } } } } } } } }"""
+        return """
+            {
+              MediaListCollection(
+                userId: ${Anilist.userid},
+                type: ANIME,
+                status: COMPLETED,
+                sort: UPDATED_TIME_DESC,
+                perChunk: $MISSING_SEQUELS_COMPLETED_PAGE_SIZE,
+                chunk: $chunk
+              ) {
+                hasNextChunk
+                lists {
+                  entries {
+                    media {
+                      relations {
+                        edges {
+                          relationType(version: 2)
+                          node { id }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+        """.trimIndent()
     }
 
     private fun missingSequelsLookupQuery(ids: List<Int>): String {
         val idsString = ids.joinToString(",")
         val perPage = minOf(ids.size, MISSING_SEQUELS_LOOKUP_BATCH_SIZE)
-        return """{ Page(page:1,perPage:$perPage) { media(id_in:[${idsString}], type: ANIME, status_in:[RELEASING, FINISHED], onList:false) { id mediaListEntry{progress private score(format:POINT_100) status} idMal type isAdult popularity status(version:2) chapters episodes nextAiringEpisode{episode} meanScore isFavourite format bannerImage coverImage{large} title{english romaji userPreferred} startDate{year} } } }"""
+        return """
+            {
+              Page(page: 1, perPage: $perPage) {
+                media(
+                  id_in: [$idsString],
+                  type: ANIME,
+                  status_in: [RELEASING, FINISHED],
+                  onList: false
+                ) {
+                  id
+                  mediaListEntry { progress private score(format: POINT_100) status }
+                  idMal
+                  type
+                  isAdult
+                  popularity
+                  status(version: 2)
+                  chapters
+                  episodes
+                  nextAiringEpisode { episode }
+                  meanScore
+                  isFavourite
+                  format
+                  bannerImage
+                  coverImage { large }
+                  title { english romaji userPreferred }
+                  startDate { year }
+                }
+              }
+            }
+        """.trimIndent()
     }
 
     private suspend fun extractMissingSequelIds(): LinkedHashSet<Int> {
