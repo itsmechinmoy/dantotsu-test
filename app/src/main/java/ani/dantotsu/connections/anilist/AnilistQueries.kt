@@ -610,8 +610,8 @@ class AnilistQueries {
         """.trimIndent()
     }
 
-    private suspend fun extractMissingSequelIds(): LinkedHashSet<Int> {
-        val sequelIds = linkedSetOf<Int>()
+    private suspend fun extractMissingSequelIds(): Set<Int> {
+        val sequelIds = mutableSetOf<Int>()
         var chunk = 1
         var hasNextChunk: Boolean
 
