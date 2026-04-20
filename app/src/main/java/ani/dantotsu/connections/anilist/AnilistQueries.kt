@@ -41,7 +41,7 @@ import kotlin.system.measureTimeMillis
 
 class AnilistQueries {
     companion object {
-        private const val MISSING_SEQUELS_COMPLETED_PAGE_SIZE = 50
+        private const val MISSING_SEQUELS_COMPLETED_PAGE_SIZE = 250
         private const val MISSING_SEQUELS_LOOKUP_BATCH_SIZE = 50
         private val PLANNING_LIST_STATUS_NAME = MediaListStatus.PLANNING.name
         const val ITEMS_PER_PAGE = 25
@@ -644,7 +644,9 @@ class AnilistQueries {
                         ?.data
                         ?.page
                         ?.media
-                        ?.map { Media(it) }
+                        ?.mapNotNull { media ->
+                            if (media.mediaListEntry == null) Media(media) else null
+                        }
                         ?: emptyList()
                 }
             }
