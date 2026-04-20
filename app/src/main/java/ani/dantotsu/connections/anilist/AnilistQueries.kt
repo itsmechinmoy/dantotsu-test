@@ -552,7 +552,8 @@ class AnilistQueries {
 
     private fun missingSequelsLookupQuery(ids: List<Int>): String {
         val idsString = ids.joinToString(",")
-        return """{ Page(page:1,perPage:${ids.size}) { media(id_in:[${idsString}], type: ANIME, status_in:[RELEASING, FINISHED], onList:false, isAdult:false) { id mediaListEntry{progress private score(format:POINT_100) status} idMal type isAdult popularity status(version:2) chapters episodes nextAiringEpisode{episode} meanScore isFavourite format bannerImage coverImage{large} title{english romaji userPreferred} startDate{year} } } }"""
+        val perPage = minOf(ids.size, MISSING_SEQUELS_LOOKUP_BATCH_SIZE)
+        return """{ Page(page:1,perPage:$perPage) { media(id_in:[${idsString}], type: ANIME, status_in:[RELEASING, FINISHED], onList:false) { id mediaListEntry{progress private score(format:POINT_100) status} idMal type isAdult popularity status(version:2) chapters episodes nextAiringEpisode{episode} meanScore isFavourite format bannerImage coverImage{large} title{english romaji userPreferred} startDate{year} } } }"""
     }
 
     private suspend fun extractMissingSequelIds(): LinkedHashSet<Int> {
