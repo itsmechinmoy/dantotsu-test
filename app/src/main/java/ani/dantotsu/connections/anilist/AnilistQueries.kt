@@ -638,11 +638,22 @@ class AnilistQueries {
         if (ids.isEmpty()) return arrayListOf()
 
         val sequels = linkedMapOf<Int, Media>()
-        ids.toList().chunked(MISSING_SEQUELS_LOOKUP_BATCH_SIZE).forEach { batch ->
-            val response = executeQuery<Query.Page>(missingSequelsLookupQuery(batch))
-            response?.data?.page?.media?.forEach { sequel ->
-                sequels[sequel.id] = Media(sequel)
+        val batches = ids.toList().chunked(MISSING_SEQUELS_LOOKUP_BATCH_SIZE)
+        val batchResults = coroutineScope {
+            batches.map { batch ->
+                async {
+                    executeQuery<Query.Page>(missingSequelsLookupQuery(batch))
+                        ?.data
+                        ?.page
+                        ?.media
+                        ?.map { Media(it) }
+                        ?: emptyList()
+                }
             }
+                .awaitAll()
+        }
+        batchResults.flatten().forEach { sequel ->
+            sequels[sequel.id] = sequel
         }
 
         return ArrayList(sequels.values)
