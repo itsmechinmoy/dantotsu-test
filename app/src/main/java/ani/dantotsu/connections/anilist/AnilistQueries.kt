@@ -41,8 +41,8 @@ import kotlin.system.measureTimeMillis
 
 class AnilistQueries {
     companion object {
-        private const val MIN_PROGRESS_THRESHOLD_FOR_SEQUEL_CHECK = 1
-        private const val MISSING_SEQUELS_PAGE_SIZE = 15
+        private const val MISSING_SEQUELS_COMPLETED_PAGE_SIZE = 50
+        private const val MISSING_SEQUELS_LOOKUP_BATCH_SIZE = 50
         private val PLANNING_LIST_STATUS_NAME = MediaListStatus.PLANNING.name
         const val ITEMS_PER_PAGE = 25
     }
@@ -546,12 +546,51 @@ class AnilistQueries {
         return """ MediaListCollection(userId: ${Anilist.userid}, type: $type, status: PLANNING${if (type == "ANIME") ", sort: MEDIA_POPULARITY_DESC" else ""} ) { lists { entries { media { id mediaListEntry { progress private score(format:POINT_100) status } idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } } } } }"""
     }
 
-    private fun missingSequelsQuery(): String {
-        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC, perChunk: $MISSING_SEQUELS_PAGE_SIZE, chunk: 1) { lists { entries { progress media { id relations { edges { relationType(version: 2) node { id idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } mediaListEntry { status private } } } } } } } }"""
+    private fun missingSequelsSourceQuery(chunk: Int): String {
+        return """{ MediaListCollection(userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC, perChunk: $MISSING_SEQUELS_COMPLETED_PAGE_SIZE, chunk: $chunk) { hasNextChunk lists { entries { media { relations { edges { relationType(version: 2) node { id } } } } } } } }"""
     }
 
-    private fun allUserAnimeIdsQuery(): String {
-        return """ MediaListCollection(userId: ${Anilist.userid}, type: ANIME) { lists { entries { media { id } } } } """
+    private fun missingSequelsLookupQuery(ids: List<Int>): String {
+        val idsString = ids.joinToString(",")
+        return """{ Page(page:1,perPage:${ids.size}) { media(id_in:[${idsString}], type: ANIME, status_in:[RELEASING, FINISHED], onList:false, isAdult:false) { id mediaListEntry{progress private score(format:POINT_100) status} idMal type isAdult popularity status(version:2) chapters episodes nextAiringEpisode{episode} meanScore isFavourite format bannerImage coverImage{large} title{english romaji userPreferred} startDate{year} } } }"""
+    }
+
+    private suspend fun extractMissingSequelIds(): LinkedHashSet<Int> {
+        val sequelIds = linkedSetOf<Int>()
+        var chunk = 1
+        var hasNextChunk: Boolean
+
+        do {
+            val response = executeQuery<Query.MediaListCollection>(missingSequelsSourceQuery(chunk))
+            val collection = response?.data?.mediaListCollection
+            collection?.lists
+                ?.flatMap { it.entries ?: emptyList() }
+                ?.forEach { entry ->
+                    entry.media?.relations?.edges?.forEach { edge ->
+                        if (edge.relationType?.name == "SEQUEL") {
+                            edge.node?.id?.let { sequelIds.add(it) }
+                        }
+                    }
+                }
+            hasNextChunk = collection?.hasNextChunk == true
+            chunk++
+        } while (hasNextChunk)
+
+        return sequelIds
+    }
+
+    private suspend fun fetchMissingSequelMedia(ids: Set<Int>): ArrayList<Media> {
+        if (ids.isEmpty()) return arrayListOf()
+
+        val sequels = linkedMapOf<Int, Media>()
+        ids.toList().chunked(MISSING_SEQUELS_LOOKUP_BATCH_SIZE).forEach { batch ->
+            val response = executeQuery<Query.Page>(missingSequelsLookupQuery(batch))
+            response?.data?.page?.media?.forEach { sequel ->
+                sequels[sequel.id] = Media(sequel)
+            }
+        }
+
+        return ArrayList(sequels.values)
     }
 
     private fun continueMediaQuery(type: String, status: String): String {
@@ -603,17 +642,16 @@ class AnilistQueries {
             queries.add("""recommendationPlannedQueryAnime: ${recommendationPlannedQuery("ANIME")}""")
             queries.add("""recommendationPlannedQueryManga: ${recommendationPlannedQuery("MANGA")}""")
         }
-        if (toShow.getOrNull(8) == true) {
-            queries.add("""missingSequelsQuery: ${missingSequelsQuery()}""")
-            queries.add("""allUserAnimeIds: ${allUserAnimeIdsQuery()}""")
-        }
-
-        if (queries.isEmpty()) {
+        if (queries.isEmpty() && toShow.getOrNull(8) != true) {
             return mutableMapOf("hidden" to arrayListOf())
         }
 
-        val query = "{${queries.joinToString(",")}}"
-        val response = executeQuery<Query.HomePageMedia>(query, show = true)
+        val response = if (queries.isEmpty()) {
+            null
+        } else {
+            val query = "{${queries.joinToString(",")}}"
+            executeQuery<Query.HomePageMedia>(query, show = true)
+        }
         val returnMap = mutableMapOf<String, ArrayList<Media>>()
 
         fun processMedia(
@@ -744,47 +782,17 @@ class AnilistQueries {
         }
 
         if (toShow.getOrNull(8) == true) {
-            val subMap = linkedMapOf<Int, Media>()
-
-            val userAnimeIds = response?.data?.allUserAnimeIds?.lists
-                ?.flatMap { it.entries ?: emptyList() }
-                ?.mapNotNull { it.media?.id }
-                ?.toSet() ?: emptySet()
-
-            response?.data?.missingSequelsQuery?.lists
-                ?.flatMap { it.entries ?: emptyList() }
-                ?.forEach { entry ->
-                    if ((entry.progress ?: 0) < MIN_PROGRESS_THRESHOLD_FOR_SEQUEL_CHECK) return@forEach
-
-                    entry.media?.relations?.edges?.forEach { edge ->
-
-                        if (edge.relationType?.name == "SEQUEL") {
-
-                            val sequelNode = edge.node ?: return@forEach
-                            val id = sequelNode.id
-                            val isInUserList = id in userAnimeIds ||
-                                sequelNode.mediaListEntry?.status != null
-                            if (isInUserList) return@forEach
-
-                            val releaseStatus = sequelNode.status?.name
-                            val isReleased = releaseStatus in setOf("RELEASING", "FINISHED")
-
-                            if (isReleased) {
-                                val sequel = Media(sequelNode)
-
-                                if (id !in removeList && (!hidePrivate || !sequel.isListPrivate)) {
-                                    if (!subMap.containsKey(id)) {
-                                        subMap[id] = sequel
-                                    }
-                                } else {
-                                    removedMedia.add(sequel)
-                                }
-                            }
-                        }
-                    }
+            val sequelIds = extractMissingSequelIds()
+            val sequels = fetchMissingSequelMedia(sequelIds)
+            val visibleSequels = arrayListOf<Media>()
+            sequels.forEach { sequel ->
+                if (sequel.id !in removeList && (!hidePrivate || !sequel.isListPrivate)) {
+                    visibleSequels.add(sequel)
+                } else {
+                    removedMedia.add(sequel)
                 }
-
-            returnMap["missingSequels"] = ArrayList(subMap.values)
+            }
+            returnMap["missingSequels"] = visibleSequels
         }
 
         val allOrders = listOf(
