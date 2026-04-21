@@ -41,11 +41,18 @@ import kotlin.system.measureTimeMillis
 
 class AnilistQueries {
     companion object {
-        private const val MISSING_SEQUELS_COMPLETED_PAGE_SIZE = 250
         private const val MISSING_SEQUELS_LOOKUP_BATCH_SIZE = 50
+        private const val MISSING_SEQUELS_CACHE_KEY = "missing_sequels_cache"
+        private const val MISSING_SEQUELS_CACHE_TTL_MS = 6 * 60 * 60 * 1000L
         private val PLANNING_LIST_STATUS_NAME = MediaListStatus.PLANNING.name
         const val ITEMS_PER_PAGE = 25
     }
+
+    private data class MissingSequelsCache(
+        val sourceIds: Set<Int>,
+        val media: ArrayList<Media>,
+        val cachedAt: Long
+    ) : Serializable
 
     suspend fun getUserData(): Boolean {
         val response: Query.Viewer?
@@ -546,28 +553,40 @@ class AnilistQueries {
         return """ MediaListCollection(userId: ${Anilist.userid}, type: $type, status: PLANNING${if (type == "ANIME") ", sort: MEDIA_POPULARITY_DESC" else ""} ) { lists { entries { media { id mediaListEntry { progress private score(format:POINT_100) status } idMal type isAdult popularity status(version: 2) chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } } } } }"""
     }
 
-    private fun missingSequelsSourceQuery(chunk: Int): String {
+    private fun missingSequelsCompletedSourceQuery(): String {
         return """
-            {
-              MediaListCollection(
-                userId: ${Anilist.userid},
-                type: ANIME,
-                status: COMPLETED,
-                sort: UPDATED_TIME_DESC,
-                perChunk: $MISSING_SEQUELS_COMPLETED_PAGE_SIZE,
-                chunk: $chunk
-              ) {
-                hasNextChunk
-                lists {
-                  entries {
-                    media {
-                      relations {
-                        edges {
-                          relationType(version: 2)
-                          node { id }
-                        }
+            MediaListCollection(
+              userId: ${Anilist.userid},
+              type: ANIME,
+              status: COMPLETED,
+              sort: UPDATED_TIME_DESC
+            ) {
+              lists {
+                entries {
+                  media {
+                    relations {
+                      edges {
+                        relationType(version: 2)
+                        node { id }
                       }
                     }
+                  }
+                }
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun missingSequelsAllListSourceQuery(): String {
+        return """
+            MediaListCollection(
+              userId: ${Anilist.userid},
+              type: ANIME
+            ) {
+              lists {
+                entries {
+                  media {
+                    id
                   }
                 }
               }
@@ -609,28 +628,25 @@ class AnilistQueries {
         """.trimIndent()
     }
 
-    private suspend fun extractMissingSequelIds(): Set<Int> {
+    private fun extractMissingSequelIds(completedEntries: List<MediaList>?): Set<Int> {
         val sequelIds = mutableSetOf<Int>()
-        var chunk = 1
-        var hasNextChunk: Boolean
 
-        do {
-            val response = executeQuery<Query.MediaListCollection>(missingSequelsSourceQuery(chunk))
-            val collection = response?.data?.mediaListCollection
-            collection?.lists
-                ?.flatMap { it.entries ?: emptyList() }
-                ?.forEach { entry ->
-                    entry.media?.relations?.edges?.forEach { edge ->
-                        if (edge.relationType?.name == "SEQUEL") {
-                            edge.node?.id?.let { sequelIds.add(it) }
-                        }
-                    }
+        completedEntries?.forEach { entry ->
+            entry.media?.relations?.edges?.forEach { edge ->
+                if (edge.relationType?.name == "SEQUEL") {
+                    edge.node?.id?.let { sequelIds.add(it) }
                 }
-            hasNextChunk = collection?.hasNextChunk == true
-            chunk++
-        } while (hasNextChunk)
+            }
+        }
 
         return sequelIds
+    }
+
+    private fun extractAnimeIds(entries: List<MediaList>?): Set<Int> {
+        return entries
+            ?.mapNotNull { it.media?.id }
+            ?.toSet()
+            ?: emptySet()
     }
 
     private suspend fun fetchMissingSequelMedia(ids: Set<Int>): ArrayList<Media> {
@@ -653,6 +669,32 @@ class AnilistQueries {
                 .awaitAll()
         }
         return ArrayList(batchResults.flatten())
+    }
+
+    private fun loadMissingSequelCache(ids: Set<Int>): ArrayList<Media>? {
+        val cached = PrefManager.getNullableCustomVal(
+            MISSING_SEQUELS_CACHE_KEY,
+            null,
+            MissingSequelsCache::class.java
+        ) ?: return null
+
+        val cacheExpired = System.currentTimeMillis() - cached.cachedAt > MISSING_SEQUELS_CACHE_TTL_MS
+        if (cacheExpired || cached.sourceIds != ids) return null
+        return ArrayList(cached.media)
+    }
+
+    private fun saveMissingSequelCache(ids: Set<Int>, media: ArrayList<Media>) {
+        PrefManager.setCustomVal(
+            MISSING_SEQUELS_CACHE_KEY,
+            MissingSequelsCache(ids, media, System.currentTimeMillis())
+        )
+    }
+
+    private suspend fun getMissingSequelMedia(ids: Set<Int>): ArrayList<Media> {
+        loadMissingSequelCache(ids)?.let { return it }
+        val fresh = fetchMissingSequelMedia(ids)
+        saveMissingSequelCache(ids, fresh)
+        return fresh
     }
 
     private fun continueMediaQuery(type: String, status: String): String {
@@ -703,6 +745,10 @@ class AnilistQueries {
             queries.add("""recommendationQuery: ${recommendationQuery()}""")
             queries.add("""recommendationPlannedQueryAnime: ${recommendationPlannedQuery("ANIME")}""")
             queries.add("""recommendationPlannedQueryManga: ${recommendationPlannedQuery("MANGA")}""")
+        }
+        if (toShow.getOrNull(8) == true) {
+            queries.add("""missingSequelsCompletedQuery: ${missingSequelsCompletedSourceQuery()}""")
+            queries.add("""missingSequelsAllListQuery: ${missingSequelsAllListSourceQuery()}""")
         }
         if (queries.isEmpty() && toShow.getOrNull(8) != true) {
             return mutableMapOf("hidden" to arrayListOf())
@@ -844,8 +890,14 @@ class AnilistQueries {
         }
 
         if (toShow.getOrNull(8) == true) {
-            val sequelIds = extractMissingSequelIds()
-            val sequels = fetchMissingSequelMedia(sequelIds)
+            val completedEntries =
+                response?.data?.missingSequelsCompletedQuery?.lists?.flatMap { it.entries ?: emptyList() }
+            val allAnimeEntries =
+                response?.data?.missingSequelsAllListQuery?.lists?.flatMap { it.entries ?: emptyList() }
+            val sequelIds = extractMissingSequelIds(completedEntries)
+            val allAnimeIds = extractAnimeIds(allAnimeEntries)
+            val filteredSequelIds = sequelIds - allAnimeIds
+            val sequels = getMissingSequelMedia(filteredSequelIds)
             val visibleSequels = arrayListOf<Media>()
             sequels.forEach { sequel ->
                 if (sequel.id !in removeList && (!hidePrivate || !sequel.isListPrivate)) {
