@@ -321,7 +321,7 @@ class AnilistMutations {
         """.trimIndent()
         )
         val errors = result?.get("errors")
-        return result != null && (errors == null || (errors.isJsonArray() && errors.getAsJsonArray().isEmpty))
+        return result != null && (errors == null || (errors.isJsonArray() && errors.getAsJsonArray().isEmpty()))
     }
 
     suspend fun postActivity(text: String, edit: Int? = null): String {
