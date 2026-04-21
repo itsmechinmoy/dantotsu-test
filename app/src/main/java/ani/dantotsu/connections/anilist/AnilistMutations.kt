@@ -6,7 +6,7 @@ import ani.dantotsu.connections.anilist.api.Query
 import ani.dantotsu.connections.anilist.api.ToggleLike
 import ani.dantotsu.currContext
 import com.google.gson.Gson
-import kotlinx.serialization.json.JsonObject
+import com.google.gson.JsonObject
 
 class AnilistMutations {
 
@@ -321,7 +321,7 @@ class AnilistMutations {
         """.trimIndent()
         )
         val errors = result?.get("errors")
-        return result != null && (errors == null || (errors.isJsonArray() && errors.getAsJsonArray().isEmpty()))
+        return result != null && (errors == null || (errors.isJsonArray && errors.asJsonArray.size() == 0))
     }
 
     suspend fun postActivity(text: String, edit: Int? = null): String {
