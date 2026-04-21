@@ -564,6 +564,7 @@ class AnilistQueries {
               lists {
                 entries {
                   media {
+                    id
                     relations {
                       edges {
                         relationType(version: 2)
