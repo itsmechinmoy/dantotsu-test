@@ -262,6 +262,7 @@
                 app:boxStrokeColor="@color/text_input_layout_stroke_color"
                 app:endIconMode="none"
                 app:hintAnimationEnabled="true"
+                app:startIconDrawable="@drawable/ic_round_date_range_24"
                 app:suffixTextAppearance="@style/Suffix">
 
                 <AutoCompleteTextView
