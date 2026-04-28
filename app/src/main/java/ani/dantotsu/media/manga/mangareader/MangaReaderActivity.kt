@@ -1135,7 +1135,7 @@ class MangaReaderActivity : AppCompatActivity() {
         if (lastSubscriptionPromptChapter == chapterKey) return
         lastSubscriptionPromptChapter = chapterKey
 
-        if (!PrefManager.getVal(PrefName.SubscriptionCheckingNotifications)) return
+        if (!PrefManager.getVal<Boolean>(PrefName.SubscriptionCheckingNotifications)) return
 
         val isCompleted = isMangaCompleted()
         val alreadySubscribed = SubscriptionHelper.getSubscriptions().containsKey(media.id)
