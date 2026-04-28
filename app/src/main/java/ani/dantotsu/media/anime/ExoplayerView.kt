@@ -3133,7 +3133,7 @@ class ExoplayerView :
         if (lastSubscriptionPromptEpisode == currentEpisode) return
         lastSubscriptionPromptEpisode = currentEpisode
 
-        val subscriptionsEnabled = PrefManager.getVal(PrefName.SubscriptionCheckingNotifications)
+        val subscriptionsEnabled = PrefManager.getVal<Boolean>(PrefName.SubscriptionCheckingNotifications)
         if (!subscriptionsEnabled) return
 
         val isCompleted = isAnimeCompleted()
