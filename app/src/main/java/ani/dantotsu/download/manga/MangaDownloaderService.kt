@@ -30,6 +30,8 @@ import ani.dantotsu.media.manga.MangaReadFragment.Companion.ACTION_DOWNLOAD_FINI
 import ani.dantotsu.media.manga.MangaReadFragment.Companion.ACTION_DOWNLOAD_PROGRESS
 import ani.dantotsu.media.manga.MangaReadFragment.Companion.ACTION_DOWNLOAD_STARTED
 import ani.dantotsu.media.manga.MangaReadFragment.Companion.EXTRA_CHAPTER_NUMBER
+import ani.dantotsu.media.manga.MangaReadFragment.Companion.EXTRA_DOWNLOADED_BYTES
+import ani.dantotsu.media.manga.MangaReadFragment.Companion.EXTRA_ESTIMATED_TOTAL_BYTES
 import ani.dantotsu.snackString
 import ani.dantotsu.util.Logger
 import ani.dantotsu.util.NumberConverter.Companion.ofLength
@@ -428,8 +430,8 @@ class MangaDownloaderService : Service() {
         val intent = Intent(ACTION_DOWNLOAD_PROGRESS).apply {
             putExtra(EXTRA_CHAPTER_NUMBER, chapterNumber)
             putExtra("progress", progress)
-            putExtra(MangaReadFragment.EXTRA_DOWNLOADED_BYTES, downloadedBytes)
-            putExtra(MangaReadFragment.EXTRA_ESTIMATED_TOTAL_BYTES, estimatedTotalBytes)
+            putExtra(EXTRA_DOWNLOADED_BYTES, downloadedBytes)
+            putExtra(EXTRA_ESTIMATED_TOTAL_BYTES, estimatedTotalBytes)
         }
         sendBroadcast(intent)
     }
