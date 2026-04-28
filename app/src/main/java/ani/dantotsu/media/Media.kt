@@ -134,6 +134,8 @@ data class Media(
         this.userScore = mediaList.score?.toInt() ?: 0
         this.userStatus = mediaList.status?.toString()
         this.userUpdatedAt = mediaList.updatedAt?.toLong()
+        this.userStartedAt = mediaList.startedAt ?: FuzzyDate()
+        this.userCompletedAt = mediaList.completedAt ?: FuzzyDate()
         this.genres =
             mediaList.media?.genres?.toMutableList() as? ArrayList<String>? ?: arrayListOf()
     }

@@ -286,6 +286,7 @@ class AnilistQueries {
                         if (fetchedMedia.mediaListEntry != null) {
                             fetchedMedia.mediaListEntry?.apply {
                                 media.userProgress = progress
+                                media.userProgressVolumes = progressVolumes
                                 media.isListPrivate = private ?: false
                                 media.notes = notes
                                 media.userListId = id
@@ -302,6 +303,7 @@ class AnilistQueries {
                             media.userStatus = null
                             media.userListId = null
                             media.userProgress = null
+                            media.userProgressVolumes = null
                             media.userScore = 0
                             media.userRepeat = 0
                             media.userUpdatedAt = null
@@ -412,7 +414,7 @@ class AnilistQueries {
 
     fun userMediaDetails(media: Media): Media {
         val query =
-            """{Media(id:${media.id}){id mediaListEntry{id status progress private repeat customLists updatedAt startedAt{year month day}completedAt{year month day}}isFavourite idMal}}"""
+            """{Media(id:${media.id}){id mediaListEntry{id status progress progressVolumes private repeat customLists updatedAt startedAt{year month day}completedAt{year month day}}isFavourite idMal}}"""
         runBlocking {
             val anilist = async {
                 var response = executeQuery<Query.Media>(query, force = true, show = true)
@@ -423,6 +425,7 @@ class AnilistQueries {
                         if (fetchedMedia.mediaListEntry != null) {
                             fetchedMedia.mediaListEntry?.apply {
                                 media.userProgress = progress
+                                media.userProgressVolumes = progressVolumes
                                 media.isListPrivate = private ?: false
                                 media.userListId = id
                                 media.userStatus = status?.toString()
@@ -437,6 +440,7 @@ class AnilistQueries {
                             media.userStatus = null
                             media.userListId = null
                             media.userProgress = null
+                            media.userProgressVolumes = null
                             media.userRepeat = 0
                             media.userUpdatedAt = null
                             media.userCompletedAt = FuzzyDate()
@@ -908,7 +912,7 @@ class AnilistQueries {
         sortOrder: String? = null
     ): MutableMap<String, ArrayList<Media>> {
         val response =
-            executeQuery<Query.MediaListCollection>("""{ MediaListCollection(userId: $userId, type: ${if (anime) "ANIME" else "MANGA"}) { lists { name isCustomList entries { status progress progressVolumes private score(format:POINT_100) updatedAt media { id idMal isAdult type status chapters volumes episodes nextAiringEpisode {episode} bannerImage genres meanScore isFavourite format coverImage{large} startDate{year month day} title {english romaji userPreferred } } } } user { id mediaListOptions { rowOrder animeList { sectionOrder } mangaList { sectionOrder } } } } }""")
+            executeQuery<Query.MediaListCollection>("""{ MediaListCollection(userId: $userId, type: ${if (anime) "ANIME" else "MANGA"}) { lists { name isCustomList entries { status progress progressVolumes private score(format:POINT_100) updatedAt startedAt{year month day} completedAt{year month day} media { id idMal isAdult type status chapters volumes episodes nextAiringEpisode {episode} bannerImage genres meanScore isFavourite format coverImage{large} startDate{year month day} title {english romaji userPreferred } } } } user { id mediaListOptions { rowOrder animeList { sectionOrder } mangaList { sectionOrder } } } } }""")
         val sorted = mutableMapOf<String, ArrayList<Media>>()
         val unsorted = mutableMapOf<String, ArrayList<Media>>()
         val all = arrayListOf<Media>()
