@@ -154,7 +154,7 @@ class MangaReaderActivity : AppCompatActivity() {
 
     private fun checkNotch() {
         binding.mangaReaderTopLayout.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = notchHeight ?: return
+            topMargin = notchHeight ?: return@updateLayoutParams
         }
     }
 
@@ -169,6 +169,11 @@ class MangaReaderActivity : AppCompatActivity() {
         mangaCache.clear()
         RPCManager.clearPresence(this)
         super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        model.getMedia().value = null
+        super.onSaveInstanceState(outState)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
