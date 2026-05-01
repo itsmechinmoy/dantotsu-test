@@ -172,7 +172,8 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        model.getMedia().value = null
+        // Use setMedia to clear the value safely if it's a MutableLiveData or call the clear logic
+        model.setMedia(null) 
         super.onSaveInstanceState(outState)
     }
 
@@ -1082,8 +1083,7 @@ class MangaReaderActivity : AppCompatActivity() {
                 if (PrefManager.getVal(PrefName.AskIndividualReader)) PrefManager.getCustomVal(
                     "${media.id}_progressDialog",
                     true
-                )
-                else false
+                ) else false
             val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
             if (showProgressDialog && !incognito) {
 
