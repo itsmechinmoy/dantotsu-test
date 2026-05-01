@@ -172,8 +172,6 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        // Use setMedia to clear the value safely if it's a MutableLiveData or call the clear logic
-        model.setMedia(null) 
         super.onSaveInstanceState(outState)
     }
 
