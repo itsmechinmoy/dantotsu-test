@@ -172,6 +172,10 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        if (::media.isInitialized) {
+            media.manga?.chapters?.clear()
+        }
+        model.getMedia().value?.manga?.chapters?.clear()
         super.onSaveInstanceState(outState)
     }
 
