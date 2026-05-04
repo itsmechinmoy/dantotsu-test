@@ -320,15 +320,39 @@ class MediaDetailsViewModel : ViewModel() {
         malId: Int?,
         episodeNum: Int?,
         duration: Long,
-        useProxyForTimeStamps: Boolean
+        useProxyForTimeStamps: Boolean,
+        extensionTimestamps: List<eu.kanade.tachiyomi.animesource.model.TimeStamp> = emptyList()
     ) {
-        malId ?: return
         episodeNum ?: return
         if (timeStampsMap.containsKey(episodeNum))
             return timeStamps.postValue(timeStampsMap[episodeNum])
-        val result = AniSkip.getResult(malId, episodeNum, duration, useProxyForTimeStamps)
+        // Extension timestamps take priority; fall back to AniSkip when the extension has none
+        val result: List<AniSkip.Stamp>? = if (extensionTimestamps.isNotEmpty()) {
+            extensionTimestamps.map { it.toAniSkipStamp() }
+        } else if (malId != null) {
+            AniSkip.getResult(malId, episodeNum, duration, useProxyForTimeStamps)
+        } else {
+            null
+        }
         timeStampsMap[episodeNum] = result
         timeStamps.postValue(result)
+    }
+
+    private fun eu.kanade.tachiyomi.animesource.model.TimeStamp.toAniSkipStamp(): AniSkip.Stamp {
+        val skipType = when (type) {
+            eu.kanade.tachiyomi.animesource.model.ChapterType.Opening -> "op"
+            eu.kanade.tachiyomi.animesource.model.ChapterType.Ending -> "ed"
+            eu.kanade.tachiyomi.animesource.model.ChapterType.Recap -> "recap"
+            eu.kanade.tachiyomi.animesource.model.ChapterType.MixedOp -> "mixed-op"
+            eu.kanade.tachiyomi.animesource.model.ChapterType.Other ->
+                name.lowercase().replace(" ", "-").ifEmpty { "other" }
+        }
+        return AniSkip.Stamp(
+            interval = AniSkip.AniSkipInterval(start, end),
+            skipType = skipType,
+            skipId = name,
+            episodeLength = end
+        )
     }
 
     suspend fun loadEpisodeSingleVideo(
