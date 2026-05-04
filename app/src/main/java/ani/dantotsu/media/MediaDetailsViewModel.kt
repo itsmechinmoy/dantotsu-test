@@ -351,7 +351,9 @@ class MediaDetailsViewModel : ViewModel() {
             interval = AniSkip.AniSkipInterval(start, end),
             skipType = skipType,
             skipId = name,
-            episodeLength = end
+            // episodeLength represents total episode duration; use 0.0 as a sentinel since
+            // extension timestamps don't carry the full episode length
+            episodeLength = 0.0
         )
     }
 
