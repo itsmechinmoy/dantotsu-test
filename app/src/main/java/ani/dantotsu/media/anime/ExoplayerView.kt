@@ -2144,7 +2144,7 @@ class ExoplayerView :
             onSetTrackGroupOverride(dummyTrack, TRACK_TYPE_TEXT)
         }
 
-        val isDisabled = (subtitle == null && hasExtSubtitles)
+        val isDisabled = subtitle == null && hasExtSubtitles && !PrefManager.getVal<Boolean>(PrefName.Subtitles)
         exoPlayer.trackSelectionParameters =
             exoPlayer.trackSelectionParameters
                 .buildUpon()
