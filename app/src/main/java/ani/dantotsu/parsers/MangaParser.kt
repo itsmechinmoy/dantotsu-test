@@ -94,7 +94,9 @@ data class MangaImage(
 
     val useTransformation: Boolean = false,
 
-    val page: Page? = null,
+    // Page is not java.io.Serializable; exclude it from Java serialization to avoid
+    // NotSerializableException when the Media object is parcelled (e.g. Samsung App Lock).
+    @Transient val page: Page? = null,
 ) : Serializable {
     constructor(url: String, useTransformation: Boolean = false, page: Page? = null)
             : this(FileUrl(url), useTransformation, page)
