@@ -89,6 +89,18 @@
                     tools:ignore="LabelFor,TextContrastCheck,DuplicateSpeakableTextCheck" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <ImageView
+                android:id="@+id/mediaSourceMagnet"
+                android:layout_width="40dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="@string/direct_torrent_stream"
+                android:padding="8dp"
+                android:visibility="gone"
+                app:srcCompat="@drawable/ic_round_magnet_24"
+                app:tint="?attr/colorOnBackground"
+                tools:ignore="ImageContrastCheck"
+                tools:visibility="visible" />
 
             <ImageView
                 android:id="@+id/mediaSourceSettings"
@@ -378,4 +390,3 @@
     </LinearLayout>
 
 </LinearLayout>
-
