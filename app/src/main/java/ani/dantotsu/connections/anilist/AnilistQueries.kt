@@ -7,8 +7,10 @@ import ani.dantotsu.checkId
 import ani.dantotsu.connections.anilist.Anilist.authorRoles
 import ani.dantotsu.connections.anilist.Anilist.executeQuery
 import ani.dantotsu.connections.anilist.api.FeedResponse
+import ani.dantotsu.connections.anilist.api.ExternalLinkType
 import ani.dantotsu.connections.anilist.api.FuzzyDate
 import ani.dantotsu.connections.anilist.api.MediaEdge
+import ani.dantotsu.connections.anilist.api.MediaExternalLink
 import ani.dantotsu.connections.anilist.api.MediaList
 import ani.dantotsu.connections.anilist.api.MediaListStatus
 import ani.dantotsu.connections.anilist.api.NotificationResponse
@@ -123,6 +125,24 @@ class AnilistQueries {
         val fetchedMediaList = response?.data?.page?.media ?: return null
         return fetchedMediaList.map {
             Media(it)
+        }
+    }
+
+    suspend fun getStreamingExternalLinks(ids: List<Int>): Map<Int, List<MediaExternalLink>> {
+        if (ids.isEmpty()) return emptyMap()
+
+        val idsString = ids.joinToString(",")
+        val response = executeQuery<Query.MediaList>(
+            """{Page(page:1,perPage:${ids.size}){media(id_in:[${idsString}],type:ANIME,isAdult:false){id externalLinks{site type icon url}}}}""",
+            force = true
+        )
+        val fetchedMediaList = response?.data?.page?.media ?: return emptyMap()
+        return fetchedMediaList.associate { media ->
+            media.id to (
+                    media.externalLinks
+                        ?.filter { it.type == ExternalLinkType.STREAMING && !it.icon.isNullOrBlank() }
+                        ?: emptyList()
+                    )
         }
     }
 
@@ -1815,7 +1835,7 @@ Page(page:$page,perPage:50) {
         resetNotification: Boolean = true,
         type: Boolean? = null
     ): NotificationResponse? {
-        val typeIn = "type_in:[AIRING,MEDIA_MERGE,MEDIA_DELETION,MEDIA_DATA_CHANGE]"
+        val typeIn = "type_in:[AIRING,MEDIA_MERGE,MEDIA_DELETION,MEDIA_DATA_CHANGE,RELATED_MEDIA_ADDITION]"
         val reset = if (resetNotification) "true" else "false"
         val res = executeQuery<NotificationResponse>(
             """{User(id:$id){unreadNotificationCount}Page(page:$page,perPage:$ITEMS_PER_PAGE){$standardPageInformation notifications(resetNotificationCount:$reset , ${if (type == true) typeIn else ""}){__typename...on AiringNotification{id,type,animeId,episode,contexts,createdAt,media{id,title{romaji,english,native,userPreferred}bannerImage,coverImage{medium,large}},}...on FollowingNotification{id,userId,type,context,createdAt,user{id,name,bannerImage,avatar{medium,large,}}}...on ActivityMessageNotification{id,userId,type,activityId,context,createdAt,message{id}user{id,name,bannerImage,avatar{medium,large,}}}...on ActivityMentionNotification{id,userId,type,activityId,context,createdAt,activity{__typename}user{id,name,bannerImage,avatar{medium,large,}}}...on ActivityReplyNotification{id,userId,type,activityId,context,createdAt,activity{__typename}user{id,name,bannerImage,avatar{medium,large,}}}...on ActivityReplySubscribedNotification{id,userId,type,activityId,context,createdAt,activity{__typename}user{id,name,bannerImage,avatar{medium,large,}}}...on ActivityLikeNotification{id,userId,type,activityId,context,createdAt,activity{__typename}user{id,name,bannerImage,avatar{medium,large,}}}...on ActivityReplyLikeNotification{id,userId,type,activityId,context,createdAt,activity{__typename}user{id,name,bannerImage,avatar{medium,large,}}}...on ThreadCommentMentionNotification{id,userId,type,commentId,context,createdAt,thread{id}comment{id}user{id,name,bannerImage,avatar{medium,large,}}}...on ThreadCommentReplyNotification{id,userId,type,commentId,context,createdAt,thread{id}comment{id}user{id,name,bannerImage,avatar{medium,large,}}}...on ThreadCommentSubscribedNotification{id,userId,type,commentId,context,createdAt,thread{id}comment{id}user{id,name,bannerImage,avatar{medium,large,}}}...on ThreadCommentLikeNotification{id,userId,type,commentId,context,createdAt,thread{id}comment{id}user{id,name,bannerImage,avatar{medium,large,}}}...on ThreadLikeNotification{id,userId,type,threadId,context,createdAt,thread{id}comment{id}user{id,name,bannerImage,avatar{medium,large,}}}...on RelatedMediaAdditionNotification{id,type,context,createdAt,media{id,title{romaji,english,native,userPreferred}bannerImage,coverImage{medium,large}}}...on MediaDataChangeNotification{id,type,mediaId,context,reason,createdAt,media{id,title{romaji,english,native,userPreferred}bannerImage,coverImage{medium,large}}}...on MediaMergeNotification{id,type,mediaId,deletedMediaTitles,context,reason,createdAt,media{id,title{romaji,english,native,userPreferred}bannerImage,coverImage{medium,large}}}...on MediaDeletionNotification{id,type,deletedMediaTitle,context,reason,createdAt,}}}}""",
@@ -1843,7 +1863,7 @@ Page(page:$page,perPage:50) {
         val typeIn =
             if (filter == "isFollowing:true,") "type_in:[TEXT,ANIME_LIST,MANGA_LIST,MEDIA_LIST]," else ""
         return executeQuery<FeedResponse>(
-            """{Page(page:$page,perPage:$ITEMS_PER_PAGE){activities(${filter}${typeIn}sort:ID_DESC){__typename ... on TextActivity{id userId type replyCount text(asHtml:true)siteUrl isLocked isSubscribed likeCount isLiked isPinned createdAt user{id name bannerImage avatar{medium large}}replies{id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name bannerImage avatar{medium large}}}likes{id name bannerImage avatar{medium large}}}... on ListActivity{id userId type replyCount status progress siteUrl isLocked isSubscribed likeCount isLiked isPinned createdAt user{id name bannerImage avatar{medium large}}media{id title{english romaji native userPreferred}bannerImage coverImage{medium large}isAdult}replies{id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name bannerImage avatar{medium large}}}likes{id name bannerImage avatar{medium large}}}... on MessageActivity{id recipientId messengerId type replyCount likeCount message(asHtml:true)isLocked isSubscribed isLiked isPrivate siteUrl createdAt recipient{id name bannerImage avatar{medium large}}messenger{id name bannerImage avatar{medium large}}replies{id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name bannerImage avatar{medium large}}}likes{id name bannerImage avatar{medium large}}}}}}""",
+            """{Page(page:$page,perPage:$ITEMS_PER_PAGE){activities(${filter}${typeIn}sort:ID_DESC){__typename ... on TextActivity{id userId type replyCount text(asHtml:true)siteUrl isLocked isSubscribed likeCount isLiked isPinned createdAt user{id name bannerImage avatar{medium large}}replies{id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}... on ListActivity{id userId type replyCount status progress siteUrl isLocked isSubscribed likeCount isLiked isPinned createdAt user{id name bannerImage avatar{medium large}}media{id title{english romaji native userPreferred}bannerImage coverImage{medium large}isAdult}replies{id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}... on MessageActivity{id recipientId messengerId type replyCount likeCount message(asHtml:true)isLocked isSubscribed isLiked isPrivate siteUrl createdAt recipient{id name bannerImage avatar{medium large}}messenger{id name bannerImage avatar{medium large}}replies{id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}}}}""",
             force = true
         )
     }
@@ -1853,12 +1873,12 @@ Page(page:$page,perPage:50) {
         page: Int = 1
     ): ReplyResponse? {
         val query =
-            """{Page(page:$page,perPage:50){activityReplies(activityId:$activityId){id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name bannerImage avatar{medium large}}}}}"""
+            """{Page(page:$page,perPage:50){activityReplies(activityId:$activityId){id userId activityId text(asHtml:true)likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}}}"""
         return executeQuery(query, force = true)
     }
 
     private fun status(page: Int = 1): String {
-        return """Page(page:$page,perPage:50){activities(isFollowing: true,type_in:[TEXT,ANIME_LIST,MANGA_LIST,MEDIA_LIST],sort:ID_DESC){__typename ... on TextActivity{id userId type replyCount text(asHtml:true)siteUrl isLocked isSubscribed replyCount likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name bannerImage avatar{medium large}}}... on ListActivity{id userId type replyCount status progress siteUrl isLocked isSubscribed replyCount likeCount isLiked isPinned createdAt user{id name bannerImage avatar{medium large}}media{id isAdult title{english romaji native userPreferred}bannerImage coverImage{extraLarge medium large}}likes{id name bannerImage avatar{medium large}}}... on MessageActivity{id type createdAt}}}"""
+        return """Page(page:$page,perPage:50){activities(isFollowing: true,type_in:[TEXT,ANIME_LIST,MANGA_LIST,MEDIA_LIST],sort:ID_DESC){__typename ... on TextActivity{id userId type replyCount text(asHtml:true)siteUrl isLocked isSubscribed replyCount likeCount isLiked createdAt user{id name bannerImage avatar{medium large}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}... on ListActivity{id userId type replyCount status progress siteUrl isLocked isSubscribed replyCount likeCount isLiked isPinned createdAt user{id name bannerImage avatar{medium large}}media{id isAdult title{english romaji native userPreferred}bannerImage coverImage{extraLarge medium large}}likes{id name isFollowing isFollower bannerImage avatar{medium large}}}... on MessageActivity{id type createdAt}}}"""
     }
 
     suspend fun getUpcomingAnime(id: String): List<Media> {
