@@ -249,8 +249,8 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
         var isFavSyncRunning = false
         fun syncMediaFavStateIfNeeded() {
             if (rescueMode || Anilist.userid == null || favButton == null || media.isFav || isFavSyncRunning) return
+            isFavSyncRunning = true
             scope.launch {
-                isFavSyncRunning = true
                 try {
                     val favType = if (media.anime != null) {
                         ani.dantotsu.connections.anilist.AnilistMutations.FavType.ANIME
