@@ -142,8 +142,11 @@ class ActivityFragment : Fragment() {
     }
 
     private suspend fun getList() {
+        val maxPagesPerRequest = 10
+        var pagesFetched = 0
         val filteredCountBefore = getFilteredActivities().size
         do {
+            pagesFetched++
             val list = when (type) {
                 ActivityType.GLOBAL -> getActivities(global = true)
                 ActivityType.USER -> getActivities(filter = true)
@@ -154,6 +157,7 @@ class ActivityFragment : Fragment() {
         } while (
             currentFilter != ActivityFilterType.ALL &&
             hasMoreActivities &&
+            pagesFetched < maxPagesPerRequest &&
             getFilteredActivities().size == filteredCountBefore
         )
         applyFilter()
@@ -180,9 +184,12 @@ class ActivityFragment : Fragment() {
         activityId: Int? = null,
         filter: Boolean = false
     ): List<Activity> {
-        val res = Anilist.query.getFeed(userId, global, page, activityId)?.data?.page?.activities
-        hasMoreActivities = !res.isNullOrEmpty()
-        if (hasMoreActivities) page += 1
+        val pageData = Anilist.query.getFeed(userId, global, page, activityId)?.data?.page
+        val res = pageData?.activities
+        hasMoreActivities = pageData?.pageInfo?.hasNextPage ?: !res.isNullOrEmpty()
+        if (hasMoreActivities) {
+            page += 1
+        }
         return res
             ?.filter { if (Anilist.adult) true else it.media?.isAdult != true }
             ?.filterNot { it.recipient?.id != null && it.recipient.id != Anilist.userid && filter }
