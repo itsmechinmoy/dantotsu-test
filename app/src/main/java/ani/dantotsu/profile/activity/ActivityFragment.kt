@@ -144,7 +144,8 @@ class ActivityFragment : Fragment() {
     private suspend fun getList() {
         val maxPagesPerRequest = 10
         var pagesFetched = 0
-        val filteredCountBefore = getFilteredActivities().size
+        val initialFilteredCount = getFilteredActivities().size
+        var currentFilteredCount = initialFilteredCount
         do {
             pagesFetched++
             val list = when (type) {
@@ -154,11 +155,12 @@ class ActivityFragment : Fragment() {
                 ActivityType.ONE -> getActivities(activityId = activityId)
             }
             allActivities.addAll(list)
+            currentFilteredCount = getFilteredActivities().size
         } while (
             currentFilter != ActivityFilterType.ALL &&
             hasMoreActivities &&
             pagesFetched < maxPagesPerRequest &&
-            getFilteredActivities().size == filteredCountBefore
+            currentFilteredCount == initialFilteredCount
         )
         applyFilter()
     }
@@ -186,7 +188,7 @@ class ActivityFragment : Fragment() {
     ): List<Activity> {
         val pageData = Anilist.query.getFeed(userId, global, page, activityId)?.data?.page
         val res = pageData?.activities
-        hasMoreActivities = pageData?.pageInfo?.hasNextPage ?: !res.isNullOrEmpty()
+        hasMoreActivities = pageData?.pageInfo?.hasNextPage ?: false
         if (hasMoreActivities) {
             page += 1
         }
