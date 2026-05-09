@@ -1020,15 +1020,20 @@ class ProfileViewModel : ViewModel() {
 
     suspend fun setData(id: Int) {
         val res = Anilist.query.initProfilePage(id)
+        val isCurrentUser = Anilist.userid == id
         val mangaList = res?.data?.favoriteManga?.favourites?.manga?.edges?.mapNotNull {
             it.node?.let { i ->
-                Media(i)
+                Media(i).apply {
+                    isFav = isCurrentUser
+                }
             }
         }
         mangaFav.postValue(ArrayList(mangaList ?: arrayListOf()))
         val animeList = res?.data?.favoriteAnime?.favourites?.anime?.edges?.mapNotNull {
             it.node?.let { i ->
-                Media(i)
+                Media(i).apply {
+                    isFav = isCurrentUser
+                }
             }
         }
         animeFav.postValue(ArrayList(animeList ?: arrayListOf()))
