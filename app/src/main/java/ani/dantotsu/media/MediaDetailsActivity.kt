@@ -260,9 +260,9 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
                     val isUserFav = withContext(Dispatchers.IO) {
                         Anilist.query.isUserFav(favType, media.id)
                     }
-                    if (isUserFav && !media.isFav) {
+                    if (isUserFav) {
                         media.isFav = true
-                        if (media.isFav != favButton.clicked) favButton.clicked()
+                        if (!favButton.clicked) favButton.clicked()
                     }
                 } finally {
                     isFavSyncRunning = false
