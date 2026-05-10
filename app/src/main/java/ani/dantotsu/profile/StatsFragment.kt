@@ -142,27 +142,9 @@ class StatsFragment :
                     }
                 }
                 loadedFirstTime = true
-            } else {
-                loadStats(type == MediaType.ANIME)
             }
         }
-    }
-
-    private fun standardizeChartPackets(
-        packets: MutableList<ChartPacket>
-    ): MutableList<ChartPacket> {
-        if (packets.size <= 1) return packets
-        val allNames = linkedSetOf<String>()
-        packets.forEach { p -> p.names.forEach { allNames.add(it.toString()) } }
-        val referenceNames = allNames.toList()
-        val standardized = packets.map { packet ->
-            val valuesMap = packet.names.map { it.toString() }.zip(packet.statData).toMap()
-            val standardizedValues = referenceNames.map { name -> valuesMap[name] ?: 0 }
-            ChartPacket(packet.username, referenceNames, standardizedValues)
-        }.toMutableList()
-        packets.clear()
-        packets.addAll(standardized)
-        return packets
+        loadStats(type == MediaType.ANIME)
     }
 
     private fun loadStats(anime: Boolean) {
@@ -211,7 +193,6 @@ class StatsFragment :
             }
         }
         if (chartPackets.isNotEmpty()) {
-            standardizeChartPackets(chartPackets)
             val formatChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.OneDimensional,
@@ -251,7 +232,6 @@ class StatsFragment :
             }
         }
         if (chartPackets.isNotEmpty()) {
-            standardizeChartPackets(chartPackets)
             val statusChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.OneDimensional,
@@ -301,7 +281,6 @@ class StatsFragment :
             }
         }
         if (chartPackets.isNotEmpty()) {
-            standardizeChartPackets(chartPackets)
             val scoreChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
@@ -343,7 +322,6 @@ class StatsFragment :
             }
         }
         if (chartPackets.isNotEmpty()) {
-            standardizeChartPackets(chartPackets)
             val lengthChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.OneDimensional,
@@ -385,7 +363,6 @@ class StatsFragment :
             }
         }
         if (chartPackets.isNotEmpty()) {
-            standardizeChartPackets(chartPackets)
             val releaseYearChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
@@ -426,7 +403,6 @@ class StatsFragment :
             }
         }
         if (chartPackets.isNotEmpty()) {
-            standardizeChartPackets(chartPackets)
             val startYearChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
