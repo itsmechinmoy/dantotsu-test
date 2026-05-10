@@ -2152,7 +2152,7 @@ class ExoplayerView :
             onSetTrackGroupOverride(dummyTrack, TRACK_TYPE_TEXT)
         }
 
-        val isDisabled = subtitle == null && hasExtSubtitles && !PrefManager.getVal<Boolean>(PrefName.Subtitles)
+        val isDisabled = (subtitle == null && hasExtSubtitles)
         exoPlayer.trackSelectionParameters =
             exoPlayer.trackSelectionParameters
                 .buildUpon()
@@ -2842,7 +2842,6 @@ class ExoplayerView :
 
         if (!isTimeStampsLoaded && PrefManager.getVal(PrefName.TimeStampsEnabled)) {
             val dur = exoPlayer.duration
-            val extTimestamps = extractor?.server?.video?.timestamps ?: emptyList()
             lifecycleScope.launch(Dispatchers.IO) {
                 model.loadTimeStamps(
                     media.idMAL,
@@ -2852,7 +2851,6 @@ class ExoplayerView :
                         ?.toIntOrNull(),
                     dur / 1000,
                     PrefManager.getVal(PrefName.UseProxyForTimeStamps),
-                    extTimestamps,
                 )
             }
         }
@@ -3460,19 +3458,8 @@ class ExoplayerView :
         if (isInPictureInPictureMode) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             orientationListener?.disable()
-            // Scale down subtitles for PiP
-            val pipFontSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat() * 0.55f
-            playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, pipFontSize)
-            if (this::customSubtitleView.isInitialized) {
-                customSubtitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, pipFontSize)
-            }
         } else {
             orientationListener?.enable()
-            // Restore original subtitle size
-            setupSubFormatting(playerView)
-            if (this::customSubtitleView.isInitialized) {
-                applySubtitleStyles(customSubtitleView)
-            }
         }
         if (isInitialized) {
             PrefManager.setCustomVal(

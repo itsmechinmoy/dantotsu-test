@@ -58,7 +58,6 @@ import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.media.MediaSingleton
 import ani.dantotsu.media.manga.MangaCache
 import ani.dantotsu.media.manga.MangaChapter
-import ani.dantotsu.media.emptyMedia
 import ani.dantotsu.notifications.subscription.SubscriptionHelper
 import ani.dantotsu.others.ImageViewDialog
 import ani.dantotsu.parsers.HMangaSources
@@ -155,7 +154,7 @@ class MangaReaderActivity : AppCompatActivity() {
 
     private fun checkNotch() {
         binding.mangaReaderTopLayout.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = notchHeight ?: return@updateLayoutParams
+            topMargin = notchHeight ?: return
         }
     }
 
@@ -170,13 +169,6 @@ class MangaReaderActivity : AppCompatActivity() {
         mangaCache.clear()
         RPCManager.clearPresence(this)
         super.onDestroy()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        if (::media.isInitialized) {
-            model.setMedia(emptyMedia())
-        }
-        super.onSaveInstanceState(outState)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -1085,7 +1077,8 @@ class MangaReaderActivity : AppCompatActivity() {
                 if (PrefManager.getVal(PrefName.AskIndividualReader)) PrefManager.getCustomVal(
                     "${media.id}_progressDialog",
                     true
-                ) else false
+                )
+                else false
             val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
             if (showProgressDialog && !incognito) {
 

@@ -17,7 +17,6 @@ class ListFragment : Fragment() {
     private val binding get() = _binding!!
     private var pos: Int? = null
     private var calendar = false
-    private var showDubSites = false
     private var grid: Boolean? = null
     private var list: MutableList<Media>? = null
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,7 +24,6 @@ class ListFragment : Fragment() {
         arguments?.let {
             pos = it.getInt("list")
             calendar = it.getBoolean("calendar")
-            showDubSites = it.getBoolean("showDubSites")
         }
     }
 
@@ -44,13 +42,7 @@ class ListFragment : Fragment() {
 
         fun update() {
             if (grid != null && list != null) {
-                val adapter = MediaAdaptor(
-                    if (grid!!) 0 else 1,
-                    list!!,
-                    requireActivity(),
-                    true,
-                    showDubSites = calendar && showDubSites
-                )
+                val adapter = MediaAdaptor(if (grid!!) 0 else 1, list!!, requireActivity(), true)
                 binding.listRecyclerView.layoutManager =
                     GridLayoutManager(
                         requireContext(),
@@ -90,16 +82,11 @@ class ListFragment : Fragment() {
     }
 
     companion object {
-        fun newInstance(
-            pos: Int,
-            calendar: Boolean = false,
-            showDubSites: Boolean = false
-        ): ListFragment =
+        fun newInstance(pos: Int, calendar: Boolean = false): ListFragment =
             ListFragment().apply {
                 arguments = Bundle().apply {
                     putInt("list", pos)
                     putBoolean("calendar", calendar)
-                    putBoolean("showDubSites", showDubSites)
                 }
             }
     }

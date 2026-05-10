@@ -7,11 +7,10 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 class ListViewPagerAdapter(
     private val size: Int,
     private val calendar: Boolean,
-    fragment: FragmentActivity,
-    private val showDubSites: Boolean = false
+    fragment: FragmentActivity
 ) :
     FragmentStateAdapter(fragment) {
     override fun getItemCount(): Int = size
     override fun createFragment(position: Int): Fragment =
-        ListFragment.newInstance(position, calendar, showDubSites)
+        ListFragment.newInstance(position, calendar)
 }

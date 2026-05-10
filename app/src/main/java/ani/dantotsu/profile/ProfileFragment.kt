@@ -17,7 +17,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
-import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.ProfileViewModel
 import ani.dantotsu.connections.anilist.api.Query
 import ani.dantotsu.databinding.FragmentProfileBinding
@@ -189,8 +188,7 @@ class ProfileFragment : Fragment() {
             recyclerView.visibility = View.GONE
             if (it != null) {
                 if (it.isNotEmpty()) {
-                    val isOther = user.id != Anilist.userid
-                    recyclerView.adapter = MediaAdaptor(0, it, activity, fav = true, isOtherUser = isOther)
+                    recyclerView.adapter = MediaAdaptor(0, it, activity, fav = true)
                     recyclerView.layoutManager = LinearLayoutManager(
                         activity,
                         LinearLayoutManager.HORIZONTAL,
