@@ -66,10 +66,15 @@ class TorrentServerService : Service() {
         serviceScope.launch {
             val echo = extension.echo()
             if (echo == "") {
-                extension.startServer(
-                    filesDir.absolutePath,
-                    TorrentAddonManager.buildStreamingSettings(),
-                )
+                try {
+                    extension.startServer(
+                        filesDir.absolutePath,
+                        TorrentAddonManager.buildStreamingSettings(),
+                    )
+                } catch (e: AbstractMethodError) {
+                    Logger.log("Addon doesn't support streaming settings, falling back")
+                    extension.startServer(filesDir.absolutePath)
+                }
             }
         }
     }
