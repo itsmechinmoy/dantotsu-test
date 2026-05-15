@@ -306,7 +306,7 @@ class PlayerSettingsActivity :
         binding.playerSettingsDlnaFriendlyName.setOnClickListener {
             val input =
                 EditText(this).apply {
-                    setText(PrefManager.getVal(PrefName.DLNAFriendlyName))
+                    setText(PrefManager.getVal<String>(PrefName.DLNAFriendlyName))
                     inputType = InputType.TYPE_CLASS_TEXT
                     setSelection(text.length)
                 }
