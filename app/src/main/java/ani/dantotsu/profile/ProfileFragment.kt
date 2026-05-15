@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
+import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.ProfileViewModel
 import ani.dantotsu.connections.anilist.api.Query
 import ani.dantotsu.databinding.FragmentProfileBinding
@@ -130,11 +131,11 @@ class ProfileFragment : Fragment() {
         )
 
         user.favourites?.characters?.nodes?.forEach { i ->
-            favCharacter.add(Character(i.id, i.name.full, i.image.large, i.image.large, "", true))
+            favCharacter.add(Character(i.id, i.name.full, i.image.large, i.image.large, "", i.isFavourite))
         }
 
         user.favourites?.staff?.nodes?.forEach { i ->
-            favStaff.add(Author(i.id, i.name.full, i.image.large, ""))
+            favStaff.add(Author(i.id, i.name.full, i.image.large, "", isFav = i.isFavourite))
         }
 
         setFavPeople()
@@ -188,7 +189,8 @@ class ProfileFragment : Fragment() {
             recyclerView.visibility = View.GONE
             if (it != null) {
                 if (it.isNotEmpty()) {
-                    recyclerView.adapter = MediaAdaptor(0, it, activity, fav = true)
+                    val isOther = user.id != Anilist.userid
+                    recyclerView.adapter = MediaAdaptor(0, it, activity, fav = true, isOtherUser = isOther)
                     recyclerView.layoutManager = LinearLayoutManager(
                         activity,
                         LinearLayoutManager.HORIZONTAL,

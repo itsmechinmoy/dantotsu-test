@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.api.Activity
-import ani.dantotsu.connections.anilist.api.MediaType
 import ani.dantotsu.databinding.FragmentFeedBinding
 import ani.dantotsu.media.MediaDetailsActivity
 import ani.dantotsu.navBarHeight
@@ -34,6 +33,7 @@ class ActivityFragment : Fragment() {
     private var page: Int = 1
     private var allActivities: MutableList<Activity> = mutableListOf()
     private var currentFilter: ActivityFilterType = ActivityFilterType.ALL
+    private var hasMoreActivities: Boolean = true
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -83,6 +83,7 @@ class ActivityFragment : Fragment() {
                 adapter.clear()
                 allActivities.clear()
                 page = 1
+                hasMoreActivities = true
                 getList()
                 binding.feedSwipeRefresh.isRefreshing = false
             }
@@ -105,29 +106,20 @@ class ActivityFragment : Fragment() {
     private fun showFilterBottomSheet() {
         ActivityFilterBottomSheet.newInstance(currentFilter) { filterType ->
             currentFilter = filterType
-            applyFilter()
+            lifecycleScope.launch {
+                binding.listProgressBar.isVisible = true
+                adapter.clear()
+                allActivities.clear()
+                page = 1
+                hasMoreActivities = true
+                getList()
+                binding.listProgressBar.isVisible = false
+            }
         }.show(childFragmentManager, "ActivityFilterBottomSheet")
     }
 
     private fun applyFilter() {
-        val filteredActivities = when (currentFilter) {
-            ActivityFilterType.ALL -> allActivities
-            ActivityFilterType.ANIME_PROGRESS -> allActivities.filter { 
-                it.typename == "ListActivity" && it.media?.type == MediaType.ANIME
-            }
-            ActivityFilterType.MANGA_PROGRESS -> allActivities.filter { 
-                it.typename == "ListActivity" && it.media?.type == MediaType.MANGA
-            }
-            ActivityFilterType.STATUS -> allActivities.filter { 
-                it.typename == "ListActivity" && it.status != null 
-            }
-            ActivityFilterType.MESSAGES -> allActivities.filter { 
-                it.typename == "MessageActivity" 
-            }
-            ActivityFilterType.TEXT -> allActivities.filter { 
-                it.typename == "TextActivity" 
-            }
-        }
+        val filteredActivities = getFilteredActivities()
         
         adapter.clear()
         adapter.addAll(filteredActivities.map { ActivityItem(it, adapter, ::onActivityClick) })
@@ -137,9 +129,7 @@ class ActivityFragment : Fragment() {
             ActivityFilterType.ALL -> getString(R.string.nothing_here)
             ActivityFilterType.ANIME_PROGRESS -> getString(R.string.no_anime_progress)
             ActivityFilterType.MANGA_PROGRESS -> getString(R.string.no_manga_progress)
-            ActivityFilterType.STATUS -> getString(R.string.no_status_activities)
             ActivityFilterType.MESSAGES -> getString(R.string.no_messages)
-            ActivityFilterType.TEXT -> getString(R.string.no_text_activities)
         }
     }
 
@@ -152,14 +142,42 @@ class ActivityFragment : Fragment() {
     }
 
     private suspend fun getList() {
-        val list = when (type) {
-            ActivityType.GLOBAL -> getActivities(global = true)
-            ActivityType.USER -> getActivities(filter = true)
-            ActivityType.OTHER_USER -> getActivities(userId = userId)
-            ActivityType.ONE -> getActivities(activityId = activityId)
-        }
-        allActivities.addAll(list)
+        val maxPagesPerRequest = 10
+        var pagesFetched = 0
+        val initialFilteredCount = getFilteredActivities().size
+        var currentFilteredCount = initialFilteredCount
+        do {
+            pagesFetched++
+            val list = when (type) {
+                ActivityType.GLOBAL -> getActivities(global = true)
+                ActivityType.USER -> getActivities(filter = true)
+                ActivityType.OTHER_USER -> getActivities(userId = userId)
+                ActivityType.ONE -> getActivities(activityId = activityId)
+            }
+            allActivities.addAll(list)
+            currentFilteredCount = getFilteredActivities().size
+        } while (
+            currentFilter != ActivityFilterType.ALL &&
+            hasMoreActivities &&
+            pagesFetched < maxPagesPerRequest &&
+            currentFilteredCount == initialFilteredCount
+        )
         applyFilter()
+    }
+
+    private fun getFilteredActivities(): List<Activity> {
+        return when (currentFilter) {
+            ActivityFilterType.ALL -> allActivities
+            ActivityFilterType.ANIME_PROGRESS -> allActivities.filter {
+                it.type == "ANIME_LIST"
+            }
+            ActivityFilterType.MANGA_PROGRESS -> allActivities.filter {
+                it.type == "MANGA_LIST"
+            }
+            ActivityFilterType.MESSAGES -> allActivities.filter {
+                it.typename == "MessageActivity"
+            }
+        }
     }
 
     private suspend fun getActivities(
@@ -168,8 +186,12 @@ class ActivityFragment : Fragment() {
         activityId: Int? = null,
         filter: Boolean = false
     ): List<Activity> {
-        val res = Anilist.query.getFeed(userId, global, page, activityId)?.data?.page?.activities
-        page += 1
+        val pageData = Anilist.query.getFeed(userId, global, page, activityId)?.data?.page
+        val res = pageData?.activities
+        hasMoreActivities = pageData?.pageInfo?.hasNextPage ?: false
+        if (hasMoreActivities) {
+            page += 1
+        }
         return res
             ?.filter { if (Anilist.adult) true else it.media?.isAdult != true }
             ?.filterNot { it.recipient?.id != null && it.recipient.id != Anilist.userid && filter }
@@ -180,7 +202,8 @@ class ActivityFragment : Fragment() {
         val layoutManager =
             (binding.listRecyclerView.layoutManager as LinearLayoutManager).findLastVisibleItemPosition()
         val adapter = binding.listRecyclerView.adapter
-        return !binding.listRecyclerView.canScrollVertically(1) &&
+        return hasMoreActivities &&
+                !binding.listRecyclerView.canScrollVertically(1) &&
                 !binding.feedRefresh.isVisible && adapter?.itemCount != 0 &&
                 layoutManager == (adapter!!.itemCount - 1)
 

@@ -20,7 +20,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.text.bold
 import androidx.core.text.color
 import androidx.core.view.isVisible
-import androidx.core.view.marginBottom
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updateMargins
 import androidx.fragment.app.Fragment
@@ -46,7 +45,6 @@ import ani.dantotsu.media.comments.CommentsFragment
 import ani.dantotsu.media.manga.MangaReadFragment
 import ani.dantotsu.media.novel.NovelReadFragment
 import ani.dantotsu.navBarHeight
-import ani.dantotsu.setBaseline
 import ani.dantotsu.openLinkInBrowser
 import ani.dantotsu.others.AndroidBug5497Workaround
 import ani.dantotsu.others.ImageViewDialog
@@ -218,33 +216,58 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
             true
         }
         binding.mediaStatus.text = media.status ?: ""
-
-        //Fav Button
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
-        val favButton = if (Anilist.userid != null && !rescueMode) {
-            if (media.isFav) binding.mediaFav.setImageDrawable(
-                AppCompatResources.getDrawable(
-                    this,
-                    R.drawable.ic_round_favorite_24
-                )
-            )
 
-            PopImageButton(
-                scope,
-                binding.mediaFav,
-                R.drawable.ic_round_favorite_24,
-                R.drawable.ic_round_favorite_border_24,
-                R.color.bg_opp,
-                R.color.violet_400,
-                media.isFav
-            ) {
-                media.isFav = it
-                Anilist.mutation.toggleFav(media.anime != null, media.id)
-                Refresh.all()
+        fun fav(media: Media):  PopImageButton? {
+            //Fav Button
+            return if (Anilist.userid != null && !rescueMode) {
+                if (media.isFav) binding.mediaFav.setImageDrawable(
+                    AppCompatResources.getDrawable(
+                        this,
+                        R.drawable.ic_round_favorite_24
+                    )
+                )
+
+                PopImageButton(
+                    scope,
+                    binding.mediaFav,
+                    R.drawable.ic_round_favorite_24,
+                    R.drawable.ic_round_favorite_border_24,
+                    R.color.bg_opp,
+                    R.color.violet_400,
+                    media.isFav
+                ) {
+                    media.isFav = it
+                    Anilist.mutation.toggleFav(media.anime != null, media.id)
+                    Refresh.all()
+                }
+            } else {
+                binding.mediaFav.visibility = View.GONE
+                null
             }
-        } else {
-            binding.mediaFav.visibility = View.GONE
-            null
+        }
+        var isFavSyncRunning = false
+        fun syncMediaFavStateIfNeeded(favButton: PopImageButton?) {
+            if (rescueMode || Anilist.userid == null || favButton == null || media.isFav || isFavSyncRunning) return
+            isFavSyncRunning = true
+            scope.launch {
+                try {
+                    val favType = if (media.anime != null) {
+                        ani.dantotsu.connections.anilist.AnilistMutations.FavType.ANIME
+                    } else {
+                        ani.dantotsu.connections.anilist.AnilistMutations.FavType.MANGA
+                    }
+                    val isUserFav = withContext(Dispatchers.IO) {
+                        Anilist.query.isUserFav(favType, media.id)
+                    }
+                    if (isUserFav) {
+                        media.isFav = true
+                        if (!favButton.clicked) favButton.clicked()
+                    }
+                } finally {
+                    isFavSyncRunning = false
+                }
+            }
         }
 
         @SuppressLint("ResourceType")
@@ -336,7 +359,7 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
                             folderName = folderName,
                             isAnime = isAnime,
                             isNovel = isNovel
-                        ) { newId ->
+                        ) { _ ->
                             // Re-trigger it
                             val updatedMedia = media.copy(id = 0)
                             model.loading = false
@@ -347,8 +370,11 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
                 }
 
                 scope.launch {
-                    if (media.isFav != favButton?.clicked) favButton?.clicked()
+                    val favIcon = fav(it)
+                    syncMediaFavStateIfNeeded(favIcon)
+                    if (media.isFav != favIcon?.clicked) favIcon?.clicked()
                 }
+
 
                 binding.mediaNotify.setOnClickListener {
                     val i = Intent(Intent.ACTION_SEND)
@@ -467,14 +493,22 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
     }
 
     override fun onResume() {
+        val extContainer = findViewById<android.widget.FrameLayout>(R.id.fragmentExtensionsContainer)
+        if (extContainer != null) {
+            val hasExtFragment = supportFragmentManager.findFragmentById(R.id.fragmentExtensionsContainer) != null
+            if (hasExtFragment) {
+                supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+                extContainer.visibility = View.GONE
+            }
+        }
+
         if (::navBar.isInitialized)
             navBar.selectTabAt(selected)
-
-        // Explicitly set visibility of key UI elements on resume
         binding.mediaAppBar.visibility = View.VISIBLE
         binding.mediaViewPager.visibility = View.VISIBLE
         binding.mediaCover.visibility = View.VISIBLE
         binding.mediaClose.visibility = View.VISIBLE
+        navBar.isVisible = true
         super.onResume()
         binding.root.requestLayout()
     }
