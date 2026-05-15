@@ -2,6 +2,7 @@ package ani.dantotsu.media.anime
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
+import android.util.Base64
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -849,7 +850,12 @@ class AnimeWatchFragment : Fragment() {
                 val extension = torrentManager.extension?.extension
                     ?: throw IllegalStateException(getString(R.string.torrent_addon_not_available))
                 torrentManager.torrentHash?.let { extension.removeTorrent(it) }
-                val torrent = extension.addTorrent(link, media.mainName(), false)
+                val torrent = try {
+                    extension.addTorrent(link, media.mainName(), false)
+                } catch (_: AbstractMethodError) {
+                    // Fallback to 5-arg version
+                    extension.addTorrent(link, media.mainName(), "", "", false)
+                }
                 torrentManager.torrentHash = torrent.hash
                 val streamLink = extension.getLink(torrent, 0)
                 launchDirectStream(streamLink, media.mainName())
@@ -873,7 +879,12 @@ class AnimeWatchFragment : Fragment() {
                         ?: throw IllegalStateException("Failed to read torrent file content")
                 val fileName = resolveFileName(uri)
                 torrentManager.torrentHash?.let { extension.removeTorrent(it) }
-                val torrent = extension.uploadTorrent(fileBytes, fileName, media.mainName(), false)
+                val torrent = try {
+                    extension.uploadTorrent(fileBytes, fileName, media.mainName(), false)
+                } catch (_: AbstractMethodError) {
+                    // Old addon: POST directly to TorrentServer HTTP API
+                    addTorrentViaHttp(fileBytes, media.mainName())
+                }
                 torrentManager.torrentHash = torrent.hash
                 val streamLink = extension.getLink(torrent, 0)
                 launchDirectStream(streamLink, media.mainName())
@@ -892,6 +903,32 @@ class AnimeWatchFragment : Fragment() {
                 Logger.log(e)
             }
         }
+    }
+
+    private fun addTorrentViaHttp(fileBytes: ByteArray, title: String): eu.kanade.tachiyomi.data.torrentServer.model.Torrent {
+        val b64 = Base64.encodeToString(fileBytes, Base64.NO_WRAP)
+        val safeTitle = title.replace("\"", "\\\"")
+        val jsonBody = """{"action":"add","link":"","title":"$safeTitle","poster":"","data":"$b64","save_to_db":false}"""
+        val url = java.net.URL("http://127.0.0.1:8090/torrents")
+        val conn = url.openConnection() as java.net.HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.connectTimeout = 15_000
+        conn.readTimeout = 30_000
+        conn.doOutput = true
+        conn.outputStream.use { it.write(jsonBody.toByteArray()) }
+        val code = conn.responseCode
+        val body = try {
+            conn.inputStream.bufferedReader().readText()
+        } catch (_: Exception) {
+            conn.errorStream?.bufferedReader()?.readText() ?: ""
+        }
+        conn.disconnect()
+        if (code !in 200..299) {
+            throw IllegalStateException("TorrentServer HTTP $code: $body")
+        }
+        return kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+            .decodeFromString<eu.kanade.tachiyomi.data.torrentServer.model.Torrent>(body)
     }
 
     private suspend fun launchDirectStream(streamLink: String, title: String) {

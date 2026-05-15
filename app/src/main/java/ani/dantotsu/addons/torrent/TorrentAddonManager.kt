@@ -166,6 +166,10 @@ class TorrentAddonManager(
     }
 
     fun getTorrent(torrentHash: String): Torrent? {
-        return extension?.extension?.getTorrent(torrentHash)
+        return try {
+            extension?.extension?.getTorrent(torrentHash)
+        } catch (_: AbstractMethodError) {
+            null
+        }
     }
 }

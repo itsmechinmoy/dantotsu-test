@@ -298,10 +298,10 @@ class ExoplayerView :
     private var pipEnabled = false
     private var aspectRatio = Rational(16, 9)
     private var torrentStatsJob: Job? = null
-    private var isTorrentStreamPlayback = false
     private var videoQualityText: String? = null
     private var torrentTelemetryText: String? = null
-
+    private var isTorrentStreamPlayback: Boolean = false
+    private lateinit var torrentStatsText: TextView
     private val handler = Handler(Looper.getMainLooper())
     val model: MediaDetailsViewModel by viewModels()
     private val getContent = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: android.net.Uri? ->
@@ -1189,6 +1189,7 @@ class ExoplayerView :
         episodes = media.anime?.episodes ?: return startMainActivity(this)
 
         videoInfo = playerView.findViewById(R.id.exo_video_info)
+        torrentStatsText = playerView.findViewById(R.id.exo_torrent_stats)
 
         model.watchSources = if (media.isAdult) HAnimeSources else AnimeSources
 
@@ -1293,10 +1294,14 @@ class ExoplayerView :
                 episodeTitle.setSelection(currentEpisodeIndex)
                 if (isInitialized) releasePlayer()
                 playbackPosition =
-                    PrefManager.getCustomVal(
-                        "${media.id}_${ep.number}",
-                        0,
-                    )
+                    if (ep.number == DIRECT_TORRENT_EPISODE_ID) {
+                        0L
+                    } else {
+                        PrefManager.getCustomVal(
+                            "${media.id}_${ep.number}",
+                            0,
+                        )
+                    }
                 initPlayer()
                 preloading = false
                 updateProgress()
@@ -1724,6 +1729,7 @@ class ExoplayerView :
             ext.onVideoPlayed(video)
         }
 
+        val isTorrent = detectTorrentStreamPlayback()
         val httpClient =
             okHttpClient
                 .newBuilder()
@@ -1735,9 +1741,16 @@ class ExoplayerView :
                     connectionPool(
                         okhttp3.ConnectionPool(10, 5, java.util.concurrent.TimeUnit.MINUTES)
                     )
-                    connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                    readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
-                    writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                    if (isTorrent) {
+                        //  find peers and pre-buffer
+                        connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                        readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                        writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    } else {
+                        connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                        readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                        writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                    }
                 }.build()
         val httpDataSourceFactory =
             OkHttpDataSource.Factory(httpClient).apply {
@@ -2888,12 +2901,10 @@ class ExoplayerView :
         val torrentHash = manager.torrentHash ?: return null
         val torrent = runCatching { manager.getTorrent(torrentHash) }.getOrNull() ?: return null
 
-        val connections = torrent.active_peers ?: torrent.total_peers ?: 0
+        val connections = torrent.total_peers ?: 0
         val seeds = torrent.connected_seeders ?: 0
         val downloadRate = formatTorrentRate(torrent.download_speed ?: 0.0)
         val uploadRate = formatTorrentRate(torrent.upload_speed ?: 0.0)
-        val downloadedData = formatTorrentData(torrent.bytes_read_data ?: torrent.bytes_read ?: 0L)
-        val uploadedData = formatTorrentData(torrent.bytes_written_data ?: torrent.bytes_written ?: 0L)
 
         return getString(
             R.string.torrent_player_stats_format,
@@ -2901,8 +2912,6 @@ class ExoplayerView :
             seeds,
             downloadRate,
             uploadRate,
-            downloadedData,
-            uploadedData,
         )
     }
 
@@ -2917,14 +2926,14 @@ class ExoplayerView :
 
     private fun renderVideoInfo() {
         val quality = videoQualityText?.takeIf { it.isNotBlank() }
-        val stats = torrentTelemetryText?.takeIf { isTorrentStreamPlayback && it.isNotBlank() }
-        videoInfo.text =
-            when {
-                quality != null && stats != null -> "$quality\n$stats"
-                stats != null -> stats
-                quality != null -> quality
-                else -> ""
-            }
+        videoInfo.text = quality ?: ""
+
+        if (isTorrentStreamPlayback && torrentTelemetryText != null) {
+            torrentStatsText.visibility = View.VISIBLE
+            torrentStatsText.text = torrentTelemetryText
+        } else {
+            torrentStatsText.visibility = View.GONE
+        }
     }
 
     // Link Preloading
