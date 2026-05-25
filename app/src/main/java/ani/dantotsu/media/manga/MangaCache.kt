@@ -16,6 +16,9 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ani.dantotsu.util.createDataSaver
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
 
 data class ImageData(
     val page: Page,
