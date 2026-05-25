@@ -14,7 +14,7 @@ interface DataSaver {
 }
 
 fun createDataSaver(): DataSaver {
-    val dataSaverMode: Int = PrefManager.getVal(PrefName.DataSaverMode)
+    val dataSaverMode: Int = PrefManager.getVal<Int>(PrefName.DataSaverMode)
     return when (dataSaverMode) {
         0 -> DataSaver.NoOp  // NONE
         1 -> BandwidthHeroDataSaver()  // BANDWIDTH_HERO
@@ -24,13 +24,13 @@ fun createDataSaver(): DataSaver {
 }
 
 private class BandwidthHeroDataSaver : DataSaver {
-    private val dataSavedServer: String = PrefManager.getVal(PrefName.DataSaverServer).trimEnd('/')
-    private val ignoreJpg: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreJpeg)
-    private val ignoreGif: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreGif)
-    private val imageFormatJpeg: Boolean = PrefManager.getVal(PrefName.DataSaverImageFormatJpeg)
+    private val dataSavedServer: String = PrefManager.getVal<String>(PrefName.DataSaverServer).trimEnd('/')
+    private val ignoreJpg: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverIgnoreJpeg)
+    private val ignoreGif: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverIgnoreGif)
+    private val imageFormatJpeg: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverImageFormatJpeg)
     private val format = if (imageFormatJpeg) "1" else "0"
-    private val quality: Int = PrefManager.getVal(PrefName.DataSaverImageQuality)
-    private val colorBWEnabled: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW)
+    private val quality: Int = PrefManager.getVal<Int>(PrefName.DataSaverImageQuality)
+    private val colorBWEnabled: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverColorBW)
     private val colorBW = if (colorBWEnabled) "1" else "0"
 
     override fun compress(imageUrl: String): String {
@@ -53,10 +53,10 @@ private class BandwidthHeroDataSaver : DataSaver {
 }
 
 private class WsrvNlDataSaver : DataSaver {
-    private val ignoreJpg: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreJpeg)
-    private val ignoreGif: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreGif)
-    private val format: Boolean = PrefManager.getVal(PrefName.DataSaverImageFormatJpeg)
-    private val quality: Int = PrefManager.getVal(PrefName.DataSaverImageQuality)
+    private val ignoreJpg: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverIgnoreJpeg)
+    private val ignoreGif: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverIgnoreGif)
+    private val format: Boolean = PrefManager.getVal<Boolean>(PrefName.DataSaverImageFormatJpeg)
+    private val quality: Int = PrefManager.getVal<Int>(PrefName.DataSaverImageQuality)
 
     override fun compress(imageUrl: String): String {
         return when {
