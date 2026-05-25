@@ -11,11 +11,11 @@ import android.provider.MediaStore
 import android.util.LruCache
 import ani.dantotsu.snackString
 import ani.dantotsu.util.Logger
+import ani.dantotsu.util.createDataSaver
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import ani.dantotsu.util.createDataSaver
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -30,34 +30,28 @@ data class ImageData(
     ): Bitmap? {
         return withContext(Dispatchers.IO) {
             try {
-                // Get the DataSaver and compress the URL if enabled
                 val dataSaver = createDataSaver()
                 val compressedUrl = dataSaver.compress(page.imageUrl ?: "")
                 
                 // Create a new Page with the compressed URL for fetching
                 val originalUrl = page.imageUrl
                 page.imageUrl = compressedUrl
-                
-                // Fetch the image
-                val response = httpSource.getImage(page)
-                
-                // Restore the original URL
-                page.imageUrl = originalUrl
-                
+                val response = try {
+                    httpSource.getImage(page)
+                } finally {
+                    page.imageUrl = originalUrl
+                }
+
                 Logger.log("Response: ${response.code} - ${response.message}")
 
-                // Convert the Response to an InputStream
-                val inputStream = response.body.byteStream()
-
-                // Convert InputStream to Bitmap
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-
-                inputStream.close()
-                //saveImage(bitmap, context.contentResolver, page.imageUrl!!, Bitmap.CompressFormat.JPEG, 100)
+                val bitmap = response.use {
+                    it.body.byteStream().use { inputStream ->
+                        BitmapFactory.decodeStream(inputStream)
+                    }
+                }
 
                 return@withContext bitmap
             } catch (e: Exception) {
-                // Handle any exceptions
                 Logger.log("An error occurred: ${e.message}")
                 snackString("An error occurred: ${e.message}")
                 return@withContext null

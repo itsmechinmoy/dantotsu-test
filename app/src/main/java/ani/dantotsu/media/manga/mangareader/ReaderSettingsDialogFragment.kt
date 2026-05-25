@@ -172,7 +172,11 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             binding.dataSaverWsrvNl
         )
         
-        val dataSaverModeNames = arrayOf("Disabled", "Bandwidth Hero", "WSRV.NL")
+        val dataSaverModeNames = arrayOf(
+            getString(R.string.disabled),
+            getString(R.string.bandwidth_hero),
+            getString(R.string.wsrv_nl)
+        )
         
         // Set initial state
         binding.dataSaverModeText.text = dataSaverModeNames[settings.dataSaverMode]
