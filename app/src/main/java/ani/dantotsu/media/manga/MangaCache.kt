@@ -30,24 +30,20 @@ data class ImageData(
     ): Bitmap? {
         return withContext(Dispatchers.IO) {
             try {
-                val dataSaver = createDataSaver()
-                val compressedUrl = dataSaver.compress(page.imageUrl ?: "")
-                
-                // Create a new Page with the compressed URL for fetching
-                val originalUrl = page.imageUrl
-                page.imageUrl = compressedUrl
-                val response = try {
-                    httpSource.getImage(page)
-                } finally {
-                    page.imageUrl = originalUrl
-                }
+                val originalUrl = page.imageUrl ?: return@withContext null
+                val compressedUrl = createDataSaver().compress(originalUrl)
 
-                Logger.log("Response: ${response.code} - ${response.message}")
-
-                val bitmap = response.use {
-                    it.body.byteStream().use { inputStream ->
-                        BitmapFactory.decodeStream(inputStream)
+                val bitmap = fetchBitmap(page, httpSource, compressedUrl)
+                    ?: if (compressedUrl != originalUrl) {
+                        Logger.log("Data saver proxy failed for $compressedUrl, retrying original URL")
+                        fetchBitmap(page, httpSource, originalUrl)
+                    } else {
+                        null
                     }
+
+                if (bitmap == null) {
+                    Logger.log("Failed to load image after retrying original URL")
+                    snackString("An error occurred: unable to load image")
                 }
 
                 return@withContext bitmap
@@ -56,6 +52,31 @@ data class ImageData(
                 snackString("An error occurred: ${e.message}")
                 return@withContext null
             }
+        }
+    }
+
+    private suspend fun fetchBitmap(
+        page: Page,
+        httpSource: HttpSource,
+        imageUrl: String,
+    ): Bitmap? {
+        val originalUrl = page.imageUrl
+        page.imageUrl = imageUrl
+
+        return try {
+            val response = httpSource.getImage(page)
+            Logger.log("Response: ${response.code} - ${response.message}")
+
+            response.use {
+                it.body.byteStream().use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream)
+                }
+            }
+        } catch (e: Exception) {
+            Logger.log("Failed to load image $imageUrl: ${e.message}")
+            null
+        } finally {
+            page.imageUrl = originalUrl
         }
     }
 }
