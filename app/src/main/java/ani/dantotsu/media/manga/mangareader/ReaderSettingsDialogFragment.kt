@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
+import androidx.core.widget.addTextChangedListener
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.databinding.BottomSheetCurrentReaderSettingsBinding
@@ -181,11 +183,26 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         // Set initial state
         binding.dataSaverModeText.text = dataSaverModeNames[settings.dataSaverMode]
         dataSaverModes[settings.dataSaverMode].alpha = 1f
+        binding.dataSaverBandwidthHeroServer.setText(settings.dataSaverServer)
+        binding.dataSaverBandwidthHeroServer.addTextChangedListener { editable ->
+            val server = editable?.toString().orEmpty()
+            if (settings.dataSaverServer != server) {
+                settings.dataSaverServer = server
+                PrefManager.setVal(PrefName.DataSaverServer, server)
+            }
+        }
+
+        fun updateBandwidthHeroServerVisibility() {
+            binding.dataSaverBandwidthHeroServerContainer.isVisible = settings.dataSaverMode == 1
+        }
+
+        updateBandwidthHeroServerVisibility()
         
         binding.dataSaverQualitySlider.value = settings.dataSaverImageQuality.toFloat()
         binding.dataSaverIgnoreJpeg.isChecked = settings.dataSaverIgnoreJpeg
         binding.dataSaverIgnoreGif.isChecked = settings.dataSaverIgnoreGif
         binding.dataSaverImageFormat.isChecked = settings.dataSaverImageFormatJpeg
+        binding.dataSaverColorBW.isChecked = settings.dataSaverColorBW
         
         dataSaverModes.forEachIndexed { index, button ->
             button.setOnClickListener {
@@ -194,6 +211,7 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
                 settings.dataSaverMode = index
                 binding.dataSaverModeText.text = dataSaverModeNames[index]
                 PrefManager.setVal(PrefName.DataSaverMode, index)
+                updateBandwidthHeroServerVisibility()
                 activity.applySettings()
             }
         }
@@ -219,6 +237,12 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         binding.dataSaverImageFormat.setOnCheckedChangeListener { _, isChecked ->
             settings.dataSaverImageFormatJpeg = isChecked
             PrefManager.setVal(PrefName.DataSaverImageFormatJpeg, isChecked)
+            activity.applySettings()
+        }
+
+        binding.dataSaverColorBW.setOnCheckedChangeListener { _, isChecked ->
+            settings.dataSaverColorBW = isChecked
+            PrefManager.setVal(PrefName.DataSaverColorBW, isChecked)
             activity.applySettings()
         }
     }

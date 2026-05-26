@@ -1184,5 +1184,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="data_saver_ignore_gif">Skip GIF images</string>
     <string name="data_saver_image_format_jpeg">Convert to JPEG</string>
     <string name="data_saver_image_format_info">When disabled, images are converted to WebP format. When enabled, images are converted to JPEG</string>
+    <string name="data_saver_bandwidth_hero_proxy_server">Bandwidth Hero proxy server</string>
+    <string name="data_saver_bandwidth_hero_proxy_server_hint">https://your-bandwidth-hero-server</string>
+    <string name="data_saver_bandwidth_hero_proxy_server_info">Used only when Data Saver mode is set to Bandwidth Hero.</string>
 
 </resources>
