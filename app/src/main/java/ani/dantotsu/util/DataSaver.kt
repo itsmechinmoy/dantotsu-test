@@ -1,5 +1,6 @@
 package ani.dantotsu.util
 
+import android.net.Uri
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
 
@@ -48,7 +49,7 @@ private class BandwidthHeroDataSaver : DataSaver {
     }
 
     private fun getUrl(imageUrl: String): String {
-        return "$dataSavedServer/?jpg=$format&l=$quality&bw=$colorBW&url=$imageUrl"
+        return "$dataSavedServer/?jpg=$format&l=$quality&bw=$colorBW&url=${Uri.encode(imageUrl)}"
     }
 }
 
@@ -69,7 +70,7 @@ private class WsrvNlDataSaver : DataSaver {
     }
 
     private fun getUrl(imageUrl: String): String {
-        return "https://wsrv.nl/?url=$imageUrl" +
+        return "https://wsrv.nl/?url=${Uri.encode(imageUrl)}" +
             if (imageUrl.contains(".webp", true) || imageUrl.contains(".gif", true)) {
                 if (!format) {
                     // Preserve output image extension for animated images(.webp and .gif)
