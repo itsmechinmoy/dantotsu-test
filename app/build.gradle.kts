@@ -102,6 +102,18 @@ android {
         aidl = true
     }
 
+    packaging {
+        jniLibs {
+            pickFirsts.add("**/libavcodec.so")
+            pickFirsts.add("**/libavdevice.so")
+            pickFirsts.add("**/libavfilter.so")
+            pickFirsts.add("**/libavformat.so")
+            pickFirsts.add("**/libavutil.so")
+            pickFirsts.add("**/libswresample.so")
+            pickFirsts.add("**/libswscale.so")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -173,4 +185,7 @@ dependencies {
     implementation(libs.libtorrent4j.android.arm64)
     implementation(libs.libtorrent4j.android.x86)
     implementation(libs.libtorrent4j.android.x86.x64)
+
+    // ffmpeg-kit
+    implementation(libs.ffmpeg.kit)
 }
