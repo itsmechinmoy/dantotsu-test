@@ -219,32 +219,28 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                         media!!.anime!!.episodes!![media!!.anime!!.selectedEpisode!!]!!.selectedVideo =
                             episode.selectedVideo
                         if ((PrefManager.getVal(PrefName.DownloadManager) as Int) != 0) {
-                            download(
-                                requireActivity(),
-                                media!!.anime!!.episodes!![media!!.anime!!.selectedEpisode!!]!!,
-                                media!!.userPreferredName
-                            )
+                            val act = activity ?: currActivity()
+                            if (act != null) {
+                                download(
+                                    act,
+                                    media!!.anime!!.episodes!![media!!.anime!!.selectedEpisode!!]!!,
+                                    media!!.userPreferredName
+                                )
+                            }
                         }
                         else {
                             val downloadAddonManager: DownloadAddonManager = Injekt.get()
                             if (!downloadAddonManager.isAvailable()) {
-                                val context = currContext() ?: requireContext()
-                                context.customAlertDialog().apply {
+                                val context = context ?: currContext()
+                                context?.customAlertDialog()?.apply {
                                     setTitle(R.string.download_addon_not_installed)
                                     setMessage(R.string.would_you_like_to_install)
                                     setPosButton(R.string.yes) {
-                                        ContextCompat.startActivity(
-                                            context,
-                                            Intent(
-                                                context,
-                                                SettingsAddonActivity::class.java
-                                            ),
-                                            null
+                                        context.startActivity(
+                                            Intent(context, SettingsAddonActivity::class.java)
                                         )
                                     }
-                                    setNegButton(R.string.no) {
-                                        return@setNegButton
-                                    }
+                                    setNegButton(R.string.no) { }
                                     show()
                                 }
                                 return false
@@ -267,7 +263,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
 
                             val selectedVideo =
                                 if (extractor.videos.size > episode.selectedVideo) extractor.videos[episode.selectedVideo] else null
-                            val activity = currActivity() ?: requireActivity()
+                            val activity = activity ?: currActivity()
                             selectedVideo?.file?.url?.let { url ->
                                 if (url.startsWith("magnet:") || url.endsWith(".torrent")) {
                                     val torrentManager = Injekt.get<TorrentServerManager>()
@@ -511,7 +507,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                 if (url.startsWith("magnet:") || url.endsWith(".torrent")) {
                     val torrentManager = Injekt.get<TorrentServerManager>()
                     if (torrentManager.isAvailable()) {
-                        val activity = currActivity() ?: requireActivity()
+                        val activity = activity ?: currActivity()
                         launchIO {
                             try {
                                 torrentManager.activeTorrentHash?.let {
@@ -683,7 +679,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                 if (subtitles.isNotEmpty()) {
                     val subtitleNames = subtitles.map { it.language }
                     var subtitleToDownload: Subtitle? = null
-                    requireActivity().customAlertDialog().apply {
+                    (activity ?: currActivity())?.customAlertDialog()?.apply {
                         setTitle(R.string.download_subtitle)
                         singleChoiceItems(subtitleNames.toTypedArray(),  dismissOnSelect = false) { which ->
                             subtitleToDownload = subtitles[which]
@@ -692,7 +688,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                             scope.launch(Dispatchers.IO) {
                                 if (subtitleToDownload != null) {
                                     SubtitleDownloader.downloadSubtitle(
-                                        requireContext(),
+                                        context ?: currContext() ?: return@launch,
                                         subtitleToDownload.file.url,
                                         DownloadedType(
                                             media!!.mainName(),
@@ -715,11 +711,14 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                 media!!.anime!!.episodes!![media!!.anime!!.selectedEpisode!!]!!.selectedVideo =
                     position
                 if ((PrefManager.getVal(PrefName.DownloadManager) as Int) != 0) {
-                    download(
-                        requireActivity(),
-                        media!!.anime!!.episodes!![media!!.anime!!.selectedEpisode!!]!!,
-                        media!!.userPreferredName
-                    )
+                    val act = activity ?: currActivity()
+                    if (act != null) {
+                        download(
+                            act,
+                            media!!.anime!!.episodes!![media!!.anime!!.selectedEpisode!!]!!,
+                            media!!.userPreferredName
+                        )
+                    }
                 }
                 else {
                     val episode =
@@ -728,8 +727,8 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                         if (extractor.videos.size > episode.selectedVideo) extractor.videos[episode.selectedVideo] else null
                     val downloadAddonManager: DownloadAddonManager = Injekt.get()
                     if (!downloadAddonManager.isAvailable()) {
-                        val context = currContext() ?: requireContext()
-                        context.customAlertDialog().apply {
+                        val context = context ?: currContext()
+                        context?.customAlertDialog()?.apply {
                             setTitle(R.string.download_addon_not_installed)
                             setMessage(R.string.would_you_like_to_install)
                             setPosButton(R.string.yes) {
