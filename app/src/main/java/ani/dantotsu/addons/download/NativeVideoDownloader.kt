@@ -166,14 +166,21 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         logCallback: (String) -> Unit
     ) {
         val headersStr = buildHeadersString(headers)
-        val request = "${headersStr}-i $videoUrl -show_entries format=duration -v quiet -of csv=\"p=0\""
+        val request = "${headersStr}-i \"$videoUrl\" -show_entries format=duration -of csv=\"p=0\""
         FFprobeKit.executeAsync(
             request,
-            {
-                // unused logs
-            }, {
-                if (it.message.toDoubleOrNull() != null) {
-                    logCallback(it.message)
+            { session ->
+                val output = session.output ?: session.allLogsAsString
+                if (output != null) {
+                    val duration = output.lines().map { it.trim() }.firstOrNull { it.toDoubleOrNull() != null }
+                    if (duration != null) {
+                        logCallback(duration)
+                    }
+                }
+            }, { log ->
+                val msg = log.message
+                if (msg != null && msg.trim().toDoubleOrNull() != null) {
+                    logCallback(msg.trim())
                 }
             })
     }
@@ -207,10 +214,8 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                     }
 
                     runParallelHlsDownload(videoUrl, headers, tempFile) { progressPercent ->
-                        if (totalLength > 0.0) {
-                            // Map progress percentage to expected time callback
-                            statCallback(progressPercent * totalLength * 10.0)
-                        }
+                        val duration = if (totalLength > 0.0) totalLength else 100.0
+                        statCallback(progressPercent.toDouble() * duration * 10.0)
                     }
 
                     // Copy completed temp file to SAF path
@@ -288,9 +293,8 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
 
                         if (totalBytes > 0L) {
                             val percent = (completedBytes * 100 / totalBytes).toInt()
-                            if (totalLength > 0.0) {
-                                statCallback(percent.toDouble() * totalLength * 10.0)
-                            }
+                            val duration = if (totalLength > 0.0) totalLength else 100.0
+                            statCallback(percent.toDouble() * duration * 10.0)
                         }
                         delay(1000)
                     }
@@ -430,7 +434,9 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         return activeSessions[sessionId]?.hadError() ?: false
     }
 
-    // PARALLEL HLS SEGMENT DOWNLOADER
+    // ==========================================
+    // PARALLEL HLS SEGMENT DOWNLOADER (AniZen style)
+    // ==========================================
     private suspend fun runParallelHlsDownload(
         playlistUrl: String,
         headers: Map<String, String>,
@@ -567,7 +573,9 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         return if (activityManager?.isLowRamDevice == true) 4 else 16
     }
 
+    // ==========================================
     // aria2 SUBPROCESS MANAGEMENT
+    // ==========================================
     private suspend fun ensureAria2Running() = aria2Mutex.withLock {
         if (aria2Process != null) return
         rpcPort = findFreePort(6800)
@@ -675,8 +683,10 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         }
         return@withContext null
     }
-    
+
+    // ==========================================
     // SAF UTILS & GENERAL HELPERS
+    // ==========================================
     private fun copyFileToUri(source: File, targetUri: Uri) {
         context.contentResolver.openOutputStream(targetUri, "w")?.use { output ->
             source.inputStream().use { input ->
