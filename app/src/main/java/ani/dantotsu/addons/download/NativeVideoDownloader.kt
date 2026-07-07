@@ -108,6 +108,11 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
             @Volatile
             var hasError: Boolean = false
 
+            @Volatile
+            var downloadedBytes: Long = 0L
+            @Volatile
+            var totalBytes: Long = 0L
+
             override fun cancel() {
                 currentStatus = "FAILED"
                 failReason = "Cancelled by user"
@@ -134,6 +139,10 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
             @Volatile
             var hasError: Boolean = false
 
+            val downloadedBytes = java.util.concurrent.atomic.AtomicLong(0L)
+            @Volatile
+            var totalBytes: Long = 0L
+
             override fun cancel() {
                 currentStatus = "FAILED"
                 failReason = "Cancelled by user"
@@ -148,6 +157,24 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
 
     override fun cancelDownload(sessionId: Long) {
         activeSessions[sessionId]?.cancel()
+    }
+
+    override fun getDownloadedBytes(sessionId: Long): Long {
+        val session = activeSessions[sessionId] ?: return -1L
+        return when (session) {
+            is DownloadSession.Aria2Session -> session.downloadedBytes
+            is DownloadSession.HlsSession -> session.downloadedBytes.get()
+            else -> -1L
+        }
+    }
+
+    override fun getEstimatedTotalBytes(sessionId: Long): Long {
+        val session = activeSessions[sessionId] ?: return -1L
+        return when (session) {
+            is DownloadSession.Aria2Session -> session.totalBytes
+            is DownloadSession.HlsSession -> session.totalBytes
+            else -> -1L
+        }
     }
 
     override fun setDownloadPath(context: Context, uri: Uri): String {
@@ -213,7 +240,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                         durationStr.toDoubleOrNull()?.let { totalLength = it }
                     }
 
-                    runParallelHlsDownload(videoUrl, headers, tempFile) { progressPercent ->
+                    runParallelHlsDownload(videoUrl, headers, tempFile, sessionId) { progressPercent ->
                         val duration = if (totalLength > 0.0) totalLength else 100.0
                         statCallback(progressPercent.toDouble() * duration * 10.0)
                     }
@@ -289,6 +316,12 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                             throw IOException("aria2 error code: $errorCode")
                         } else if (status == "removed") {
                             throw IOException("aria2 download removed")
+                        }
+
+                        val activeSession = activeSessions[sessionId] as? DownloadSession.Aria2Session
+                        if (activeSession != null) {
+                            activeSession.downloadedBytes = completedBytes
+                            activeSession.totalBytes = totalBytes
                         }
 
                         if (totalBytes > 0L) {
@@ -441,6 +474,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         playlistUrl: String,
         headers: Map<String, String>,
         tempFile: File,
+        sessionId: Long,
         progressCallback: (Int) -> Unit
     ) = withContext(Dispatchers.IO) {
         val client = Injekt.get<NetworkHelper>().downloadClient
@@ -534,7 +568,16 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                         }
 
                                         FileOutputStream(partFile).use { it.write(data) }
+                                        val dataSize = data.size.toLong()
                                         downloadedCount.increment()
+                                        val hlsSession = activeSessions[sessionId] as? DownloadSession.HlsSession
+                                        if (hlsSession != null) {
+                                            hlsSession.downloadedBytes.addAndGet(dataSize)
+                                            val count = downloadedCount.sum().toDouble()
+                                            if (count > 0) {
+                                                hlsSession.totalBytes = (hlsSession.downloadedBytes.get() * segments.size / count).toLong()
+                                            }
+                                        }
                                         val percent = (downloadedCount.sum().toDouble() * 100 / segments.size).toInt()
                                         progressCallback(percent)
                                         success = true
