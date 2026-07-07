@@ -276,8 +276,9 @@ class AnimeDownloaderService : Service() {
                     ) {
                         // CALLED WHEN SESSION GENERATES STATISTICS
                         val timeInMilliseconds = it
-                        if (timeInMilliseconds > 0 && totalLength > 0) {
-                            percent = ((it / 1000) / totalLength * 100).toInt()
+                        val duration = if (totalLength > 0) totalLength else 100.0
+                        if (timeInMilliseconds > 0) {
+                            percent = ((it / 1000) / duration * 100).toInt()
                             AnimeServiceDataSingleton.progress[task.getTaskName()] = percent.coerceAtMost(99)
                         }
                         Logger.log("Statistics: $it")
