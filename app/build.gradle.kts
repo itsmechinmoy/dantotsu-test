@@ -131,6 +131,8 @@ kotlin {
 }
 
 dependencies {
+    // ffmpeg-kit
+    implementation(libs.ffmpeg.kit)
 
     // Firebase
     add("googleImplementation", platform(libs.firebase.bom))
@@ -185,7 +187,4 @@ dependencies {
     implementation(libs.libtorrent4j.android.arm64)
     implementation(libs.libtorrent4j.android.x86)
     implementation(libs.libtorrent4j.android.x86.x64)
-
-    // ffmpeg-kit
-    implementation(libs.ffmpeg.kit)
 }
