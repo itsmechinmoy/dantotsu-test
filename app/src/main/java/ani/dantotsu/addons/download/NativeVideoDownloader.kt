@@ -430,9 +430,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         return activeSessions[sessionId]?.hadError() ?: false
     }
 
-    // ==========================================
-    // PARALLEL HLS SEGMENT DOWNLOADER (AniZen style)
-    // ==========================================
+    // PARALLEL HLS SEGMENT DOWNLOADER
     private suspend fun runParallelHlsDownload(
         playlistUrl: String,
         headers: Map<String, String>,
@@ -569,9 +567,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         return if (activityManager?.isLowRamDevice == true) 4 else 16
     }
 
-    // ==========================================
     // aria2 SUBPROCESS MANAGEMENT
-    // ==========================================
     private suspend fun ensureAria2Running() = aria2Mutex.withLock {
         if (aria2Process != null) return
         rpcPort = findFreePort(6800)
@@ -679,10 +675,8 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         }
         return@withContext null
     }
-
-    // ==========================================
+    
     // SAF UTILS & GENERAL HELPERS
-    // ==========================================
     private fun copyFileToUri(source: File, targetUri: Uri) {
         context.contentResolver.openOutputStream(targetUri, "w")?.use { output ->
             source.inputStream().use { input ->
