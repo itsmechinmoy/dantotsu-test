@@ -309,9 +309,10 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                                     }
                                 }
                             }
-                            if (selectedVideo != null) {
+                            val act = activity ?: currActivity()
+                            if (selectedVideo != null && act != null) {
                                 Helper.startAnimeDownloadService(
-                                    activity,
+                                    act,
                                     media!!.mainName(),
                                     episode.number,
                                     selectedVideo,
@@ -329,9 +330,8 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                                         )
                                         putExtra("mediaId", media?.id)
                                     }
-                                activity.sendBroadcast(intent)
-
-                            } else {
+                                act.sendBroadcast(intent)
+                            } else if (selectedVideo == null) {
                                 snackString(R.string.no_video_selected)
                             }
                         }
@@ -700,7 +700,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                             }
                         }
                         setNegButton(R.string.cancel) {}
-                    }.show()
+                    }?.show()
                 } else {
                     snackString(R.string.no_subtitles_available)
                 }
