@@ -557,18 +557,24 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                     val req = Request.Builder().url(seg.second).headers(okHeaders).build()
                                     client.newCall(req).execute().use { res ->
                                         if (!res.isSuccessful) throw IOException("Res code: ${res.code}")
-                                        var data = res.body?.bytes() ?: throw IOException("Empty body")
+                                        val body = res.body ?: throw IOException("Empty body")
                                         
-                                        if (secretKey != null) {
-                                            val seqNum = mediaSequence + seg.first
-                                            val ivBytes = ByteBuffer.allocate(16).putLong(8, seqNum.toLong()).array()
-                                            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-                                            cipher.init(Cipher.DECRYPT_MODE, secretKey!!, IvParameterSpec(ivBytes))
-                                            data = cipher.doFinal(data)
+                                        body.byteStream().use { input ->
+                                            FileOutputStream(partFile).use { fileOut ->
+                                                if (secretKey != null) {
+                                                    val seqNum = mediaSequence + seg.first
+                                                    val ivBytes = ByteBuffer.allocate(16).putLong(8, seqNum.toLong()).array()
+                                                    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+                                                    cipher.init(Cipher.DECRYPT_MODE, secretKey!!, IvParameterSpec(ivBytes))
+                                                    javax.crypto.CipherOutputStream(fileOut, cipher).use { cipherOut ->
+                                                        input.copyTo(cipherOut)
+                                                    }
+                                                } else {
+                                                    input.copyTo(fileOut)
+                                                }
+                                            }
                                         }
-
-                                        FileOutputStream(partFile).use { it.write(data) }
-                                        val dataSize = data.size.toLong()
+                                        val dataSize = partFile.length()
                                         downloadedCount.increment()
                                         val hlsSession = activeSessions[sessionId] as? DownloadSession.HlsSession
                                         if (hlsSession != null) {
