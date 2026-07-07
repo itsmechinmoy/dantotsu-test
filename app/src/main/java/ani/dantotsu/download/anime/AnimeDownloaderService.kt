@@ -163,10 +163,18 @@ class AnimeDownloaderService : Service() {
 
     @UnstableApi
     fun cancelDownload(taskName: String) {
-        val sessionIds =
-            AnimeServiceDataSingleton.downloadQueue.filter { it.getTaskName() == taskName }
-                .map { it.sessionId }.toMutableList()
-        sessionIds.addAll(currentTasks.filter { it.getTaskName() == taskName }.map { it.sessionId })
+        val tasks = mutableListOf<AnimeDownloadTask>()
+        tasks.addAll(AnimeServiceDataSingleton.downloadQueue.filter { it.getTaskName() == taskName })
+        tasks.addAll(currentTasks.filter { it.getTaskName() == taskName })
+
+        tasks.forEach { task ->
+            task.sourceMedia?.id?.let { mediaId ->
+                AnimeDownloader.stopDownload(mediaId, task.episode)
+                broadcastDownloadFailed(task.episode, mediaId)
+            }
+        }
+
+        val sessionIds = tasks.map { it.sessionId }.filter { it != -1L }
         sessionIds.forEach {
             ffExtension!!.cancelDownload(it)
         }
@@ -334,9 +342,10 @@ class AnimeDownloaderService : Service() {
                         false
                     )
                     AnimeServiceDataSingleton.progress[task.getTaskName()] = percent.coerceAtMost(99)
-                    val downloadedBytes = outputFile.length()
-                    val estimatedTotalBytes =
-                        SizeFormatter.estimateTotalBytesByPercent(downloadedBytes, percent)
+                    val addonDownloaded = ffExtension!!.getDownloadedBytes(ffTask)
+                    val addonEstimated = ffExtension.getEstimatedTotalBytes(ffTask)
+                    val downloadedBytes = if (addonDownloaded > 0L) addonDownloaded else outputFile.length()
+                    val estimatedTotalBytes = if (addonEstimated > 0L) addonEstimated else SizeFormatter.estimateTotalBytesByPercent(downloadedBytes, percent)
                     broadcastDownloadProgress(
                         task.episode,
                         percent.coerceAtMost(99),
@@ -477,7 +486,6 @@ class AnimeDownloaderService : Service() {
                             )
                         }
                     }
-                    downloadImage(task.episodeImage, episodeDirectory, "episodeImage.jpg")
                 }
 
                 val jsonString = gson.toJson(media)
