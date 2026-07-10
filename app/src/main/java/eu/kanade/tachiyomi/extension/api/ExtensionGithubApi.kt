@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.api
 
 import ani.dantotsu.asyncMap
+import ani.dantotsu.media.MediaType
 import ani.dantotsu.parsers.novel.AvailableNovelSources
 import ani.dantotsu.parsers.novel.NovelExtension
 import ani.dantotsu.settings.saving.PrefManager
@@ -14,7 +15,6 @@ import eu.kanade.tachiyomi.extension.util.ExtensionLoader
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
-import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import tachiyomi.core.util.lang.withIOContext
@@ -55,61 +55,145 @@ internal class ExtensionGithubApi {
                     sources = it.sources?.toAnimeExtensionSources().orEmpty(),
                     apkName = it.apk,
                     repository = repository,
-                    iconUrl = "${repository.removeSuffix("/index.min.json")}/icon/${it.pkg}.png",
+                    iconUrl = it.iconUrl ?: "${repository.removeSuffix("/index.min.json").removeSuffix("/index.json").removeSuffix("/repo.json")}/icon/${it.pkg}.png",
                 )
             }
     }
 
-    suspend fun findAnimeExtensions(): List<AnimeExtension.Available> {
-        return withIOContext {
+    private fun updateStoreUrl(oldUrl: String, newUrl: String, mediaType: MediaType) {
+        val prefName = when (mediaType) {
+            MediaType.ANIME -> PrefName.AnimeExtensionRepos
+            MediaType.MANGA -> PrefName.MangaExtensionRepos
+            MediaType.NOVEL -> PrefName.NovelExtensionRepos
+        }
+        val current = PrefManager.getVal<Set<String>>(prefName)
+        if (current.contains(oldUrl)) {
+            val updated = current.minus(oldUrl).plus(newUrl)
+            PrefManager.setVal(prefName, updated)
+        }
+    }
 
-            val extensions: ArrayList<AnimeExtension.Available> = arrayListOf()
+    private suspend fun fetchExtensions(
+        repoUrl: String,
+        mediaType: MediaType,
+        originalUrl: String = repoUrl
+    ): List<ExtensionJsonObject> {
+        var targetUrl = repoUrl
+        if (!targetUrl.contains("index.min.json") && !targetUrl.contains("repo.json") && !targetUrl.contains("index.json")) {
+            targetUrl = "$repoUrl${if (repoUrl.endsWith('/')) "" else "/"}repo.json"
+        }
 
-            val repos =
-                PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toMutableList()
-
-            repos.asyncMap {
-                val repoUrl = if (it.contains("index.min.json")) {
-                    it
+        try {
+            val response = try {
+                networkService.client
+                    .newCall(GET(targetUrl))
+                    .awaitSuccess()
+            } catch (e: Throwable) {
+                if (targetUrl.endsWith("repo.json")) {
+                    val fallback = targetUrl.replace("repo.json", "index.min.json")
+                    networkService.client.newCall(GET(fallback)).awaitSuccess()
                 } else {
-                    "$it${if (it.endsWith('/')) "" else "/"}index.min.json"
-                }
-                try {
-                    val githubResponse = try {
-                        networkService.client
-                            .newCall(GET(repoUrl))
-                            .awaitSuccess()
-                    } catch (e: Throwable) {
-                        Logger.log("Failed to get repo: $repoUrl")
-                        Logger.log(e)
-                        null
-                    }
-
-                    val response = githubResponse ?: run {
-                        networkService.client
-                            .newCall(GET(fallbackRepoUrl(it) + "/index.min.json"))
-                            .awaitSuccess()
-                    }
-
-                    val repoExtensions = with(json) {
-                        response
-                            .parseAs<List<ExtensionJsonObject>>()
-                            .toAnimeExtensions(it)
-                    }
-
-                    extensions.addAll(repoExtensions)
-                } catch (e: Throwable) {
-                    Logger.log("Failed to get extensions from GitHub")
-                    Logger.log(e)
+                    throw e
                 }
             }
 
+            val bodyString = response.body.string()
+            val trimmed = bodyString.trim()
+
+            if (trimmed.startsWith("[")) {
+                return json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
+            } else if (trimmed.startsWith("{")) {
+                if (trimmed.contains("\"index_v2\"") || trimmed.contains("\"indexV2\"")) {
+                    val legacyRepo = json.decodeFromString<NetworkLegacyExtensionRepo>(bodyString)
+                    val nextUrl = legacyRepo.indexV2
+                    if (nextUrl != null) {
+                        updateStoreUrl(originalUrl, nextUrl, mediaType)
+                        return fetchExtensions(nextUrl, mediaType, originalUrl)
+                    }
+                }
+
+                val store = json.decodeFromString<NetworkExtensionStore>(bodyString)
+                val resolvedList: NetworkExtensionStore.ExtensionList? = if (store.extensionListUrl != null) {
+                    val listResponse = networkService.client.newCall(GET(store.extensionListUrl)).awaitSuccess()
+                    val listBody = listResponse.body.string()
+                    if (listBody.trim().startsWith("{")) {
+                        json.decodeFromString<NetworkExtensionStore.ExtensionList>(listBody)
+                    } else {
+                        null
+                    }
+                } else {
+                    store.extensionList
+                }
+
+                if (resolvedList != null) {
+                    val prefix = when (mediaType) {
+                        MediaType.ANIME -> "Aniyomi: "
+                        MediaType.MANGA -> "Tachiyomi: "
+                        else -> ""
+                    }
+                    return resolvedList.extensions.map { ext ->
+                        val sourcesMapped = ext.sources.map { src ->
+                            ExtensionSourceJsonObject(
+                                id = src.id,
+                                lang = src.language,
+                                name = src.name,
+                                baseUrl = src.homeUrl
+                            )
+                        }
+                        val primaryLang = ext.sources.firstOrNull()?.language ?: "all"
+                        val prefixName = if (ext.name.startsWith(prefix)) ext.name else "$prefix${ext.name}"
+                        ExtensionJsonObject(
+                            name = prefixName,
+                            pkg = ext.packageName,
+                            apk = ext.resources.apkUrl,
+                            lang = primaryLang,
+                            code = ext.versionCode,
+                            version = ext.versionName,
+                            nsfw = if (ext.contentWarning == NetworkExtensionStore.ContentWarning.NSFW || ext.contentWarning == NetworkExtensionStore.ContentWarning.MIXED) 1 else 0,
+                            hasReadme = 0,
+                            hasChangelog = 0,
+                            sources = sourcesMapped,
+                            iconUrl = ext.resources.iconUrl
+                        )
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+            Logger.log("Failed to fetch extensions from $repoUrl: $e")
+        }
+        return emptyList()
+    }
+
+    suspend fun findAnimeExtensions(): List<AnimeExtension.Available> {
+        return withIOContext {
+            val extensions: ArrayList<AnimeExtension.Available> = arrayListOf()
+            val repos = PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toMutableList()
+
+            repos.asyncMap {
+                try {
+                    var repoExtensions = fetchExtensions(it, MediaType.ANIME)
+                    if (repoExtensions.isEmpty()) {
+                        val fallback = fallbackRepoUrl(it)
+                        if (fallback != null) {
+                            repoExtensions = fetchExtensions(fallback, MediaType.ANIME)
+                        }
+                    }
+                    extensions.addAll(repoExtensions.toAnimeExtensions(it))
+                } catch (e: Throwable) {
+                    Logger.log("Failed to get anime extensions")
+                    Logger.log(e)
+                }
+            }
             extensions
         }
     }
 
     fun getAnimeApkUrl(extension: AnimeExtension.Available): String {
-        return "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.apkName}"
+        return if (extension.apkName.startsWith("http")) {
+            extension.apkName
+        } else {
+            "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.apkName}"
+        }
     }
 
     private fun List<ExtensionSourceJsonObject>.toMangaExtensionSources(): List<AvailableMangaSources> {
@@ -143,107 +227,63 @@ internal class ExtensionGithubApi {
                     sources = it.sources?.toMangaExtensionSources().orEmpty(),
                     apkName = it.apk,
                     repository = repository,
-                    iconUrl = "${repository.removeSuffix("/index.min.json")}/icon/${it.pkg}.png",
+                    iconUrl = it.iconUrl ?: "${repository.removeSuffix("/index.min.json").removeSuffix("/index.json").removeSuffix("/repo.json")}/icon/${it.pkg}.png",
                 )
             }
     }
 
     suspend fun findMangaExtensions(): List<MangaExtension.Available> {
         return withIOContext {
-
             val extensions: ArrayList<MangaExtension.Available> = arrayListOf()
-
-            val repos =
-                PrefManager.getVal<Set<String>>(PrefName.MangaExtensionRepos).toMutableList()
+            val repos = PrefManager.getVal<Set<String>>(PrefName.MangaExtensionRepos).toMutableList()
 
             repos.asyncMap {
-                val repoUrl = if (it.contains("index.min.json")) {
-                    it
-                } else {
-                    "$it${if (it.endsWith('/')) "" else "/"}index.min.json"
-                }
                 try {
-                    val githubResponse = try {
-                        networkService.client
-                            .newCall(GET(repoUrl))
-                            .awaitSuccess()
-                    } catch (e: Throwable) {
-                        Logger.log("Failed to get repo: $repoUrl")
-                        Logger.log(e)
-                        null
+                    var repoExtensions = fetchExtensions(it, MediaType.MANGA)
+                    if (repoExtensions.isEmpty()) {
+                        val fallback = fallbackRepoUrl(it)
+                        if (fallback != null) {
+                            repoExtensions = fetchExtensions(fallback, MediaType.MANGA)
+                        }
                     }
-
-                    val response = githubResponse ?: run {
-                        networkService.client
-                            .newCall(GET(fallbackRepoUrl(it) + "/index.min.json"))
-                            .awaitSuccess()
-                    }
-
-                    val repoExtensions = with(json) {
-                        response
-                            .parseAs<List<ExtensionJsonObject>>()
-                            .toMangaExtensions(it)
-                    }
-
-                    extensions.addAll(repoExtensions)
+                    extensions.addAll(repoExtensions.toMangaExtensions(it))
                 } catch (e: Throwable) {
-                    Logger.log("Failed to get extensions from GitHub")
+                    Logger.log("Failed to get manga extensions")
                     Logger.log(e)
                 }
             }
-
             extensions
         }
     }
 
     fun getMangaApkUrl(extension: MangaExtension.Available): String {
-        return "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.apkName}"
+        return if (extension.apkName.startsWith("http")) {
+            extension.apkName
+        } else {
+            "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.apkName}"
+        }
     }
 
     suspend fun findNovelExtensions(): List<NovelExtension.Available> {
         return withIOContext {
-
             val extensions: ArrayList<NovelExtension.Available> = arrayListOf()
-
-            val repos =
-                PrefManager.getVal<Set<String>>(PrefName.NovelExtensionRepos).toMutableList()
+            val repos = PrefManager.getVal<Set<String>>(PrefName.NovelExtensionRepos).toMutableList()
 
             repos.asyncMap {
-                val repoUrl = if (it.contains("index.min.json")) {
-                    it
-                } else {
-                    "$it${if (it.endsWith('/')) "" else "/"}index.min.json"
-                }
                 try {
-                    val githubResponse = try {
-                        networkService.client
-                            .newCall(GET(repoUrl))
-                            .awaitSuccess()
-                    } catch (e: Throwable) {
-                        Logger.log("Failed to get repo: $repoUrl")
-                        Logger.log(e)
-                        null
+                    var repoExtensions = fetchExtensions(it, MediaType.NOVEL)
+                    if (repoExtensions.isEmpty()) {
+                        val fallback = fallbackRepoUrl(it)
+                        if (fallback != null) {
+                            repoExtensions = fetchExtensions(fallback, MediaType.NOVEL)
+                        }
                     }
-
-                    val response = githubResponse ?: run {
-                        networkService.client
-                            .newCall(GET(fallbackRepoUrl(it) + "/index.min.json"))
-                            .awaitSuccess()
-                    }
-
-                    val repoExtensions = with(json) {
-                        response
-                            .parseAs<List<ExtensionJsonObject>>()
-                            .toNovelExtensions(it)
-                    }
-
-                    extensions.addAll(repoExtensions)
+                    extensions.addAll(repoExtensions.toNovelExtensions(it))
                 } catch (e: Throwable) {
-                    Logger.log("Failed to get extensions from GitHub")
+                    Logger.log("Failed to get novel extensions")
                     Logger.log(e)
                 }
             }
-
             extensions
         }
     }
@@ -258,7 +298,7 @@ internal class ExtensionGithubApi {
                     source.baseUrl,
                 )
             }
-            val iconUrl = "${repository.removeSuffix("/index.min.json")}/icon/${extension.pkg}.png"
+            val iconUrl = extension.iconUrl ?: "${repository.removeSuffix("/index.min.json").removeSuffix("/index.json").removeSuffix("/repo.json")}/icon/${extension.pkg}.png"
             NovelExtension.Available(
                 extension.name,
                 extension.pkg,
@@ -283,7 +323,11 @@ internal class ExtensionGithubApi {
     }
 
     fun getNovelApkUrl(extension: NovelExtension.Available): String {
-        return "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.pkgName}.apk"
+        return if (extension.versionName.startsWith("http")) {
+            extension.versionName
+        } else {
+            "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.pkgName}.apk"
+        }
     }
 
     private fun fallbackRepoUrl(repoUrl: String): String? {
@@ -293,6 +337,8 @@ internal class ExtensionGithubApi {
             .removePrefix("http://")
             .removeSuffix("/")
             .removeSuffix("/index.min.json")
+            .removeSuffix("/index.json")
+            .removeSuffix("/repo.json")
         val repoUrlParts = strippedRepoUrl.split("/")
         if (repoUrlParts.size < 3) {
             return null
@@ -322,6 +368,7 @@ private data class ExtensionJsonObject(
     val hasReadme: Int = 0,
     val hasChangelog: Int = 0,
     val sources: List<ExtensionSourceJsonObject>?,
+    val iconUrl: String? = null,
 )
 
 @Serializable
