@@ -641,6 +641,84 @@ class PlayerSettingsActivity :
             },
         )
         updateSubPreview()
+
+        // MPV Settings
+
+        // HW Dec
+        binding.playerSettingsMpvHwDec.isChecked = PrefManager.getCustomVal("mpv_try_hw_dec", true)
+        binding.playerSettingsMpvHwDec.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setCustomVal("mpv_try_hw_dec", isChecked)
+        }
+
+        // Anime4K
+        binding.playerSettingsMpvAnime4K.isChecked = PrefManager.getCustomVal("mpv_enable_anime4k", false)
+        binding.playerSettingsMpvAnime4K.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setCustomVal("mpv_enable_anime4k", isChecked)
+            binding.playerSettingsMpvAnime4KMode.isEnabled = isChecked
+            binding.playerSettingsMpvAnime4KQuality.isEnabled = isChecked
+        }
+        binding.playerSettingsMpvAnime4KMode.isEnabled = binding.playerSettingsMpvAnime4K.isChecked
+        binding.playerSettingsMpvAnime4KQuality.isEnabled = binding.playerSettingsMpvAnime4K.isChecked
+
+        // Anime4K Mode Selection
+        val anime4KModes = ani.dantotsu.media.anime.mpv.Anime4KManager.Mode.entries.map { it.name }.toTypedArray()
+        var currentMode = PrefManager.getCustomVal("mpv_anime4k_mode", ani.dantotsu.media.anime.mpv.Anime4KManager.Mode.OFF.name)
+        binding.playerSettingsMpvAnime4KMode.text = "Anime4K Mode: $currentMode"
+        binding.playerSettingsMpvAnime4KMode.setOnClickListener {
+            val currentIndex = ani.dantotsu.media.anime.mpv.Anime4KManager.Mode.entries.indexOfFirst { it.name == currentMode }.coerceAtLeast(0)
+            customAlertDialog().apply {
+                setTitle("Select Anime4K Mode")
+                singleChoiceItems(anime4KModes, currentIndex) { index ->
+                    val selectedMode = ani.dantotsu.media.anime.mpv.Anime4KManager.Mode.entries[index].name
+                    PrefManager.setCustomVal("mpv_anime4k_mode", selectedMode)
+                    currentMode = selectedMode
+                    binding.playerSettingsMpvAnime4KMode.text = "Anime4K Mode: $selectedMode"
+                }
+                show()
+            }
+        }
+
+        // Anime4K Quality Selection
+        val anime4KQualities = ani.dantotsu.media.anime.mpv.Anime4KManager.Quality.entries.map { it.name }.toTypedArray()
+        var currentQuality = PrefManager.getCustomVal("mpv_anime4k_quality", ani.dantotsu.media.anime.mpv.Anime4KManager.Quality.BALANCED.name)
+        binding.playerSettingsMpvAnime4KQuality.text = "Anime4K Quality: $currentQuality"
+        binding.playerSettingsMpvAnime4KQuality.setOnClickListener {
+            val currentIndex = ani.dantotsu.media.anime.mpv.Anime4KManager.Quality.entries.indexOfFirst { it.name == currentQuality }.coerceAtLeast(0)
+            customAlertDialog().apply {
+                setTitle("Select Anime4K Quality")
+                singleChoiceItems(anime4KQualities, currentIndex) { index ->
+                    val selectedQuality = ani.dantotsu.media.anime.mpv.Anime4KManager.Quality.entries[index].name
+                    PrefManager.setCustomVal("mpv_anime4k_quality", selectedQuality)
+                    currentQuality = selectedQuality
+                    binding.playerSettingsMpvAnime4KQuality.text = "Anime4K Quality: $selectedQuality"
+                }
+                show()
+            }
+        }
+
+        // Debanding Mode Selection
+        val debandModes = ani.dantotsu.media.anime.mpv.Debanding.entries.map { it.name }.toTypedArray()
+        var currentDeband = PrefManager.getCustomVal("mpv_debanding_mode", ani.dantotsu.media.anime.mpv.Debanding.None.name)
+        binding.playerSettingsMpvDebandMode.text = "Debanding Mode: $currentDeband"
+        binding.playerSettingsMpvDebandMode.setOnClickListener {
+            val currentIndex = ani.dantotsu.media.anime.mpv.Debanding.entries.indexOfFirst { it.name == currentDeband }.coerceAtLeast(0)
+            customAlertDialog().apply {
+                setTitle("Select Debanding Mode")
+                singleChoiceItems(debandModes, currentIndex) { index ->
+                    val selectedDeband = ani.dantotsu.media.anime.mpv.Debanding.entries[index].name
+                    PrefManager.setCustomVal("mpv_debanding_mode", selectedDeband)
+                    currentDeband = selectedDeband
+                    binding.playerSettingsMpvDebandMode.text = "Debanding Mode: $selectedDeband"
+                }
+                show()
+            }
+        }
+
+        // GPU Next
+        binding.playerSettingsMpvGpuNext.isChecked = PrefManager.getCustomVal("mpv_gpu_next", false)
+        binding.playerSettingsMpvGpuNext.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setCustomVal("mpv_gpu_next", isChecked)
+        }
     }
 
     private fun showColorPicker(
