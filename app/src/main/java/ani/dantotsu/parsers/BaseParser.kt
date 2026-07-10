@@ -140,7 +140,54 @@ abstract class BaseParser {
                         response
                     }
                 }
+            }
 
+            if (response == null || FuzzySearch.ratio(
+                    response.name.lowercase(),
+                    mediaObj.mainName().lowercase()
+                ) < 80
+            ) {
+                for (synonym in mediaObj.synonyms) {
+                    if (synonym.isBlank() || synonym == mediaObj.mainName() || synonym == mediaObj.nameRomaji) continue
+                    setUserText("Searching : $synonym")
+                    Logger.log("Searching : $synonym")
+                    val synonymResults = try {
+                        search(synonym)
+                    } catch (e: Exception) {
+                        Logger.log("Synonym search failed for $synonym: $e")
+                        emptyList()
+                    }
+                    val sortedSynonymResults = if (synonymResults.isNotEmpty()) {
+                        synonymResults.sortedByDescending {
+                            FuzzySearch.ratio(
+                                it.name.lowercase(),
+                                synonym.lowercase()
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
+                    val closestSynonym = sortedSynonymResults.firstOrNull()
+                    if (closestSynonym != null) {
+                        val synonymRatio = FuzzySearch.ratio(
+                            closestSynonym.name.lowercase(),
+                            synonym.lowercase()
+                        )
+                        if (synonymRatio >= 80) {
+                            val currentRatio = if (response != null) FuzzySearch.ratio(
+                                response.name.lowercase(),
+                                mediaObj.mainName().lowercase()
+                            ) else 0
+                            if (synonymRatio > currentRatio) {
+                                Logger.log("Synonym search found a better match: ${closestSynonym.name}")
+                                response = closestSynonym
+                                if (synonymRatio >= 95) {
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
             }
             saveShowResponse(mediaObj.id, response)
         }
