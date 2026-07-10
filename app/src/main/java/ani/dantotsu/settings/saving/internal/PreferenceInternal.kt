@@ -17,4 +17,5 @@ enum class Location(val location: String, val exportable: Boolean) {
     Irrelevant("ani.dantotsu.irrelevant", false),
     AnimeDownloads("animeDownloads", false),  //different for legacy reasons
     Protected("ani.dantotsu.protected", true),
-    ExtensionSettings("ani.dantotsu.extensionSettings", true),
+    ExtensionSettings("ani.dantotsu.extensionSettings", true);
+}
