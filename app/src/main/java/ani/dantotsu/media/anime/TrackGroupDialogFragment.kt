@@ -68,10 +68,25 @@ class TrackGroupDialogFragment(
             if (trackTitle.lowercase() == "none" || trackLang.lowercase() == "none") {
                 binding.subtitleTitle.text = getString(R.string.disabled_track)
             } else {
-                binding.subtitleTitle.text = if (trackTitle.isNotEmpty()) {
-                    if (trackLang.isNotEmpty()) "[$trackLang] $trackTitle" else trackTitle
+                val locale = if (trackLang.contains("-")) {
+                    val parts = trackLang.split("-")
+                    try { Locale(parts[0], parts[1]) } catch (ignored: Exception) { null }
                 } else {
-                    if (trackLang.isNotEmpty()) "[$trackLang] Unknown" else getString(R.string.unknown_track, "Track $position")
+                    try { Locale(trackLang) } catch (ignored: Exception) { null }
+                }
+
+                binding.subtitleTitle.text = locale?.let {
+                    if (trackTitle.isNotEmpty()) {
+                        "[${it.language}] $trackTitle"
+                    } else {
+                        "[${it.language}] ${it.displayName}"
+                    }
+                } ?: run {
+                    if (trackTitle.isNotEmpty()) {
+                        if (trackLang.isNotEmpty()) "[$trackLang] $trackTitle" else trackTitle
+                    } else {
+                        if (trackLang.isNotEmpty()) "[$trackLang] Unknown" else getString(R.string.unknown_track, "Track $position")
+                    }
                 }
             }
 
