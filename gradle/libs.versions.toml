@@ -8,11 +8,11 @@ glide = "5.0.5"
 exo = "1.6.1"
 markwon = "4.6.2"
 groupie = "2.10.1"
-nextlib = "0.8.4"
-ass = "0.4.0"
 libtorrent4j = "2.1.0-39"
 shizuku = "13.1.5"
 ffmpeg-kit = "2.1.0"
+mpv-lib = "0.1.14"
+
 
 [libraries]
 ffmpeg-kit = { module = "com.antonkarpenko:ffmpeg-kit-https", version.ref = "ffmpeg-kit" }
@@ -65,20 +65,19 @@ glide-ksp = { module = "com.github.bumptech.glide:ksp", version.ref = "glide" }
 glide-okhttp = { module = "com.github.bumptech.glide:okhttp3-integration", version.ref = "glide" }
 glide-transform = "jp.wasabeef:glide-transformations:4.3.0"
 
-# Media3 / Exo
-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "exo" }
+# Media3
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "exo" }
-media3-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "exo" }
-media3-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "exo" }
-media3-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "exo" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "exo" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "exo" }
 media3-effect = { module = "androidx.media3:media3-effect", version.ref = "exo" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "exo" }
+media3-database = { module = "androidx.media3:media3-database", version.ref = "exo" }
+media3-datasource = { module = "androidx.media3:media3-datasource", version.ref = "exo" }
+media3-datasource-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "exo" }
 
-# Extra Media
-nextlib = { module = "com.github.anilbeesetti.nextlib:nextlib-media3ext", version.ref = "nextlib" }
-ass-media = { module = "io.github.peerless2012:ass-media", version.ref = "ass" }
-ass-kt = { module = "io.github.peerless2012:ass-kt", version.ref = "ass" }
+# MPV
+mpv-android = { module = "io.github.secozzi:mpv-android-lib", version.ref = "mpv-lib" }
+
 
 # UI
 material = "com.google.android.material:material:1.12.0"
@@ -159,18 +158,16 @@ androidx = [
 glide = ["glide", "glide-okhttp", "glide-transform"]
 
 media3 = [
-    "media3-exoplayer",
     "media3-ui",
-    "media3-hls",
-    "media3-dash",
-    "media3-okhttp",
     "media3-session",
     "media3-cast",
     "media3-effect",
-    "nextlib"
+    "media3-exoplayer",
+    "media3-database",
+    "media3-datasource",
+    "media3-datasource-okhttp"
 ]
 
-subtitles = ["ass-media", "ass-kt"]
 
 markwon = [
     "markwon-core",
