@@ -15,15 +15,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-//import androidx.compose.ui.test.performClick
-//import androidx.compose.ui.geometry.isEmpty
-//import androidx.compose.ui.semantics.text
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.activityViewModels
-//import androidx.glance.visibility
-//import androidx.glance.visibility
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withCreated
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -527,13 +522,13 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
 
                                 video.file.url = torrentManager.getLink(currentTorrent, index)
                                 Logger.log("Received: ${video.file.url}")
-                                if (launch == true) {
-                                    Intent(activity, ExoplayerView::class.java).apply {
-                                        ExoplayerView.media = media
-                                        ExoplayerView.initialized = true
-                                        startActivity(this)
-                                    }
-                                } else {
+                                 if (launch == true) {
+                                     Intent(activity, MpvPlayerActivity::class.java).apply {
+                                         MpvPlayerActivity.media = media
+                                         MpvPlayerActivity.initialized = true
+                                         startActivity(this)
+                                     }
+                                 } else {
                                     model.setEpisode(
                                         media.anime!!.episodes!![media.anime.selectedEpisode!!]!!,
                                         "startExo no launch"
@@ -578,9 +573,9 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
         dismissAllowingStateLoss()
         if (launch!!) {
             stopAddingToList()
-            val intent = Intent(activity, ExoplayerView::class.java)
-            ExoplayerView.media = media
-            ExoplayerView.initialized = true
+            val intent = Intent(activity, MpvPlayerActivity::class.java)
+            MpvPlayerActivity.media = media
+            MpvPlayerActivity.initialized = true
             startActivity(intent)
         } else {
             model.setEpisode(
@@ -772,7 +767,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                             val audioNamesArray = audioTracks.toTypedArray()
                             val checkedItems = BooleanArray(audioNamesArray.size) { false }
 
-                            currContext.customAlertDialog().apply { // ToTest
+                            currContext.customAlertDialog().apply {
                                 setTitle(R.string.download_audio_tracks)
                                 multiChoiceItems(audioNamesArray, checkedItems) {
                                     it.forEachIndexed { index, isChecked ->
@@ -800,7 +795,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                             go()
                         }
                     }
-                    if (subtitles.isNotEmpty()) { // ToTest
+                    if (subtitles.isNotEmpty()) {
                         val subtitleNamesArray = subtitleNames.toTypedArray()
                         val checkedItems = BooleanArray(subtitleNamesArray.size) { false }
 
@@ -835,7 +830,6 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
             }
             if (video.format == VideoType.CONTAINER) {
                 binding.urlSize.isVisible = video.size != null
-                // if video size is null or 0, show "Unknown Size" else show the size in MB
                 val sizeText = getString(
                     R.string.mb_size, "${if (video.extraNote != null) " : " else ""}${
                         if (video.size == 0.0) getString(R.string.size_unknown) else DecimalFormat("#.##").format(
