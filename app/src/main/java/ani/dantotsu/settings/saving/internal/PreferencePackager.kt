@@ -53,29 +53,57 @@ class PreferencePackager {
         /**
          * @return true if successful, false if error
          */
-        fun unpack(json: String): Boolean {
+        fun unpack(decryptedJson: String): Boolean {
             val gson = Gson()
-            val type = object : TypeToken<Map<String, Map<String, *>>>() {}.type
-            val map: Map<String, Map<String, *>> = gson.fromJson(json, type)
-            return unpackagePreferences(map)
+            val type = object :
+                TypeToken<Map<String, Map<String, Map<String, Any>>>>() {}.type  //oh god...
+            val rawPrefsMap: Map<String, Map<String, Map<String, Any>>> =
+                gson.fromJson(decryptedJson, type)
+
+
+            val deserializedMap = mutableMapOf<String, Map<String, Any?>>()
+
+            rawPrefsMap.forEach { (prefName, prefValueMap) ->
+                val innerMap = mutableMapOf<String, Any?>()
+
+                prefValueMap.forEach { (key, typeValueMap) ->
+
+                    val typeName = typeValueMap["type"] as? String
+                    val value = typeValueMap["value"]
+
+                    innerMap[key] =
+                        when (typeName) {  //weirdly null sometimes so cast to string
+                            "kotlin.Int" -> (value as? Double)?.toInt()
+                            "kotlin.String" -> value.toString()
+                            "kotlin.Boolean" -> value as? Boolean
+                            "kotlin.Float" -> value.toString().toFloatOrNull()
+                            "kotlin.Long" -> (value as? Double)?.toLong()
+                            "java.util.HashSet" -> value as? ArrayList<*>
+                            else -> null
+                        }
+                }
+                deserializedMap[prefName] = innerMap
+            }
+            return unpackagePreferences(deserializedMap)
         }
 
+        /**
+         * @return a map of location names to a map of preference names to their values
+         */
         private fun packagePreferences(map: Map<Location, SharedPreferences>): Map<String, Map<String, *>> {
-            val prefsMap = mutableMapOf<String, Map<String, *>>()
-            map.forEach { (location, pref) ->
+            val result = mutableMapOf<String, Map<String, *>>()
+            for ((location, preferences) in map) {
                 val prefMap = mutableMapOf<String, Any>()
-                pref.all.forEach { (key, value) ->
-                    if (value != null) {
-                        val typeValueMap = mapOf(
-                            "type" to value.javaClass.kotlin.qualifiedName,
-                            "value" to value
-                        )
-                        prefMap[key] = typeValueMap
-                    }
+                preferences.all.forEach { (key, value) ->
+                    val typeValueMap = mapOf(
+                        "type" to value?.javaClass?.kotlin?.qualifiedName,
+                        "value" to value
+                    )
+                    prefMap[key] = typeValueMap
                 }
-                prefsMap[location.name] = prefMap
+                result[location.name] = prefMap
             }
-            return prefsMap
+            return result
         }
 
         /**
