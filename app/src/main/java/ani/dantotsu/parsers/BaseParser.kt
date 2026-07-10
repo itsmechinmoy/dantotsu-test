@@ -256,10 +256,10 @@ data class ShowResponse(
     val extra: MutableMap<String, String>? = null,
 
     //SAnime object from Aniyomi
-    val sAnime: SAnime? = null,
+    @Transient var sAnime: SAnime? = null,
 
     //SManga object from Aniyomi
-    val sManga: SManga? = null
+    @Transient var sManga: SManga? = null
 ) : Serializable {
     constructor(
         name: String,
@@ -290,9 +290,77 @@ data class ShowResponse(
     constructor(name: String, link: String, coverUrl: String, sManga: SManga)
             : this(name, link, FileUrl(coverUrl), sManga = sManga)
 
+    private fun writeObject(out: java.io.ObjectOutputStream) {
+        out.defaultWriteObject()
+        val anime = sAnime
+        if (anime != null) {
+            out.writeBoolean(true)
+            out.writeObject(anime.url)
+            out.writeObject(anime.title)
+            out.writeObject(anime.artist)
+            out.writeObject(anime.author)
+            out.writeObject(anime.description)
+            out.writeObject(anime.genre)
+            out.writeInt(anime.status)
+            out.writeObject(anime.thumbnail_url)
+            out.writeObject(anime.background_url)
+            out.writeDouble(anime.season_number)
+            out.writeBoolean(anime.initialized)
+        } else {
+            out.writeBoolean(false)
+        }
+        val manga = sManga
+        if (manga != null) {
+            out.writeBoolean(true)
+            out.writeObject(manga.url)
+            out.writeObject(manga.title)
+            out.writeObject(manga.artist)
+            out.writeObject(manga.author)
+            out.writeObject(manga.description)
+            out.writeObject(manga.genre)
+            out.writeInt(manga.status)
+            out.writeObject(manga.thumbnail_url)
+            out.writeBoolean(manga.initialized)
+        } else {
+            out.writeBoolean(false)
+        }
+    }
+
+    private fun readObject(inStream: java.io.ObjectInputStream) {
+        inStream.defaultReadObject()
+        if (inStream.readBoolean()) {
+            val anime = SAnime.create().apply {
+                url = inStream.readObject() as String
+                title = inStream.readObject() as String
+                artist = inStream.readObject() as? String
+                author = inStream.readObject() as? String
+                description = inStream.readObject() as? String
+                genre = inStream.readObject() as? String
+                status = inStream.readInt()
+                thumbnail_url = inStream.readObject() as? String
+                background_url = inStream.readObject() as? String
+                season_number = inStream.readDouble()
+                initialized = inStream.readBoolean()
+            }
+            sAnime = anime
+        }
+        if (inStream.readBoolean()) {
+            val manga = SManga.create().apply {
+                url = inStream.readObject() as String
+                title = inStream.readObject() as String
+                artist = inStream.readObject() as? String
+                author = inStream.readObject() as? String
+                description = inStream.readObject() as? String
+                genre = inStream.readObject() as? String
+                status = inStream.readInt()
+                thumbnail_url = inStream.readObject() as? String
+                initialized = inStream.readBoolean()
+            }
+            sManga = manga
+        }
+    }
+
     companion object {
         private const val serialVersionUID = 1L
     }
 }
-
-
