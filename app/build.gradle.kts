@@ -156,7 +156,7 @@ dependencies {
     ksp(libs.glide.ksp)
 
     implementation(libs.bundles.media3)
-    implementation(libs.bundles.subtitles)
+    implementation(libs.mpv.android)
     implementation(libs.mediarouter)
 
     // UI
