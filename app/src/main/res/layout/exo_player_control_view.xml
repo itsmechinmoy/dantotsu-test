@@ -162,7 +162,7 @@
                         app:srcCompat="@drawable/ic_round_screen_rotation_alt_24"
                         tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
-                    <ani.dantotsu.media.anime.CustomCastButton
+                    <androidx.mediarouter.app.MediaRouteButton
                         android:id="@+id/exo_cast"
                         android:layout_width="wrap_content"
                         android:layout_height="48dp"
@@ -490,9 +490,8 @@
 
             </LinearLayout>
 
-            <view
+            <androidx.media3.ui.DefaultTimeBar
                 android:id="@id/exo_progress"
-                class="ani.dantotsu.media.anime.ExoplayerView$ExtendedTimeBar"
                 android:layout_width="match_parent"
                 android:layout_height="24dp"
                 app:ad_marker_color="#A9FFFFFF"
