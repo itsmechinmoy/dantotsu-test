@@ -5,10 +5,10 @@ import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
 import ani.dantotsu.util.Logger
-import com.antonkarpenko.ffmpegkit.FFmpegKit
-import com.antonkarpenko.ffmpegkit.FFmpegKitConfig
-import com.antonkarpenko.ffmpegkit.FFprobeKit
-import com.antonkarpenko.ffmpegkit.SessionState
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegKitConfig
+import com.arthenica.ffmpegkit.FFprobeKit
+import com.arthenica.ffmpegkit.SessionState
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import eu.kanade.tachiyomi.network.NetworkHelper
