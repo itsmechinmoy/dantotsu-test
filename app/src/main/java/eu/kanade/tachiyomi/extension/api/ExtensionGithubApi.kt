@@ -16,7 +16,13 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
+import okio.buffer
+import okio.gzip
+import okio.source
+import java.io.ByteArrayInputStream
 import tachiyomi.core.util.lang.withIOContext
 import uy.kohesive.injekt.injectLazy
 
@@ -73,13 +79,25 @@ internal class ExtensionGithubApi {
         }
     }
 
+    private fun ByteArray.decompressIfGzipped(): ByteArray {
+        if (this.size < 2) return this
+        val isGzip = (this[0].toInt() and 0xFF == 0x1F) && (this[1].toInt() and 0xFF == 0x8B)
+        if (!isGzip) return this
+        return try {
+            ByteArrayInputStream(this).source().gzip().buffer().readByteArray()
+        } catch (e: Throwable) {
+            this
+        }
+    }
+
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     private suspend fun fetchExtensions(
         repoUrl: String,
         mediaType: MediaType,
         originalUrl: String = repoUrl
     ): List<ExtensionJsonObject> {
         var targetUrl = repoUrl
-        if (!targetUrl.contains("index.min.json") && !targetUrl.contains("repo.json") && !targetUrl.contains("index.json")) {
+        if (!targetUrl.contains("index.min.json") && !targetUrl.contains("repo.json") && !targetUrl.contains("index.json") && !targetUrl.contains("index.pb")) {
             targetUrl = "$repoUrl${if (repoUrl.endsWith('/')) "" else "/"}repo.json"
         }
 
@@ -97,27 +115,39 @@ internal class ExtensionGithubApi {
                 }
             }
 
-            val bodyString = response.body.string()
-            val trimmed = bodyString.trim()
+            val rawBytes = response.body.bytes()
+            if (rawBytes.isEmpty()) return emptyList()
 
-            if (trimmed.startsWith("[")) {
+            val responseBytes = rawBytes.decompressIfGzipped()
+            if (responseBytes.isEmpty()) return emptyList()
+            val firstByte = responseBytes[0]
+
+            if (firstByte == 0x5B.toByte()) { // '['
+                val bodyString = responseBytes.toString(Charsets.UTF_8)
                 return json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
-            } else if (trimmed.startsWith("{")) {
-                if (trimmed.contains("\"index_v2\"") || trimmed.contains("\"indexV2\"")) {
-                    val legacyRepo = json.decodeFromString<NetworkLegacyExtensionRepo>(bodyString)
-                    val nextUrl = legacyRepo.indexV2
-                    if (nextUrl != null) {
-                        updateStoreUrl(originalUrl, nextUrl, mediaType)
-                        return fetchExtensions(nextUrl, mediaType, originalUrl)
+            } else {
+                val store = if (firstByte == 0x7B.toByte()) { // '{'
+                    val bodyString = responseBytes.toString(Charsets.UTF_8)
+                    if (bodyString.contains("\"index_v2\"") || bodyString.contains("\"indexV2\"")) {
+                        val legacyRepo = json.decodeFromString<NetworkLegacyExtensionRepo>(bodyString)
+                        val nextUrl = legacyRepo.indexV2
+                        if (nextUrl != null) {
+                            updateStoreUrl(originalUrl, nextUrl, mediaType)
+                            return fetchExtensions(nextUrl, mediaType, originalUrl)
+                        }
                     }
+                    json.decodeFromString<NetworkExtensionStore>(bodyString)
+                } else { // Protobuf
+                    ProtoBuf.decodeFromByteArray<NetworkExtensionStore>(responseBytes)
                 }
 
-                val store = json.decodeFromString<NetworkExtensionStore>(bodyString)
                 val resolvedList: NetworkExtensionStore.ExtensionList? = if (store.extensionListUrl != null) {
                     val listResponse = networkService.client.newCall(GET(store.extensionListUrl)).awaitSuccess()
-                    val listBody = listResponse.body.string()
-                    if (listBody.trim().startsWith("{")) {
-                        json.decodeFromString<NetworkExtensionStore.ExtensionList>(listBody)
+                    val listBytes = listResponse.body.bytes().decompressIfGzipped()
+                    if (listBytes.isNotEmpty() && listBytes[0] == 0x7B.toByte()) { // '{'
+                        json.decodeFromString<NetworkExtensionStore.ExtensionList>(listBytes.toString(Charsets.UTF_8))
+                    } else if (listBytes.isNotEmpty()) {
+                        ProtoBuf.decodeFromByteArray<NetworkExtensionStore.ExtensionList>(listBytes)
                     } else {
                         null
                     }
