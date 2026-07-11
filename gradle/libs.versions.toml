@@ -10,12 +10,12 @@ markwon = "4.6.2"
 groupie = "2.10.1"
 libtorrent4j = "2.1.0-39"
 shizuku = "13.1.5"
-ffmpeg-kit = "2.1.0"
+ffmpeg-kit = "1.18"
 mpv-lib = "0.1.14"
 
 
 [libraries]
-ffmpeg-kit = { module = "com.antonkarpenko:ffmpeg-kit-https", version.ref = "ffmpeg-kit" }
+ffmpeg-kit = { module = "com.github.jmir1:ffmpeg-kit", version.ref = "ffmpeg-kit" }
 
 
 # Firebase
