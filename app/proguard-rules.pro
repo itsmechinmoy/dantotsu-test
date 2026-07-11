@@ -44,6 +44,15 @@
 }
 
 -keep class kotlinx.serialization.** { *; }
+-keep interface kotlinx.serialization.internal.GeneratedSerializer { *; }
+-keepclassmembers class * implements kotlinx.serialization.internal.GeneratedSerializer {
+    *** typeParametersSerializers(...);
+    *** childSerializers(...);
+}
+-keepclassmembers interface kotlinx.serialization.internal.GeneratedSerializer {
+    *** typeParametersSerializers(...);
+    *** childSerializers(...);
+}
 
 #############################################
 # Core App / Extensions
