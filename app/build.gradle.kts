@@ -119,12 +119,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    sourceSets {
-        getByName("main") {
-            jniLibs.srcDirs("build/copiedJniLibs")
-        }
-    }
 }
 
 kotlin {
@@ -194,39 +188,4 @@ dependencies {
     implementation(libs.libtorrent4j.android.arm64)
     implementation(libs.libtorrent4j.android.x86)
     implementation(libs.libtorrent4j.android.x86.x64)
-}
-
-val copyLibcxxTask = tasks.register("copyLibcxx") {
-    doLast {
-        val ndkDir = android.ndkDirectory
-        if (ndkDir == null || !ndkDir.exists()) {
-            return@doLast
-        }
-        val jniLibsDir = file("build/copiedJniLibs")
-        val prebuiltDir = File(ndkDir, "toolchains/llvm/prebuilt")
-        if (!prebuiltDir.exists()) return@doLast
-        val sysrootUsrLib = prebuiltDir.walkTopDown().firstOrNull { it.name == "sysroot" }
-            ?.let { File(it, "usr/lib") }
-        if (sysrootUsrLib == null || !sysrootUsrLib.exists()) return@doLast
-        val abiMap = mapOf(
-            "aarch64-linux-android" to "arm64-v8a",
-            "arm-linux-androideabi" to "armeabi-v7a",
-            "i686-linux-android" to "x86",
-            "x86_64-linux-android" to "x86_64"
-        )
-        abiMap.forEach { (ndkAbi, gradleAbi) ->
-            val sourceFile = File(sysrootUsrLib, "$ndkAbi/libc++_shared.so")
-            if (sourceFile.exists()) {
-                val destDir = File(jniLibsDir, gradleAbi)
-                destDir.mkdirs()
-                sourceFile.copyTo(File(destDir, "libc++_shared.so"), overwrite = true)
-            }
-        }
-    }
-}
-
-tasks.configureEach {
-    if (name.startsWith("merge") && name.contains("JniLibFolders")) {
-        dependsOn(copyLibcxxTask)
-    }
 }
