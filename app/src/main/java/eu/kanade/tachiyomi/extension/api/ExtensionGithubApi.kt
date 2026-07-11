@@ -186,6 +186,9 @@ internal class ExtensionGithubApi {
                             iconUrl = ext.resources.iconUrl
                         )
                     }
+                } else if (targetUrl.endsWith("repo.json")) {
+                    val fallback = targetUrl.replace("repo.json", "index.min.json")
+                    return fetchExtensions(fallback, mediaType, originalUrl)
                 }
             }
         } catch (e: Throwable) {
