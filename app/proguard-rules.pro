@@ -142,5 +142,6 @@
 #############################################
 # FFmpegKit (com.antonkarpenko)
 #############################################
--keep class com.antonkarpenko.ffmpegkit.** { *; }
--dontwarn com.antonkarpenko.ffmpegkit.**
+-keep class com.arthenica.ffmpegkit.** { *; }
+-dontwarn com.arthenica.ffmpegkit.**
+-dontwarn com.arthenica.smartexception.**
