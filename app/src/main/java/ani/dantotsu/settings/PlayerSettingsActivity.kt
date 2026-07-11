@@ -17,7 +17,6 @@ import ani.dantotsu.R
 import ani.dantotsu.databinding.ActivityPlayerSettingsBinding
 import ani.dantotsu.initActivity
 import ani.dantotsu.media.Media
-import ani.dantotsu.media.anime.VideoCache
 import ani.dantotsu.navBarHeight
 import ani.dantotsu.others.Xpandable
 import ani.dantotsu.others.getSerialized
