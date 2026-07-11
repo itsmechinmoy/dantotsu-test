@@ -56,7 +56,7 @@ class InstalledMangaExtensionsFragment : Fragment(), SearchQueryHandler {
         { pkg ->
             val name = pkg.name
             val changeUIVisibility: (Boolean) -> Unit = { show ->
-                val activity = requireActivity() as ExtensionsActivity
+                val activity = (activity as? ExtensionsActivity) ?: return@changeUIVisibility
                 activity.findViewById<ViewPager2>(R.id.viewPager).isVisible = show
                 activity.findViewById<TabLayout>(R.id.tabLayout).isVisible = show
                 activity.findViewById<TextInputLayout>(R.id.searchView).isVisible = show
