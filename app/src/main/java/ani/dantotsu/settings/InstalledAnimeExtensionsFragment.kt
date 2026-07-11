@@ -66,6 +66,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                         if (show) getString(R.string.extensions) else name
                     activity.findViewById<FrameLayout>(R.id.fragmentExtensionsContainer).isGone = show
                 }
+            }
             var itemSelected = false
             val allSettings = pkg.sources.filterIsInstance<ConfigurableAnimeSource>()
             if (allSettings.isNotEmpty()) {
