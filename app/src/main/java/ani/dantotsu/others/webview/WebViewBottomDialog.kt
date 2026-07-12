@@ -55,7 +55,6 @@ abstract class WebViewBottomDialog : BottomSheetDialogFragment() {
         cookies?.setAcceptThirdPartyCookies(binding.webView, true)
         binding.webView.webViewClient = webViewClient
         binding.webView.loadUrl(location.url, location.headers)
-        this.dismiss()
     }
 
     override fun onDestroy() {
