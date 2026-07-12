@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bottom_sheet_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:orientation="vertical"
+        android:paddingBottom="32dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:text="Advanced Reader Options"
+            android:textAlignment="center"
+            android:textSize="18sp"
+            android:textColor="?attr/colorPrimary" />
+
+        <!-- 1. Background Color -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.58"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Background Color Override" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/btnBgAuto"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:text="Auto" />
+
+            <TextView
+                android:id="@+id/btnBgBlack"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:text="Black" />
+
+            <TextView
+                android:id="@+id/btnBgGray"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:text="Gray" />
+
+            <TextView
+                android:id="@+id/btnBgWhite"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="White" />
+        </LinearLayout>
+
+        <!-- 2. Screen Rotation -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.58"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Default Screen Rotation" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/btnRotFree"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:text="Free" />
+
+            <TextView
+                android:id="@+id/btnRotPortrait"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:text="Portrait" />
+
+            <TextView
+                android:id="@+id/btnRotLandscape"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Landscape" />
+        </LinearLayout>
+
+        <!-- 3. Toggles -->
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchEInkFlash"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="E-Ink Flash on Page Change"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchSkipChaptersRead"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Skip Chapters Marked Read"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchSkipFilteredChapters"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Skip Filtered Chapters"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchAlwaysShowTransition"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Always Show Chapter Transition"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchSplitWidePages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Split Wide Pages"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchRotateWidePages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Rotate Wide Pages to Fit"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchShowReadingMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Show Reading Mode Toggle"
+            app:thumbTint="@color/button_switch_track" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchShowTapZones"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Show Tap Zones Overlay"
+            app:thumbTint="@color/button_switch_track" />
+
+        <!-- 4. Sliders -->
+        <TextView
+            android:id="@+id/txtSidePadding"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.58"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Continuous Side Padding: 0%" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderSidePadding"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0"
+            android:valueTo="100"
+            android:stepSize="5"
+            android:value="0" />
+
+        <TextView
+            android:id="@+id/txtPreloadAmount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.58"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Page Preload Amount: 1" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderPreloadAmount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="1"
+            android:valueTo="10"
+            android:stepSize="1"
+            android:value="1" />
+
+        <TextView
+            android:id="@+id/txtDownloadThreads"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.58"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Download Threads: 2" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderDownloadThreads"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="1"
+            android:valueTo="8"
+            android:stepSize="1"
+            android:value="2" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchLanczosUpscale"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_round_settings_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="54dp"
+            android:text="Lanczos3 Image Upscaling"
+            app:thumbTint="@color/button_switch_track" />
+
+        <TextView
+            android:id="@+id/txtSharpenStrength"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:alpha="0.58"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Real-time Sharpening Strength: 0.0" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderSharpenStrength"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0.0"
+            android:valueTo="2.0"
+            android:stepSize="0.1"
+            android:value="0.0" />
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
