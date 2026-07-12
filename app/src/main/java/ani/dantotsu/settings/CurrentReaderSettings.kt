@@ -30,7 +30,34 @@ data class CurrentReaderSettings(
     var dataSaverIgnoreJpeg: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreJpeg),
     var dataSaverIgnoreGif: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreGif),
     var dataSaverServer: String = PrefManager.getVal(PrefName.DataSaverServer),
-    var dataSaverColorBW: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW)
+    var dataSaverColorBW: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW),
+    var doubleTapAnimationSpeed: Int = PrefManager.getVal(PrefName.DoubleTapAnimationSpeed),
+    var showReadingModeToggle: Boolean = PrefManager.getVal(PrefName.ShowReadingModeToggle),
+    var showTapZonesOverlay: Boolean = PrefManager.getVal(PrefName.ShowTapZonesOverlay),
+    var smallerTapZones: Boolean = PrefManager.getVal(PrefName.SmallerTapZones),
+    var forcedHorizontalSeekbar: Boolean = PrefManager.getVal(PrefName.ForcedHorizontalSeekbar),
+    var showVerticalSeekbarInLandscape: Boolean = PrefManager.getVal(PrefName.ShowVerticalSeekbarInLandscape),
+    var leftHandedVerticalSeekbar: Boolean = PrefManager.getVal(PrefName.LeftHandedVerticalSeekbar),
+    var defaultRotation: Int = PrefManager.getVal(PrefName.DefaultRotation),
+    var readerBackgroundColor: Int = PrefManager.getVal(PrefName.ReaderBackgroundColor),
+    var eInkFlashPageChange: Boolean = PrefManager.getVal(PrefName.EInkFlashPageChange),
+    var skipChaptersMarkedRead: Boolean = PrefManager.getVal(PrefName.SkipChaptersMarkedRead),
+    var skipFilteredChapters: Boolean = PrefManager.getVal(PrefName.SkipFilteredChapters),
+    var alwaysShowChapterTransition: Boolean = PrefManager.getVal(PrefName.AlwaysShowChapterTransition),
+    var pagedTapZones: Int = PrefManager.getVal(PrefName.PagedTapZones),
+    var invertTapZones: Int = PrefManager.getVal(PrefName.InvertTapZones),
+    var pagedScaleType: Int = PrefManager.getVal(PrefName.PagedScaleType),
+    var zoomStartPosition: Int = PrefManager.getVal(PrefName.ZoomStartPosition),
+    var splitWidePages: Boolean = PrefManager.getVal(PrefName.SplitWidePages),
+    var rotateWidePagesToFit: Boolean = PrefManager.getVal(PrefName.RotateWidePagesToFit),
+    var smartScaleWideScreen: Int = PrefManager.getVal(PrefName.SmartScaleWideScreen),
+    var continuousSidePadding: Int = PrefManager.getVal(PrefName.ContinuousSidePadding),
+    var menuHidingSensitivity: Int = PrefManager.getVal(PrefName.MenuHidingSensitivity),
+    var pagePreloadAmount: Int = PrefManager.getVal(PrefName.PagePreloadAmount),
+    var downloadThreads: Int = PrefManager.getVal(PrefName.DownloadThreads),
+    var readerCacheSize: Int = PrefManager.getVal(PrefName.ReaderCacheSize),
+    var lanczosUpscale: Boolean = PrefManager.getVal(PrefName.LanczosUpscale),
+    var sharpenStrength: Float = PrefManager.getVal(PrefName.SharpenStrength)
 ) : Serializable {
 
     enum class Directions {
@@ -73,4 +100,3 @@ data class CurrentReaderSettings(
         }
     }
 }
-
