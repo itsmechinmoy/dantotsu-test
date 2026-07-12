@@ -221,6 +221,10 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             PrefManager.setVal(PrefName.DataSaverImageFormatJpeg, isChecked)
             activity.applySettings()
         }
+
+        binding.btnAdvancedSettings.setOnClickListener {
+            AdvancedSettingsDialogFragment.newInstance().show(childFragmentManager, "AdvancedSettingsDialogFragment")
+        }
     }
 
     override fun onDestroy() {
