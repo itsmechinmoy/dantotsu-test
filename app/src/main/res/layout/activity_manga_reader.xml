@@ -297,6 +297,17 @@
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
 
                         <ImageButton
+                            android:id="@+id/mangaReaderTranslate"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:backgroundTint="#00FFFFFF"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_round_translate_24"
+                            app:tint="#fff"
+                            android:contentDescription="Translate (OCR)"
+                            tools:ignore="SpeakableTextPresentCheck,ImageContrastCheck" />
+
+                        <ImageButton
                             android:id="@+id/mangaReaderSettings"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
@@ -499,4 +510,56 @@
         app:outlineColor="#A9000000"
         app:outlineWidth="1"
         tools:text="1/10" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/mangaReaderAutoScrollPlayBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="16dp"
+        android:visibility="gone"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:strokeColor="?attr/colorSecondary"
+        app:strokeWidth="1dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <ImageButton
+                android:id="@+id/autoScrollSpeedUp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_add"
+                android:contentDescription="Speed Up"
+                app:tint="?attr/colorOnSurface" />
+
+            <ImageButton
+                android:id="@+id/autoScrollPlayPause"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_round_play_arrow_24"
+                android:contentDescription="Play/Pause"
+                app:tint="?attr/colorOnSurface" />
+
+            <ImageButton
+                android:id="@+id/autoScrollSpeedDown"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_remove"
+                android:contentDescription="Speed Down"
+                app:tint="?attr/colorOnSurface" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 </FrameLayout>
