@@ -64,6 +64,7 @@ class ChapterLoaderDialog : BottomSheetDialogFragment() {
                                     MangaReaderActivity::class.java
                                 )//.apply { putExtra("media", m) }
                                 activity.startActivity(intent)
+                                activity.finish()
                             }
                         }
                     }
