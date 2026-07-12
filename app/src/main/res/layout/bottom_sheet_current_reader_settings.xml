@@ -660,6 +660,16 @@
             android:fontFamily="@font/poppins_family"
             android:text="@string/data_saver_image_format_info"
             android:textSize="14sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAdvancedSettings"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Advanced Settings"
+            app:icon="@drawable/ic_round_settings_24" />
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>
