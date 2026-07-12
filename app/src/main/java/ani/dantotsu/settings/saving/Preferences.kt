@@ -189,8 +189,6 @@ enum class PrefName(val data: Pref) {
     DataSaverIgnoreGif(Pref(Location.Reader, Boolean::class, true)),
     DataSaverServer(Pref(Location.Reader, String::class, "https://bandwidth-hero-proxy-nu-nine.vercel.app/")), // For Bandwidth Hero server URL
     DataSaverColorBW(Pref(Location.Reader, Boolean::class, false)),
-
-    // Mihon & Komikku Settings
     DoubleTapAnimationSpeed(Pref(Location.Reader, Int::class, 1)),
     ShowReadingModeToggle(Pref(Location.Reader, Boolean::class, false)),
     ShowTapZonesOverlay(Pref(Location.Reader, Boolean::class, false)),
