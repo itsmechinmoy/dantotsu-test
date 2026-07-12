@@ -38,7 +38,11 @@ class CookieCatcher : AppCompatActivity() {
         val cookies: CookieManager? = Injekt.get<NetworkHelper>().cookieJar.manager
         cookies?.setAcceptThirdPartyCookies(webView, true)
 
+        val userAgent = headers.entries.firstOrNull { it.key.equals("user-agent", ignoreCase = true) }?.value
+            ?: NetworkHelper.defaultUserAgentProvider()
+
         webView.apply {
+            settings.userAgentString = userAgent
             settings.javaScriptEnabled = true
             settings.databaseEnabled = true
             settings.domStorageEnabled = true
