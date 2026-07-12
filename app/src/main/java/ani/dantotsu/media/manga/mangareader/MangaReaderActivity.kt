@@ -25,6 +25,8 @@ import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.widget.AdapterView
 import android.widget.CheckBox
+import android.widget.Toast
+import ani.dantotsu.media.manga.mangareader.ocr.OcrTranslationBottomSheet
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -58,6 +60,7 @@ import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.media.MediaSingleton
 import ani.dantotsu.media.manga.MangaCache
 import ani.dantotsu.media.manga.MangaChapter
+import ani.dantotsu.util.chapter.removeDuplicates
 import ani.dantotsu.media.emptyMedia
 import ani.dantotsu.notifications.subscription.SubscriptionHelper
 import ani.dantotsu.others.ImageViewDialog
@@ -90,6 +93,7 @@ import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.FileInputStream
@@ -126,6 +130,44 @@ class MangaReaderActivity : AppCompatActivity() {
     private var notchHeight: Int? = null
 
     private var imageAdapter: BaseImageAdapter? = null
+    private var autoScrollManager: MangaReaderAutoScroll? = null
+
+    data class LoadedChapter(
+        val chapter: MangaChapter,
+        val startIndex: Int,
+        val endIndex: Int
+    )
+    private val loadedChapters = mutableListOf<LoadedChapter>()
+    private var isLoadingNextChapter = false
+    private var isLoadingPrevChapter = false
+
+    private fun getActiveChapterAndPage(pos: Int): Pair<MangaChapter, Int> {
+        for (loaded in loadedChapters) {
+            if (pos in loaded.startIndex until loaded.endIndex) {
+                return Pair(loaded.chapter, pos - loaded.startIndex + 1)
+            }
+        }
+        return Pair(chapter, pos + 1)
+    }
+
+    private fun setupAutoScroll() {
+        if (defaultSettings.layout == CurrentReaderSettings.Layouts.CONTINUOUS) {
+            val manager = MangaReaderAutoScroll().also { autoScrollManager = it }
+            manager.attach(binding.mangaReaderRecycler, defaultSettings.direction)
+            binding.autoScrollPlayPause.setOnClickListener {
+                val isRunningNow = manager.toggle()
+                binding.autoScrollPlayPause.setImageResource(
+                    if (isRunningNow) R.drawable.ic_round_pause_24 else R.drawable.ic_round_play_arrow_24
+                )
+            }
+            binding.autoScrollSpeedUp.setOnClickListener {
+                manager.speed = (manager.speed + 0.5f).coerceAtMost(10f)
+            }
+            binding.autoScrollSpeedDown.setOnClickListener {
+                manager.speed = (manager.speed - 0.5f).coerceAtLeast(1f)
+            }
+        }
+    }
 
     var sliding = false
     var isAnimating = false
@@ -167,6 +209,8 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        autoScrollManager?.destroy()
+        autoScrollManager = null
         mangaCache.clear()
         RPCManager.clearPresence(this)
         super.onDestroy()
@@ -186,6 +230,24 @@ class MangaReaderActivity : AppCompatActivity() {
         setContentView(binding.root)
         binding.mangaReaderBack.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
+        }
+        binding.mangaReaderTranslate.setOnClickListener {
+            if (::chapter.isInitialized) {
+                val chapImages = if (directionPagedBT) {
+                    chapter.images().reversed()
+                } else {
+                    chapter.images()
+                }
+                val imageUrl = chapImages.getOrNull(currentChapterPage.toInt() - 1)?.url
+                if (imageUrl != null) {
+                    val bottomSheet = OcrTranslationBottomSheet.newInstance(imageUrl)
+                    bottomSheet.show(supportFragmentManager, "OcrTranslationBottomSheet")
+                } else {
+                    Toast.makeText(this, "Page image is not loaded yet", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Chapter is not loaded yet", Toast.LENGTH_SHORT).show()
+            }
         }
 
 
@@ -281,6 +343,14 @@ class MangaReaderActivity : AppCompatActivity() {
         defaultSettings = loadReaderSettings("${media.id}_current_settings") ?: defaultSettings
 
         chapters = media.manga?.chapters ?: return
+        if (PrefManager.getCustomVal("skip_dupe", false)) {
+            val currentChp = chapters[media.manga!!.selectedChapter!!.uniqueNumber()]
+            if (currentChp != null) {
+                val rawChaptersList = chapters.values.toList()
+                val filteredChapters = rawChaptersList.removeDuplicates(currentChp)
+                chapters = filteredChapters.associateBy { it.uniqueNumber() }.toMutableMap()
+            }
+        }
         chapter = chapters[media.manga!!.selectedChapter!!.uniqueNumber()] ?: return
 
         model.mangaReadSources = if (media.isAdult) HMangaSources else MangaSources
@@ -332,7 +402,8 @@ class MangaReaderActivity : AppCompatActivity() {
                 "${media.id}_${chaptersArr[currentChapterIndex]}",
                 currentChapterPage
             )
-            ChapterLoaderDialog.newInstance(chapters[chaptersArr[index]]!!)
+            media.manga!!.selectedChapter = chapters[chaptersArr[index]]!!
+            ChapterLoaderDialog.newInstance(chapters[chaptersArr[index]]!!, launch = true)
                 .show(supportFragmentManager, "dialog")
         }
 
@@ -472,6 +543,27 @@ class MangaReaderActivity : AppCompatActivity() {
 
     @SuppressLint("ClickableViewAccessibility")
     fun applySettings() {
+        requestedOrientation = when (defaultSettings.defaultRotation) {
+            1 -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            2 -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+
+        val bgColor = when (defaultSettings.readerBackgroundColor) {
+            1 -> android.graphics.Color.BLACK
+            2 -> android.graphics.Color.DKGRAY
+            3 -> android.graphics.Color.WHITE
+            else -> android.graphics.Color.TRANSPARENT
+        }
+        if (bgColor != android.graphics.Color.TRANSPARENT) {
+            binding.root.setBackgroundColor(bgColor)
+            binding.mangaReaderRecycler.setBackgroundColor(bgColor)
+            binding.mangaReaderPager.setBackgroundColor(bgColor)
+        } else {
+            binding.root.background = null
+            binding.mangaReaderRecycler.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            binding.mangaReaderPager.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
 
         saveReaderSettings("${media.id}_current_settings", defaultSettings)
         hideSystemBars()
@@ -503,6 +595,9 @@ class MangaReaderActivity : AppCompatActivity() {
 
             imageAdapter =
                 dualPage { DualPageAdapter(this, chapter) } ?: ImageAdapter(this, chapter)
+
+            loadedChapters.clear()
+            loadedChapters.add(LoadedChapter(chapter, 0, chapImages.size))
 
             if (chapImages.size > 1) {
                 binding.mangaReaderSlider.apply {
@@ -697,16 +792,85 @@ class MangaReaderActivity : AppCompatActivity() {
                                 handleController(true)
                             } else handleController(false)
                         }
-                        updatePageNumber(
-                            manager.findLastVisibleItemPosition().toLong() * (dualPage { 2 }
-                                ?: 1) + 1)
+
+                        val lastVisible = manager.findLastVisibleItemPosition()
+                        val firstVisible = manager.findFirstVisibleItemPosition()
+                        val totalItemCount = manager.itemCount
+
+                        if (PrefManager.getCustomVal("continuous_scroll_chapters", true)) {
+                            if (lastVisible != RecyclerView.NO_POSITION) {
+                                val (activeChapter, page) = getActiveChapterAndPage(lastVisible)
+                                if (activeChapter != chapter) {
+                                    chapter = activeChapter
+                                    currentChapterIndex = chaptersArr.indexOf(chapter.uniqueNumber())
+                                    binding.mangaReaderChapterSelect.setSelection(currentChapterIndex)
+                                    if (defaultSettings.direction == TOP_TO_BOTTOM) {
+                                        binding.mangaReaderNextChap.text = chaptersTitleArr.getOrNull(currentChapterIndex + 1) ?: ""
+                                        binding.mangaReaderPrevChap.text = chaptersTitleArr.getOrNull(currentChapterIndex - 1) ?: ""
+                                    } else {
+                                        binding.mangaReaderNextChap.text = chaptersTitleArr.getOrNull(currentChapterIndex - 1) ?: ""
+                                        binding.mangaReaderPrevChap.text = chaptersTitleArr.getOrNull(currentChapterIndex + 1) ?: ""
+                                    }
+                                }
+                                
+                                if (page.toLong() != currentChapterPage) {
+                                    triggerEInkFlash()
+                                }
+                                currentChapterPage = page.toLong()
+                                maxChapterPage = activeChapter.images().size.toLong()
+                                binding.mangaReaderPageNumber.text = if (defaultSettings.hidePageNumbers) "" else "$currentChapterPage/$maxChapterPage"
+                                binding.mangaReaderSlider.apply {
+                                    valueTo = maxChapterPage.toFloat()
+                                    value = clamp(currentChapterPage.toFloat(), 1f, valueTo)
+                                }
+                            }
+
+                            val threshold = 3
+                            if (lastVisible >= totalItemCount - threshold && !isLoadingNextChapter) {
+                                val nextIndex = currentChapterIndex + 1
+                                if (nextIndex < chaptersArr.size) {
+                                    val nextChapter = chapters[chaptersArr[nextIndex]]
+                                    if (nextChapter != null) {
+                                        isLoadingNextChapter = true
+                                        lifecycleScope.launch(Dispatchers.IO) {
+                                            val selected = media.selected ?: model.loadSelected(media)
+                                            val success = model.loadMangaChapterImages(nextChapter, selected)
+                                            if (success) {
+                                                withContext(Dispatchers.Main) {
+                                                    val newStartIndex = loadedChapters.last().endIndex
+                                                    val newImages = nextChapter.images()
+                                                    imageAdapter?.let { adapter ->
+                                                        adapter.images = adapter.images + newImages
+                                                        adapter.notifyItemRangeInserted(newStartIndex, newImages.size)
+                                                        loadedChapters.add(LoadedChapter(nextChapter, newStartIndex, newStartIndex + newImages.size))
+                                                    }
+                                                    isLoadingNextChapter = false
+                                                }
+                                            } else {
+                                                isLoadingNextChapter = false
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            updatePageNumber(
+                                manager.findLastVisibleItemPosition().toLong() * (dualPage { 2 }
+                                    ?: 1) + 1)
+                        }
                         super.onScrolled(v, dx, dy)
                     }
                 })
+                val sidePaddingPercent = defaultSettings.continuousSidePadding
+                val screenWidth = resources.displayMetrics.widthPixels
+                val sidePaddingPx = (screenWidth * (sidePaddingPercent / 100f)).toInt()
+
                 if ((defaultSettings.direction == TOP_TO_BOTTOM || defaultSettings.direction == BOTTOM_TO_TOP))
-                    updatePadding(0, 128f.px, 0, 128f.px)
+                    updatePadding(sidePaddingPx, 128f.px, sidePaddingPx, 128f.px)
                 else
                     updatePadding(128f.px, 0, 128f.px, 0)
+
+                clipToPadding = false
 
                 snapHelper.attachToRecyclerView(
                     if (defaultSettings.layout == CONTINUOUS_PAGED) this
@@ -811,6 +975,19 @@ class MangaReaderActivity : AppCompatActivity() {
                 } else false
             }
         }
+
+        if (defaultSettings.layout == CurrentReaderSettings.Layouts.CONTINUOUS) {
+            binding.mangaReaderAutoScrollPlayBar.visibility = if (isContVisible) View.VISIBLE else View.GONE
+            if (autoScrollManager == null) {
+                setupAutoScroll()
+            } else {
+                autoScrollManager?.attach(binding.mangaReaderRecycler, defaultSettings.direction)
+            }
+        } else {
+            binding.mangaReaderAutoScrollPlayBar.visibility = View.GONE
+            autoScrollManager?.stop()
+            autoScrollManager = null
+        }
     }
 
     private var onVolumeUp: (() -> Unit)? = null
@@ -869,8 +1046,21 @@ class MangaReaderActivity : AppCompatActivity() {
         }
     }
 
+    private fun triggerEInkFlash() {
+        if (!defaultSettings.eInkFlashPageChange) return
+        val flashView = View(this).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+        binding.root.addView(flashView)
+        flashView.postDelayed({
+            binding.root.removeView(flashView)
+        }, 80L)
+    }
+
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
+            triggerEInkFlash()
             updatePageNumber(position.toLong() * (dualPage { 2 } ?: 1) + 1)
             handleController(position == 0 || position + 1 >= maxChapterPage)
             super.onPageSelected(position)
@@ -1033,6 +1223,13 @@ class MangaReaderActivity : AppCompatActivity() {
                         .apply { interpolator = overshoot;duration = controllerDuration;start() }
                     ObjectAnimator.ofFloat(binding.mangaReaderTopLayout, "translationY", 0f, -128f)
                         .apply { interpolator = overshoot;duration = controllerDuration;start() }
+                    if (defaultSettings.layout == CurrentReaderSettings.Layouts.CONTINUOUS) {
+                        ObjectAnimator.ofFloat(binding.mangaReaderAutoScrollPlayBar, "alpha", 1f, 0f)
+                            .setDuration(controllerDuration).start()
+                        binding.mangaReaderAutoScrollPlayBar.postDelayed({
+                            binding.mangaReaderAutoScrollPlayBar.visibility = View.GONE
+                        }, controllerDuration)
+                    }
                 }
                 gone()
             } else {
@@ -1044,6 +1241,11 @@ class MangaReaderActivity : AppCompatActivity() {
                     .apply { interpolator = overshoot;duration = controllerDuration;start() }
                 ObjectAnimator.ofFloat(binding.mangaReaderBottomLayout, "translationY", 128f, 0f)
                     .apply { interpolator = overshoot;duration = controllerDuration;start() }
+                if (defaultSettings.layout == CurrentReaderSettings.Layouts.CONTINUOUS) {
+                    binding.mangaReaderAutoScrollPlayBar.visibility = View.VISIBLE
+                    ObjectAnimator.ofFloat(binding.mangaReaderAutoScrollPlayBar, "alpha", 0f, 1f)
+                        .setDuration(controllerDuration).start()
+                }
             }
         }
     }
