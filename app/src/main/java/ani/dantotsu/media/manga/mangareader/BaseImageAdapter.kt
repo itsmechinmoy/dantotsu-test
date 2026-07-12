@@ -14,6 +14,8 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.FileUrl
+import ani.dantotsu.settings.saving.PrefManager
+import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.GesturesListener
 import ani.dantotsu.R
 import ani.dantotsu.media.manga.MangaCache
@@ -157,8 +159,10 @@ abstract class BaseImageAdapter(
                                 it
                             }
                         }
-                        .submit()
-                        .get()
+                        .let {
+                            val rawBitmap = it.submit().get()
+                            processBitmap(rawBitmap)
+                        }
                 }
             }
         }
@@ -202,10 +206,19 @@ abstract class BaseImageAdapter(
                                 it
                             }
                         }
-                        ?.submit()
-                        ?.get()
+                        ?.let {
+                            val rawBitmap = it.submit().get()
+                            processBitmap(rawBitmap)
+                        }
                 }
             }
+        }
+
+        private fun processBitmap(bitmap: Bitmap?): Bitmap? {
+            if (bitmap == null) return null
+            val isUpscaleEnabled: Boolean = PrefManager.getVal(PrefName.LanczosUpscale)
+            val sharpenStrength: Float = PrefManager.getVal(PrefName.SharpenStrength)
+            return ani.dantotsu.util.ImageScaler.process(bitmap, isUpscaleEnabled, sharpenStrength)
         }
 
         fun mergeBitmap(bitmap1: Bitmap, bitmap2: Bitmap, scale: Boolean = false): Bitmap {
