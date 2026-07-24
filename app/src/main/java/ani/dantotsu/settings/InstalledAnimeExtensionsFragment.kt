@@ -57,13 +57,13 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
             val name = pkg.name
             val changeUIVisibility: (Boolean) -> Unit = { show ->
                 val activity = activity as? ExtensionsActivity
-                if (activity != null) {
+                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
                     activity.findViewById<ViewPager2>(R.id.viewPager).isVisible = show
                     activity.findViewById<TabLayout>(R.id.tabLayout).isVisible = show
                     activity.findViewById<TextInputLayout>(R.id.searchView).isVisible = show
                     activity.findViewById<ImageView>(R.id.languageselect).isVisible = show
                     activity.findViewById<TextView>(R.id.extensions).text =
-                        if (show) getString(R.string.extensions) else name
+                        if (show) activity.getString(R.string.extensions) else name
                     activity.findViewById<FrameLayout>(R.id.fragmentExtensionsContainer).isGone = show
                 }
             }
