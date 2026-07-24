@@ -395,6 +395,8 @@ class DownloadsManager(private val context: Context) {
         }
 
         private fun DocumentFile.findFolder(name: String): DocumentFile? {
+            val direct = findFile(name)
+            if (direct != null && direct.isDirectory) return direct
             val list = listFiles()
             return list.find { it.isDirectory && (it.name.equals(name, ignoreCase = true) || it.name?.trim().equals(name.trim(), ignoreCase = true)) }
                 ?: list.find { it.isDirectory && it.name != null && name.compareName(it.name!!) }
