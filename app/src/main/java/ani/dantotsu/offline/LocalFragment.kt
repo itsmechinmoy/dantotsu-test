@@ -237,6 +237,9 @@ class LocalFragment : Fragment(), OfflineAnimeSearchListener {
         })
 
         val swipeRefresh = view.findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.localRefresh)
+        swipeRefresh.setOnChildScrollUpCallback { _, _ ->
+            gridView.canScrollVertically(-1)
+        }
         swipeRefresh.setOnRefreshListener {
             animeDownloadsCache = null
             mangaDownloadsCache = null
