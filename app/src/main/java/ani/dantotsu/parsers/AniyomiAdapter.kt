@@ -289,15 +289,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 .sortVideos()
         }
 
-        return if (selectDub) {
-            sortedVideos.sortedByDescending { video ->
-                val subdub = MediaNameAdapter.getSubDub(video.quality)
+        return sortedVideos.sortedByDescending { video ->
+            val subdub = MediaNameAdapter.getSubDub(video.quality)
+            if (selectDub) {
                 subdub == MediaNameAdapter.SubDubType.DUB || video.quality.contains("dub", ignoreCase = true)
-            }
-        } else {
-            sortedVideos.sortedBy { video ->
-                val subdub = MediaNameAdapter.getSubDub(video.quality)
-                subdub == MediaNameAdapter.SubDubType.DUB || video.quality.contains("dub", ignoreCase = true)
+            } else {
+                subdub == MediaNameAdapter.SubDubType.SUB || video.quality.contains("sub", ignoreCase = true)
             }
         }
     }
@@ -336,19 +333,21 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             return video
         }
 
-        val resolved = runCatching {
-            source.resolveVideo(video)
-        }.getOrNull()
-
-        if (resolved != null) return resolved
-
         if (video.videoUrl == "null" || video.videoUrl.isEmpty()) {
             val newUrl = runCatching {
                 source.getVideoUrl(video)
             }.getOrNull()
 
-            return video.copy(videoUrl = newUrl ?: video.videoUrl)
+            if (!newUrl.isNullOrEmpty() && newUrl != "null") {
+                return video.copy(videoUrl = newUrl, initialized = true)
+            }
         }
+
+        val resolved = runCatching {
+            source.resolveVideo(video)
+        }.getOrNull()
+
+        if (resolved != null) return resolved
 
         return video
     }
