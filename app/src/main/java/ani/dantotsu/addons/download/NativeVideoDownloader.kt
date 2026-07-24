@@ -533,7 +533,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                         val inputIndex = 1 + localSubtitles.size + i
                         command.append("-map $inputIndex:a? ")
                     }
-                    command.append("-c copy ")
+                    command.append("-c copy -bsf:a aac_adtstoasc ")
                     if (localSubtitles.isNotEmpty()) {
                         if (downloadPath.endsWith(".mp4", ignoreCase = true)) {
                             command.append("-c:s mov_text ")
