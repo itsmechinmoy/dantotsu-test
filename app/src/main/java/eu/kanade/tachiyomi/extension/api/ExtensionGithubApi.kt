@@ -413,5 +413,5 @@ private data class ExtensionSourceJsonObject(
 )
 
 private fun ExtensionJsonObject.extractLibVersion(): Double {
-    return version.substringBeforeLast('.').toDouble()
+    return version.substringBefore('.').toDoubleOrNull() ?: version.substringBeforeLast('.').toDouble()
 }
