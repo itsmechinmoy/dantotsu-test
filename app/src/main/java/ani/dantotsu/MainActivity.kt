@@ -91,6 +91,11 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("InternalInsetResource", "DiscouragedApi")
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (!isTaskRoot && intent.hasCategory(Intent.CATEGORY_LAUNCHER) && intent.action == Intent.ACTION_MAIN) {
+            finish()
+            return
+        }
+
         ThemeManager(this).applyTheme()
 
         super.onCreate(savedInstanceState)
