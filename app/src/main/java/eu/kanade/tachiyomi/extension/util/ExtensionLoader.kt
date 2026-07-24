@@ -436,7 +436,8 @@ internal object ExtensionLoader {
 
         // Validate lib version
         val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
-        if (libVersion == null || libVersion < ANIME_LIB_VERSION_MIN || libVersion > ANIME_LIB_VERSION_MAX) {
+        val majorLibVersion = versionName.substringBefore('.').toIntOrNull()
+        if (libVersion == null || majorLibVersion == null || majorLibVersion < ANIME_LIB_VERSION_MIN || majorLibVersion > ANIME_LIB_VERSION_MAX) {
             Logger.log(
                 "Lib version is $libVersion, while only versions " +
                         "$ANIME_LIB_VERSION_MIN to $ANIME_LIB_VERSION_MAX are allowed"
