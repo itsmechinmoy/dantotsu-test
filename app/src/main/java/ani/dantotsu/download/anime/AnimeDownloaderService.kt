@@ -238,7 +238,7 @@ class AnimeDownloaderService : Service() {
                 val outputDir = getSubDirectory(
                     this@AnimeDownloaderService,
                     MediaType.ANIME,
-                    true,
+                    false,
                     task.title,
                     task.episode
                 ) ?: throw Exception("Failed to create output directory")
