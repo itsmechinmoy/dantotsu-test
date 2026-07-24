@@ -394,8 +394,11 @@ class DownloadsManager(private val context: Context) {
             }
         }
 
-        private fun DocumentFile.findFolder(name: String): DocumentFile? =
-            listFiles().find { it.name == name && it.isDirectory }
+        private fun DocumentFile.findFolder(name: String): DocumentFile? {
+            val list = listFiles()
+            return list.find { it.isDirectory && (it.name.equals(name, ignoreCase = true) || it.name?.trim().equals(name.trim(), ignoreCase = true)) }
+                ?: list.find { it.isDirectory && it.name != null && name.compareName(it.name!!) }
+        }
 
         private const val RATIO_THRESHOLD = 95
         fun Media.compareName(name: String): Boolean {
