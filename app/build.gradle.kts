@@ -35,7 +35,7 @@ android {
 
     defaultConfig {
         applicationId = "ani.dantotsu"
-        minSdk = 21
+        minSdk = 26
         targetSdk = 36
 
         versionName = "3.2.2"
@@ -112,6 +112,7 @@ android {
 
     packaging {
         jniLibs {
+            useLegacyPackaging = true
             pickFirsts.add("**/libavcodec.so")
             pickFirsts.add("**/libavdevice.so")
             pickFirsts.add("**/libavfilter.so")

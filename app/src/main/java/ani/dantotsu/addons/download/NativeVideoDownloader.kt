@@ -535,7 +535,11 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                     }
                     command.append("-c copy ")
                     if (localSubtitles.isNotEmpty()) {
-                        command.append("-c:s srt ")
+                        if (downloadPath.endsWith(".mp4", ignoreCase = true)) {
+                            command.append("-c:s mov_text ")
+                        } else {
+                            command.append("-c:s srt ")
+                        }
                     }
                     for ((index, sub) in localSubtitles.withIndex()) {
                         command.append("-metadata:s:s:$index language=\"${sub.second}\" ")

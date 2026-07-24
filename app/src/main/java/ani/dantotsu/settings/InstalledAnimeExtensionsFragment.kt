@@ -56,14 +56,16 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         { pkg ->
             val name = pkg.name
             val changeUIVisibility: (Boolean) -> Unit = { show ->
-                val activity = requireActivity() as ExtensionsActivity
-                activity.findViewById<ViewPager2>(R.id.viewPager).isVisible = show
-                activity.findViewById<TabLayout>(R.id.tabLayout).isVisible = show
-                activity.findViewById<TextInputLayout>(R.id.searchView).isVisible = show
-                activity.findViewById<ImageView>(R.id.languageselect).isVisible = show
-                activity.findViewById<TextView>(R.id.extensions).text =
-                    if (show) getString(R.string.extensions) else name
-                activity.findViewById<FrameLayout>(R.id.fragmentExtensionsContainer).isGone = show
+                val activity = activity as? ExtensionsActivity
+                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                    activity.findViewById<ViewPager2>(R.id.viewPager).isVisible = show
+                    activity.findViewById<TabLayout>(R.id.tabLayout).isVisible = show
+                    activity.findViewById<TextInputLayout>(R.id.searchView).isVisible = show
+                    activity.findViewById<ImageView>(R.id.languageselect).isVisible = show
+                    activity.findViewById<TextView>(R.id.extensions).text =
+                        if (show) activity.getString(R.string.extensions) else name
+                    activity.findViewById<FrameLayout>(R.id.fragmentExtensionsContainer).isGone = show
+                }
             }
             var itemSelected = false
             val allSettings = pkg.sources.filterIsInstance<ConfigurableAnimeSource>()
