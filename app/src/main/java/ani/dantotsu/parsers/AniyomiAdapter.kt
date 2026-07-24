@@ -63,10 +63,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     override val isNSFW = extension.isNsfw
     override val icon = extension.icon
 
+    private var userSelectDub: Boolean? = null
+
     override var selectDub: Boolean
-        get() = getDub()
+        get() = userSelectDub ?: getDub()
         set(value) {
-            setDub(value)
+            userSelectDub = value
         }
 
     private fun getDub(): Boolean {
@@ -94,29 +96,9 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     }
 
     private fun setDub(setDub: Boolean) {
-        if (sourceLanguage >= extension.sources.size) {
-            sourceLanguage = extension.sources.size - 1
-        }
-        val configurableSource = extension.sources[sourceLanguage] as? ConfigurableAnimeSource
-            ?: return
-        val type = when (setDub) {
-            true -> MediaNameAdapter.SubDubType.DUB
-            false -> MediaNameAdapter.SubDubType.SUB
-        }
-        currContext()?.let { context ->
-            val sharedPreferences =
-                context.getSharedPreferences(
-                    configurableSource.getPreferenceKey(),
-                    Context.MODE_PRIVATE
-                )
-            sharedPreferences.all.filterValues { MediaNameAdapter.getSubDub(it.toString()) != MediaNameAdapter.SubDubType.NULL }
-                .forEach { value ->
-                    val setValue = MediaNameAdapter.setSubDub(value.value.toString(), type)
-                    if (setValue != null) {
-                        sharedPreferences.edit().putString(value.key, setValue).apply()
-                    }
-                }
-        }
+        // Do not mutate extension SharedPreferences automatically.
+        // Extension preferences (e.g. preferred quality, server, sub/dub) configured by the user
+        // in extension settings are preserved intact for sortVideos() to process.
     }
 
     override fun isDubAvailableSeparately(sourceLang: Int?): Boolean {
@@ -300,11 +282,23 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             }.awaitAll()
         }
 
-        return source.run {
+        val sortedVideos = source.run {
             (resolvedDirect + hosterVideos)
                 .distinctBy { it.videoUrl }
                 .filter { it.videoUrl.isNotEmpty() && it.videoUrl != "null" }
                 .sortVideos()
+        }
+
+        return if (selectDub) {
+            sortedVideos.sortedByDescending { video ->
+                val subdub = MediaNameAdapter.getSubDub(video.quality)
+                subdub == MediaNameAdapter.SubDubType.DUB || video.quality.contains("dub", ignoreCase = true)
+            }
+        } else {
+            sortedVideos.sortedBy { video ->
+                val subdub = MediaNameAdapter.getSubDub(video.quality)
+                subdub == MediaNameAdapter.SubDubType.DUB || video.quality.contains("dub", ignoreCase = true)
+            }
         }
     }
 
