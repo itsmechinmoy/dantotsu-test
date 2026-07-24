@@ -2,7 +2,8 @@
 kotlin = "2.3.21"
 ksp = "2.3.6"
 agp = "9.2.1"
-serialization = "1.7.3"
+serialization = "1.11.0"
+coroutines = "1.11.0"
 firebase-bom = "33.13.0"
 glide = "5.0.5"
 exo = "1.6.1"
@@ -47,6 +48,8 @@ kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk7", version.re
 gson = "com.google.code.gson:gson:2.10.1"
 nicehttp = "com.github.Blatzar:NiceHttp:0.4.4"
 
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 serialization-json-okio = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json-okio", version.ref = "serialization" }
@@ -193,6 +196,8 @@ shizuku = ["shizuku-api", "shizuku-provider"]
 misc = [
     "gson",
     "nicehttp",
+    "coroutines-core",
+    "coroutines-android",
     "serialization-core",
     "serialization-json",
     "serialization-json-okio",
