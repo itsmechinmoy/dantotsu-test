@@ -463,8 +463,13 @@ internal object ExtensionLoader {
             return AnimeLoadResult.Error
         }
 
-        val sources = appInfo.metaData.getString("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")!!
-            .split(";")
+        val sourcesString = appInfo.metaData.getString("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData.getString("aniyomi.animeextension$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData.getString("tachiyomi.animeextension$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData.get("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")?.toString()
+            ?: return AnimeLoadResult.Error
+
+        val sources = sourcesString.split(";")
             .map {
                 val sourceClass = it.trim()
                 if (sourceClass.startsWith(".")) {
