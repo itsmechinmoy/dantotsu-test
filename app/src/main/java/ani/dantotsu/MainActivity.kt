@@ -259,7 +259,7 @@ class MainActivity : AppCompatActivity() {
                 binding.root.addView(splash.root)
                 (splash.splashImage.drawable as Animatable).start()
 
-                delay(1200)
+                delay(200)
 
                 ObjectAnimator.ofFloat(
                     splash.root,
