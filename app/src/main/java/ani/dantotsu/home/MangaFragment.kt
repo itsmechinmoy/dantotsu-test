@@ -301,9 +301,7 @@ class MangaFragment : Fragment() {
     }
 
     override fun onResume() {
-        val mainActivity = activity as? MainActivity
-        val isCurrentTab = mainActivity == null || mainActivity.binding.viewpager.currentItem == 2
-        if (!model.loaded && isCurrentTab) Refresh.activity[this.hashCode()]!!.postValue(true)
+        if (!model.loaded) Refresh.activity[this.hashCode()]!!.postValue(true)
         //make sure mangaPageAdapter is initialized
         if (mangaPageAdapter.trendingViewPager != null) {
             binding.root.requestApplyInsets()
