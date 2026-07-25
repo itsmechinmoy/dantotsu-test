@@ -312,9 +312,7 @@ class AnimeFragment : Fragment() {
     }
 
     override fun onResume() {
-        val mainActivity = activity as? MainActivity
-        val isCurrentTab = mainActivity == null || mainActivity.binding.viewpager.currentItem == 0
-        if (!model.loaded && isCurrentTab) Refresh.activity[this.hashCode()]!!.postValue(true)
+        if (!model.loaded) Refresh.activity[this.hashCode()]!!.postValue(true)
         if (animePageAdapter.trendingViewPager != null) {
             binding.root.requestApplyInsets()
             binding.root.requestLayout()
