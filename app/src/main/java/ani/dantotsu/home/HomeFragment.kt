@@ -632,13 +632,11 @@ class HomeFragment : Fragment() {
 
                     val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
                     val initHomePage = async(Dispatchers.IO) { model.initHomePage() }
-                    val setListImages = async(Dispatchers.IO) { model.setListImages() }
+                    async(Dispatchers.IO) { model.setListImages() }
                     if (!rescueMode) {
-                        val initUserStatus = async(Dispatchers.IO) { model.initUserStatus() }
-                        awaitAll(initHomePage, initUserStatus, setListImages)
-                    } else {
-                        awaitAll(initHomePage, setListImages)
+                        async(Dispatchers.IO) { model.initUserStatus() }
                     }
+                    initHomePage.await()
 
                     withContext(Dispatchers.Main) {
                         model.empty.postValue(empty)
