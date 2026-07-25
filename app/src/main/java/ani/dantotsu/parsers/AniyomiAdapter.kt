@@ -226,13 +226,9 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
         val hasHosters = checkHasHosters(source)
 
-        val directVideos = if (!hasHosters) {
-            runCatching {
-                source.getVideoList(episode)
-            }.getOrElse { emptyList() }
-        } else {
-            emptyList()
-        }
+        val directVideos = runCatching {
+            source.getVideoList(episode)
+        }.getOrElse { emptyList() }
 
         val hosterVideos = if (hasHosters) {
             val hosters = runCatching {
@@ -242,7 +238,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             coroutineScope {
                 hosters.map { hoster ->
                     async(Dispatchers.IO) {
-
                         val videos = when {
                             !hoster.videoList.isNullOrEmpty() -> hoster.videoList
                             else -> runCatching {
@@ -252,7 +247,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
                         videos.map { video ->
                             val resolved = resolveVideo(source, video)
-
                             val title = if (
                                 hoster.hosterName.isBlank() ||
                                 hoster.hosterName == NO_HOSTER_LIST
@@ -282,20 +276,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             }.awaitAll()
         }
 
-        val sortedVideos = source.run {
-            (resolvedDirect + hosterVideos)
-                .distinctBy { it.videoUrl }
-                .filter { it.videoUrl.isNotEmpty() && it.videoUrl != "null" }
-                .sortVideos()
-        }
+        val allVideos = (resolvedDirect + hosterVideos)
+            .distinctBy { if (it.videoUrl.isNotBlank() && it.videoUrl != "null") it.videoUrl else it.quality }
+            .filter { it.videoUrl.isNotBlank() && it.videoUrl != "null" }
 
-        return sortedVideos.sortedByDescending { video ->
-            val subdub = MediaNameAdapter.getSubDub(video.quality)
-            if (selectDub) {
-                subdub == MediaNameAdapter.SubDubType.DUB || video.quality.contains("dub", ignoreCase = true)
-            } else {
-                subdub == MediaNameAdapter.SubDubType.SUB || video.quality.contains("sub", ignoreCase = true)
-            }
+        return source.run {
+            allVideos.sortVideos()
         }
     }
 
