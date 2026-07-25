@@ -120,6 +120,7 @@ class AnilistHomeViewModel : ViewModel() {
         res["recommendations"]?.let { recommendation.postValue(it) }
         res["missingSequels"]?.let { missingSequels.postValue(it) }
         res["hidden"]?.let { hidden.postValue(it) }
+        setListImages()
     }
 
     private suspend fun initHomePageFromMAL() {
@@ -453,17 +454,31 @@ class AnilistAnimeViewModel : ViewModel() {
         MutableLiveData<MutableList<Media>>(null)
 
     fun getMostFav(): LiveData<MutableList<Media>> = mostFavAnime
-    suspend fun loadAll() {
+    suspend fun loadAll(onList: Boolean = PrefManager.getVal(PrefName.PopularAnimeList)) {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         if (rescueMode) {
             loadAllFromMAL()
             return
         }
-        val list = Anilist.query.loadAnimeList()
+        val list = Anilist.query.loadAnimeList(onList)
         updated.postValue(list["recentUpdates"])
         popularMovies.postValue(list["trendingMovies"])
         topRatedAnime.postValue(list["topRated"])
         mostFavAnime.postValue(list["mostFav"])
+        list["trending"]?.let { trending.postValue(it) }
+        list["popular"]?.let {
+            animePopular.postValue(
+                AniMangaSearchResults(
+                    type = "ANIME",
+                    isAdult = PrefManager.getVal(PrefName.AdultOnly),
+                    onList = onList,
+                    results = it,
+                    hasNextPage = true,
+                    page = 1,
+                    sort = Anilist.sortBy[1]
+                )
+            )
+        }
     }
 
     private suspend fun loadAllFromMAL() {
@@ -643,18 +658,32 @@ class AnilistMangaViewModel : ViewModel() {
         MutableLiveData<MutableList<Media>>(null)
 
     fun getMostFav(): LiveData<MutableList<Media>> = mostFavManga
-    suspend fun loadAll() {
+    suspend fun loadAll(onList: Boolean = PrefManager.getVal(PrefName.PopularMangaList)) {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         if (rescueMode) {
             loadAllFromMAL()
             return
         }
-        val list = Anilist.query.loadMangaList()
+        val list = Anilist.query.loadMangaList(onList)
         popularManga.postValue(list["trendingManga"])
         popularManhwa.postValue(list["trendingManhwa"])
         popularNovel.postValue(list["trendingNovel"])
         topRatedManga.postValue(list["topRated"])
         mostFavManga.postValue(list["mostFav"])
+        list["trending"]?.let { trending.postValue(it) }
+        list["popular"]?.let {
+            mangaPopular.postValue(
+                AniMangaSearchResults(
+                    type = "MANGA",
+                    isAdult = PrefManager.getVal(PrefName.AdultOnly),
+                    onList = onList,
+                    results = it,
+                    hasNextPage = true,
+                    page = 1,
+                    sort = Anilist.sortBy[1]
+                )
+            )
+        }
     }
 
     private suspend fun loadAllFromMAL() {
