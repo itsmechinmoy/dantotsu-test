@@ -321,7 +321,6 @@ class MainActivity : AppCompatActivity() {
             binding.mainProgressBar.visibility = View.GONE
             val mainViewPager = binding.viewpager
             mainViewPager.isUserInputEnabled = false
-            mainViewPager.offscreenPageLimit = 2
             mainViewPager.adapter =
                 ViewPagerAdapter(supportFragmentManager, lifecycle)
             mainViewPager.setPageTransformer(ZoomOutPageTransformer())
