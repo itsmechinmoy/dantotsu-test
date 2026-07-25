@@ -328,8 +328,7 @@ class AnilistQueries {
 
                             fetchedMedia.studios?.nodes?.apply {
                                 if (isNotEmpty()) {
-                                    val animStudio = firstOrNull { it.isAnimationStudio == true }
-                                    val studioNode = animStudio ?: get(0)
+                                    val studioNode = get(0)
                                     media.anime.mainStudio = Studio(
                                         studioNode.id.toString(),
                                         studioNode.name ?: "N/A",
