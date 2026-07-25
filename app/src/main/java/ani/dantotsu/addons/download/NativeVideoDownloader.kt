@@ -519,26 +519,26 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                         command.append("-i \"${audio.first}\" ")
                     }
 
-                    // Map video and audio from main input 0, ignoring other tracks (like timed_id3)
-                    command.append("-map 0:v? -map 0:a? ")
+                    // Map video and audio from main input 0 explicitly
+                    command.append("-map 0:v:0? -map 0:a:0? ")
 
                     // Map subtitle tracks from input files (from index 1 to localSubtitles.size)
                     for (i in localSubtitles.indices) {
                         val inputIndex = 1 + i
-                        command.append("-map $inputIndex:s? ")
+                        command.append("-map $inputIndex:0? ")
                     }
 
                     // Map audio tracks from extra audio files
                     for (i in localAudio.indices) {
                         val inputIndex = 1 + localSubtitles.size + i
-                        command.append("-map $inputIndex:a? ")
+                        command.append("-map $inputIndex:a:0? ")
                     }
-                    command.append("-c copy -bsf:a aac_adtstoasc ")
+                    command.append("-c:v copy -c:a copy -bsf:a aac_adtstoasc ")
                     if (localSubtitles.isNotEmpty()) {
                         if (downloadPath.endsWith(".mp4", ignoreCase = true)) {
                             command.append("-c:s mov_text ")
                         } else {
-                            command.append("-c:s srt ")
+                            command.append("-c:s subrip ")
                         }
                     }
                     for ((index, sub) in localSubtitles.withIndex()) {
