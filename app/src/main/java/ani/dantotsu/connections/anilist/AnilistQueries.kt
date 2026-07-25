@@ -666,27 +666,6 @@ class AnilistQueries {
             executeQuery<Query.HomePageMedia>(query, show = true)
         }
 
-        // Cache banner images from home query response
-        response?.data?.bannerAnime?.lists
-            ?.flatMap { it.entries ?: emptyList() }
-            ?.mapNotNull { entry ->
-                entry.media?.bannerImage?.takeIf { it != "null" && entry.media?.isAdult != true }
-            }?.randomOrNull()?.let { banner ->
-                cachedAnimeBanner = banner
-                PrefManager.setCustomVal("banner_ANIME_url", banner)
-                PrefManager.setCustomVal("banner_ANIME_time", System.currentTimeMillis())
-            }
-
-        response?.data?.bannerManga?.lists
-            ?.flatMap { it.entries ?: emptyList() }
-            ?.mapNotNull { entry ->
-                entry.media?.bannerImage?.takeIf { it != "null" && entry.media?.isAdult != true }
-            }?.randomOrNull()?.let { banner ->
-                cachedMangaBanner = banner
-                PrefManager.setCustomVal("banner_MANGA_url", banner)
-                PrefManager.setCustomVal("banner_MANGA_time", System.currentTimeMillis())
-            }
-
         val returnMap = mutableMapOf<String, ArrayList<Media>>()
 
         fun processMedia(
