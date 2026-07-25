@@ -564,18 +564,27 @@ class AnilistQueries {
     }
 
     private fun missingSequelsCompletedSourceQuery(): String {
-        return """ MediaListCollection( userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC ) { lists { entries { media { id relations { edges { relationType(version: 2) node { id type isAdult status(version: 2) format popularity episodes meanScore isFavourite bannerImage coverImage { large } title { english romaji userPreferred } startDate { year } nextAiringEpisode { episode } mediaListEntry { progress private score(format: POINT_100) status } } } } } } } } """.trimIndent()
+        return """ MediaListCollection( userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC ) { lists { entries { media { id relations { edges { relationType(version: 2) node { id } } } } } } } """.trimIndent()
     }
 
     private fun missingSequelsAllListSourceQuery(): String {
         return """ MediaListCollection( userId: ${Anilist.userid}, type: ANIME ) { lists { entries { media { id } } } } """.trimIndent()
     }
 
-    private fun bannerAnimeQuery(): String =
-        """bannerAnime: MediaListCollection(userId: ${Anilist.userid}, type: ANIME, chunk:1, perChunk:25, sort: [SCORE_DESC,UPDATED_TIME_DESC]) { lists { entries { media { id bannerImage isAdult } } } }"""
+    private val batchSize = 50
+    private fun missingSequelsLookupQuery(ids: List<Int>): String {
+        val idsString = ids.joinToString(",")
+        return """ { Page(page: 1, perPage: $batchSize) { media( id_in: [$idsString], type: ANIME, status_in: [RELEASING, FINISHED], onList: false ) { id mediaListEntry { progress progressVolumes private score(format: POINT_100) status } idMal type isAdult popularity status(version: 2) chapters volumes episodes nextAiringEpisode { episode } meanScore isFavourite format bannerImage coverImage { large } title { english romaji userPreferred } startDate { year } } } } """.trimIndent()
+    }
 
-    private fun bannerMangaQuery(): String =
-        """bannerManga: MediaListCollection(userId: ${Anilist.userid}, type: MANGA, chunk:1, perChunk:25, sort: [SCORE_DESC,UPDATED_TIME_DESC]) { lists { entries { media { id bannerImage isAdult } } } }"""
+    private suspend fun fetchMissingSequelMedia(ids: Set<Int>): ArrayList<Media> {
+        if (ids.isEmpty()) return arrayListOf()
+        val response = executeQuery<Query.Page>(missingSequelsLookupQuery(ids.toList()))
+        val mediaList = response?.data?.page?.media?.mapNotNull { media ->
+            if (media.mediaListEntry == null) Media(media) else null
+        } ?: emptyList()
+        return ArrayList(mediaList)
+    }
 
     private fun loadUserStatusCache(): ArrayList<User>? {
         val cached = PrefManager.getNullableCustomVal(
@@ -598,9 +607,6 @@ class AnilistQueries {
     private fun continueMediaQuery(type: String, status: String): String {
         return """ MediaListCollection(userId: ${Anilist.userid}, type: $type, status: $status , sort: UPDATED_TIME ) { lists { entries { progress private score(format:POINT_100) status updatedAt media { id idMal type isAdult status chapters episodes nextAiringEpisode {episode} meanScore isFavourite format bannerImage coverImage{large} title { english romaji userPreferred } } } } } """
     }
-
-    var cachedAnimeBanner: String? = null
-    var cachedMangaBanner: String? = null
 
     suspend fun initHomePage(): Map<String, ArrayList<Media>> {
         val removeList = PrefManager.getCustomVal("removeList", setOf<Int>())
@@ -648,10 +654,6 @@ class AnilistQueries {
         if (toShow.getOrNull(8) == true) {
             queries.add("""missingSequelsCompletedQuery: ${missingSequelsCompletedSourceQuery()}""")
             queries.add("""missingSequelsAllListQuery: ${missingSequelsAllListSourceQuery()}""")
-        }
-        if (Anilist.userid != null) {
-            queries.add(bannerAnimeQuery())
-            queries.add(bannerMangaQuery())
         }
         if (queries.isEmpty() && toShow.getOrNull(8) != true) {
             return mutableMapOf("hidden" to arrayListOf())
@@ -804,25 +806,24 @@ class AnilistQueries {
             val allAnimeEntries =
                 response?.data?.missingSequelsAllListQuery?.lists?.flatMap { it.entries ?: emptyList() }
 
-            val allAnimeIds = allAnimeEntries?.mapNotNull { it.media?.id }?.toSet() ?: emptySet()
-            val seenIds = mutableSetOf<Int>()
-            val visibleSequels = arrayListOf<Media>()
-
+            val sequelIds = mutableSetOf<Int>()
             completedEntries?.forEach { entry ->
                 entry.media?.relations?.edges?.forEach { edge ->
-                    if (edge.relationType?.name != "SEQUEL") return@forEach
-                    val node = edge.node ?: return@forEach
-                    if (node.type?.name != "ANIME") return@forEach
-                    val id = node.id ?: return@forEach
-                    if (id in allAnimeIds) return@forEach
-                    if (node.status?.name == "NOT_YET_RELEASED") return@forEach
-                    if (!seenIds.add(id)) return@forEach
-                    val media = Media(node)
-                    if (media.id !in removeList && (!hidePrivate || !media.isListPrivate)) {
-                        visibleSequels.add(media)
-                    } else {
-                        removedMedia.add(media)
+                    if (edge.relationType?.name == "SEQUEL") {
+                        edge.node?.id?.let { sequelIds.add(it) }
                     }
+                }
+            }
+            val allAnimeIds = allAnimeEntries?.mapNotNull { it.media?.id }?.toSet() ?: emptySet()
+            val filteredSequelIds = sequelIds - allAnimeIds
+
+            val sequels = if (filteredSequelIds.isNotEmpty()) fetchMissingSequelMedia(filteredSequelIds) else arrayListOf()
+            val visibleSequels = arrayListOf<Media>()
+            sequels.forEach { sequel ->
+                if (sequel.id !in removeList && (!hidePrivate || !sequel.isListPrivate)) {
+                    visibleSequels.add(sequel)
+                } else {
+                    removedMedia.add(sequel)
                 }
             }
             returnMap["missingSequels"] = visibleSequels
