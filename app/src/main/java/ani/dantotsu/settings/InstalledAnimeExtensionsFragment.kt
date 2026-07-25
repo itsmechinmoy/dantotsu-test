@@ -70,27 +70,26 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
             var itemSelected = false
             val allSettings = pkg.sources.filterIsInstance<ConfigurableAnimeSource>()
             if (allSettings.isNotEmpty()) {
-                var selectedSetting = allSettings[0]
+                val openPrefFragment: (ConfigurableAnimeSource) -> Unit = { source ->
+                    changeUIVisibility(false)
+                    val fragment = AnimeSourcePreferencesFragment().getInstance(source.id) {
+                        changeUIVisibility(true)
+                    }
+                    parentFragmentManager.beginTransaction()
+                        .setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
+                        .replace(R.id.fragmentExtensionsContainer, fragment)
+                        .addToBackStack(null)
+                        .commit()
+                }
+
                 if (allSettings.size > 1) {
-                    val names = allSettings.map { getLanguageName(it.lang) }
-                        .toTypedArray()
+                    val names = allSettings.map { getLanguageName(it.lang) }.toTypedArray()
                     var selectedIndex = 0
                     requireContext().customAlertDialog().apply {
                         setTitle("Select a Source")
                         singleChoiceItems(names, selectedIndex) { which ->
                             itemSelected = true
-                            selectedIndex = which
-                            selectedSetting = allSettings[selectedIndex]
-
-                            val fragment =
-                                AnimeSourcePreferencesFragment().getInstance(selectedSetting.id) {
-                                    changeUIVisibility(true)
-                                }
-                            parentFragmentManager.beginTransaction()
-                                .setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
-                                .replace(R.id.fragmentExtensionsContainer, fragment)
-                                .addToBackStack(null)
-                                .commit()
+                            openPrefFragment(allSettings[which])
                         }
                         onDismiss {
                             if (!itemSelected) {
@@ -100,21 +99,8 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                         show()
                     }
                 } else {
-                    // If there's only one setting, proceed with the fragment transaction
-                    val fragment =
-                        AnimeSourcePreferencesFragment().getInstance(selectedSetting.id) {
-                            changeUIVisibility(true)
-                        }
-                    parentFragmentManager.beginTransaction()
-                        .setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
-                        .replace(R.id.fragmentExtensionsContainer, fragment)
-                        .addToBackStack(null)
-                        .commit()
-
+                    openPrefFragment(allSettings[0])
                 }
-
-                // Hide ViewPager2 and TabLayout
-                changeUIVisibility(false)
             } else {
                 Toast.makeText(requireContext(), "Source is not configurable", Toast.LENGTH_SHORT)
                     .show()
