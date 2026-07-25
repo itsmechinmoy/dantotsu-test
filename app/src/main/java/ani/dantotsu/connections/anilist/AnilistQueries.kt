@@ -853,8 +853,6 @@ class AnilistQueries {
             }
             return MAL.avatar
         }
-        val cached = if (type == "ANIME") cachedAnimeBanner else cachedMangaBanner
-        if (cached != null) return cached
 
         val image = BannerImage(
             PrefManager.getCustomVal("banner_${type}_url", ""),
