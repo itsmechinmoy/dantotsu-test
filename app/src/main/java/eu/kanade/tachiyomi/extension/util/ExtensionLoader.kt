@@ -680,15 +680,14 @@ internal object ExtensionLoader {
      * @param pkgInfo The package info of the application.
      */
     private fun isPackageAnExtension(type: MediaType, pkgInfo: PackageInfo): Boolean {
-
         return if (type == MediaType.NOVEL) {
             pkgInfo.packageName.startsWith("some.random")
         } else {
             pkgInfo.reqFeatures.orEmpty().any {
-                it.name == when (type) {
-                    MediaType.ANIME -> ANIME_PACKAGE
-                    MediaType.MANGA -> MANGA_PACKAGE
-                    else -> ""
+                when (type) {
+                    MediaType.ANIME -> it.name == ANIME_PACKAGE || it.name == "aniyomi.animeextension"
+                    MediaType.MANGA -> it.name == MANGA_PACKAGE
+                    else -> false
                 }
             }
         }
