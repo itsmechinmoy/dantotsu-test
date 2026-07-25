@@ -180,6 +180,23 @@ class SettingsCommonActivity : AppCompatActivity() {
                         ),
                         Settings(
                             type = 1,
+                            name = "Max Parallel Downloads",
+                            desc = "Concurrent download tasks (0 = Sequential, 1-10 = Concurrent). Note: High concurrency may trigger source rate limits.",
+                            icon = R.drawable.ic_download_24,
+                            onClick = {
+                                val options = arrayOf("0 (Off / Sequential)", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
+                                val current = PrefManager.getVal<Int>(PrefName.MaxParallelDownloads).coerceIn(0, 10)
+                                customAlertDialog().apply {
+                                    setTitle("Max Parallel Downloads")
+                                    singleChoiceItems(options, current) { which ->
+                                        PrefManager.setVal(PrefName.MaxParallelDownloads, which)
+                                    }
+                                    show()
+                                }
+                            },
+                        ),
+                        Settings(
+                            type = 1,
                             name = getString(R.string.app_lock),
                             desc = getString(R.string.app_lock_desc),
                             icon = R.drawable.ic_round_lock_open_24,
