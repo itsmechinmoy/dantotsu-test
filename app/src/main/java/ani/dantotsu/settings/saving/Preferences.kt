@@ -16,6 +16,7 @@ enum class PrefName(val data: Pref) {
     SharedUserID(Pref(Location.General, Boolean::class, true)),
     OfflineView(Pref(Location.General, Int::class, 0)),
     DownloadManager(Pref(Location.General, Int::class, 0)),
+    MaxParallelDownloads(Pref(Location.General, Int::class, 0)),
     NSFWExtension(Pref(Location.General, Boolean::class, true)),
     ContinueMedia(Pref(Location.General, Boolean::class, true)),
     SearchSources(Pref(Location.General, Boolean::class, false)),
