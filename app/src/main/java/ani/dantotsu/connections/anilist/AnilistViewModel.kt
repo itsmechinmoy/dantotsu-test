@@ -120,7 +120,6 @@ class AnilistHomeViewModel : ViewModel() {
         res["recommendations"]?.let { recommendation.postValue(it) }
         res["missingSequels"]?.let { missingSequels.postValue(it) }
         res["hidden"]?.let { hidden.postValue(it) }
-        setListImages()
     }
 
     private suspend fun initHomePageFromMAL() {
