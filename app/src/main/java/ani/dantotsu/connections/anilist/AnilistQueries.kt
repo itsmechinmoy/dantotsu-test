@@ -567,6 +567,10 @@ class AnilistQueries {
         return """ MediaListCollection( userId: ${Anilist.userid}, type: ANIME, status: COMPLETED, sort: UPDATED_TIME_DESC ) { lists { entries { media { id relations { edges { relationType(version: 2) node { id type isAdult status(version: 2) format popularity episodes meanScore isFavourite bannerImage coverImage { large } title { english romaji userPreferred } startDate { year } nextAiringEpisode { episode } mediaListEntry { progress private score(format: POINT_100) status } } } } } } } } """.trimIndent()
     }
 
+    private fun missingSequelsAllListSourceQuery(): String {
+        return """ MediaListCollection( userId: ${Anilist.userid}, type: ANIME ) { lists { entries { media { id } } } } """.trimIndent()
+    }
+
     private fun bannerAnimeQuery(): String =
         """bannerAnime: MediaListCollection(userId: ${Anilist.userid}, type: ANIME, chunk:1, perChunk:25, sort: [SCORE_DESC,UPDATED_TIME_DESC]) { lists { entries { media { id bannerImage isAdult } } } }"""
 
@@ -643,6 +647,7 @@ class AnilistQueries {
         }
         if (toShow.getOrNull(8) == true) {
             queries.add("""missingSequelsCompletedQuery: ${missingSequelsCompletedSourceQuery()}""")
+            queries.add("""missingSequelsAllListQuery: ${missingSequelsAllListSourceQuery()}""")
         }
         if (Anilist.userid != null) {
             queries.add(bannerAnimeQuery())
@@ -796,7 +801,10 @@ class AnilistQueries {
         if (toShow.getOrNull(8) == true) {
             val completedEntries =
                 response?.data?.missingSequelsCompletedQuery?.lists?.flatMap { it.entries ?: emptyList() }
+            val allAnimeEntries =
+                response?.data?.missingSequelsAllListQuery?.lists?.flatMap { it.entries ?: emptyList() }
 
+            val allAnimeIds = allAnimeEntries?.mapNotNull { it.media?.id }?.toSet() ?: emptySet()
             val seenIds = mutableSetOf<Int>()
             val visibleSequels = arrayListOf<Media>()
 
@@ -805,9 +813,9 @@ class AnilistQueries {
                     if (edge.relationType?.name != "SEQUEL") return@forEach
                     val node = edge.node ?: return@forEach
                     if (node.type?.name != "ANIME") return@forEach
-                    if (node.mediaListEntry != null) return@forEach
-                    if (node.status?.name == "NOT_YET_RELEASED") return@forEach
                     val id = node.id ?: return@forEach
+                    if (id in allAnimeIds) return@forEach
+                    if (node.status?.name == "NOT_YET_RELEASED") return@forEach
                     if (!seenIds.add(id)) return@forEach
                     val media = Media(node)
                     if (media.id !in removeList && (!hidePrivate || !media.isListPrivate)) {
