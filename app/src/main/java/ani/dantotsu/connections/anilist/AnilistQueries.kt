@@ -898,15 +898,6 @@ class AnilistQueries {
     }
 
     suspend fun getBannerImages(): ArrayList<String?> {
-        if (!PrefManager.getVal<Boolean>(PrefName.RescueMode)) {
-            val anime = cachedAnimeBanner
-                ?: PrefManager.getCustomVal("banner_ANIME_url", "").takeIf { it.isNotEmpty() }
-            val manga = cachedMangaBanner
-                ?: PrefManager.getCustomVal("banner_MANGA_url", "").takeIf { it.isNotEmpty() }
-            if (anime != null || manga != null) {
-                return arrayListOf(anime ?: "https://bit.ly/31bsIHq", manga ?: "https://bit.ly/2ZGfcuG")
-            }
-        }
         return coroutineScope {
             val anime = async { bannerImage("ANIME") }
             val manga = async { bannerImage("MANGA") }
