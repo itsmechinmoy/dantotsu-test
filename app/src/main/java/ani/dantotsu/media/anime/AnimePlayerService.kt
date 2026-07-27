@@ -16,7 +16,6 @@ class AnimePlayerService : MediaSessionService() {
         super.onCreate()
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelName(R.string.video)
-            .setSmallIcon(R.drawable.mono)
             .build()
         setMediaNotificationProvider(notificationProvider)
     }
