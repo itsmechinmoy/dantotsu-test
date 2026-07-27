@@ -398,7 +398,8 @@ class MediaAdaptor(
 
     fun clicked(position: Int, itemCompactImage: ImageView?, bitmap: Bitmap? = null) {
         if ((mediaList?.size ?: 0) > position && position != -1) {
-            val media = mediaList?.get(position)
+            val media = mediaList?.get(position) ?: return
+            if (media.id < 0) return
             if (bitmap != null) MediaSingleton.bitmap = bitmap
             ContextCompat.startActivity(
                 activity,
@@ -424,6 +425,7 @@ class MediaAdaptor(
         if (isOtherUser) return false
         if ((mediaList?.size ?: 0) > position && position != -1) {
             val media = mediaList?.get(position) ?: return false
+            if (media.id < 0) return false
             if (activity.supportFragmentManager.findFragmentByTag("list") == null) {
                 MediaListDialogSmallFragment.newInstance(media)
                     .show(activity.supportFragmentManager, "list")
