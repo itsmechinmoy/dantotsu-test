@@ -296,6 +296,7 @@ class HomeFragment : Fragment() {
             mode.observe(viewLifecycleOwner) {
                 if (it != null) {
                     if (it.isNotEmpty()) {
+                        empty.visibility = View.GONE
                         recyclerView.adapter = MediaAdaptor(0, it, requireActivity())
                         recyclerView.layoutManager = LinearLayoutManager(
                             requireContext(),
