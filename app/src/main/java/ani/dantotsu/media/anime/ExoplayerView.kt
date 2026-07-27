@@ -1905,7 +1905,7 @@ class ExoplayerView :
         val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
             .setTitle(media.userPreferredName)
             .setArtist(epTitle)
-            .setArtworkUri(media.cover?.let { androidx.core.net.toUri(it) })
+            .setArtworkUri(media.cover?.let { android.net.Uri.parse(it) })
             .build()
         mediaItem = mediaItem.buildUpon().setMediaMetadata(mediaMetadata).build()
 
