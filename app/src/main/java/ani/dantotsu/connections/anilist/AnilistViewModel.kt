@@ -116,18 +116,25 @@ class AnilistHomeViewModel : ViewModel() {
             if (cachedRes != null) {
                 postHomePageData(cachedRes)
                 CoroutineScope(Dispatchers.IO).launch {
-                    val freshRes = Anilist.query.initHomePage()
-                    Anilist.query.saveHomePageCache(freshRes)
-                    withContext(Dispatchers.Main) {
-                        postHomePageData(freshRes)
+                    try {
+                        val freshRes = Anilist.query.initHomePage()
+                        if (freshRes.isNotEmpty()) {
+                            Anilist.query.saveHomePageCache(freshRes)
+                            withContext(Dispatchers.Main) {
+                                postHomePageData(freshRes)
+                            }
+                        }
+                    } catch (_: Exception) {
                     }
                 }
                 return
             }
         }
         val res = Anilist.query.initHomePage()
-        Anilist.query.saveHomePageCache(res)
-        postHomePageData(res)
+        if (res.isNotEmpty()) {
+            Anilist.query.saveHomePageCache(res)
+            postHomePageData(res)
+        }
     }
 
     private fun postHomePageData(res: Map<String, ArrayList<Media>>) {
