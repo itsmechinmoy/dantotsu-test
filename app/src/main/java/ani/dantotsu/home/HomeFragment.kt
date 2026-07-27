@@ -651,7 +651,8 @@ class HomeFragment : Fragment() {
                     }
 
                     val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
-                    val initHomePage = async(Dispatchers.IO) { model.initHomePage() }
+                    val isPullToRefresh = _binding?.homeRefresh?.isRefreshing == true
+                    val initHomePage = async(Dispatchers.IO) { model.initHomePage(forceRefresh = isPullToRefresh) }
                     async(Dispatchers.IO) { model.setListImages() }
                     if (!rescueMode) {
                         async(Dispatchers.IO) { model.initUserStatus() }
