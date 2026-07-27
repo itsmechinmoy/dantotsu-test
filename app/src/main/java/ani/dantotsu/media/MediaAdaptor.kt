@@ -93,9 +93,22 @@ class MediaAdaptor(
                 setAnimation(activity, b.root)
                 val media = mediaList?.getOrNull(position)
                 if (media != null) {
+                    val density = activity.resources.displayMetrics.density
                     if (media.id < 0) {
+                        b.itemCompactTitle.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                            width = (108 * density).toInt()
+                            height = (12 * density).toInt()
+                            bottomMargin = (4 * density).toInt()
+                            topMargin = (4 * density).toInt()
+                        }
                         b.itemCompactTitle.background = ContextCompat.getDrawable(b.root.context, R.drawable.skeleton_text_placeholder)
                         b.itemCompactTitle.text = ""
+
+                        b.itemCompactProgressContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                            width = (54 * density).toInt()
+                            height = (8 * density).toInt()
+                            topMargin = (2 * density).toInt()
+                        }
                         b.itemCompactProgressContainer.background = ContextCompat.getDrawable(b.root.context, R.drawable.skeleton_stats_placeholder)
                         b.itemCompactUserProgress.text = ""
                         b.itemCompactTotal.text = ""
@@ -104,7 +117,19 @@ class MediaAdaptor(
                         b.itemCompactType.isVisible = false
                         b.itemCompactImage.setImageResource(R.drawable.skeleton_cover_placeholder)
                     } else {
+                        b.itemCompactTitle.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                            width = (108 * density).toInt()
+                            height = ViewGroup.LayoutParams.WRAP_CONTENT
+                            bottomMargin = 0
+                            topMargin = 0
+                        }
                         b.itemCompactTitle.background = null
+
+                        b.itemCompactProgressContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                            width = ViewGroup.LayoutParams.MATCH_PARENT
+                            height = ViewGroup.LayoutParams.WRAP_CONTENT
+                            topMargin = 0
+                        }
                         b.itemCompactProgressContainer.background = null
                         b.itemCompactScoreBG.isVisible = true
                         b.itemCompactImage.loadImage(media.cover)
