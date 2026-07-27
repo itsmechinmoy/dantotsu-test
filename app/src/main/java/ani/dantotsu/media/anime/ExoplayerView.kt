@@ -1901,6 +1901,14 @@ class ExoplayerView :
                 }
             }
 
+        val epTitle = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: "Episode ${episode.number}"
+        val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(media.userPreferredName)
+            .setArtist(epTitle)
+            .setArtworkUri(media.cover?.let { androidx.core.net.toUri(it) })
+            .build()
+        mediaItem = mediaItem.buildUpon().setMediaMetadata(mediaMetadata).build()
+
         val audioMediaItem = mutableListOf<MediaItem>()
         audioLanguages.clear()
         ext.audioTracks.forEach {
@@ -2141,9 +2149,19 @@ class ExoplayerView :
                     .Builder(this, exoPlayer)
                     .setId(rightNow.timeInMillis.toString())
                     .build()
+            mediaSession?.let { AnimePlayerService.start(this, it) }
         } catch (e: Exception) {
             toast(e.toString())
         }
+
+        val currentEpTitle = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: "Episode ${episode.number}"
+        ani.dantotsu.widgets.continue_widget.ContinueWidget.updatePlaybackState(
+            this,
+            media.userPreferredName,
+            media.cover,
+            currentEpTitle,
+            isExiting = false
+        )
 
         exoPlayer.addListener(this)
         exoPlayer.addAnalyticsListener(EventLogger())
@@ -2174,7 +2192,16 @@ class ExoplayerView :
         exoSubtitleView.setCues(emptyList())
         exoPlayer.release()
         VideoCache.release()
+        AnimePlayerService.stop(this)
         mediaSession?.release()
+        mediaSession = null
+        ani.dantotsu.widgets.continue_widget.ContinueWidget.updatePlaybackState(
+            this,
+            media.userPreferredName,
+            media.cover,
+            episodeTitleArr.getOrNull(currentEpisodeIndex),
+            isExiting = true
+        )
         RPCManager.clearPresence(this)
     }
 
