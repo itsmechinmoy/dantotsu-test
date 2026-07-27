@@ -688,6 +688,9 @@ class AnilistQueries {
             val query = "{${queries.joinToString(",")}}"
             executeQuery<Query.HomePageMedia>(query, show = true)
         }
+        if (queries.isNotEmpty() && response == null) {
+            return emptyMap()
+        }
 
         val returnMap = mutableMapOf<String, ArrayList<Media>>()
 
