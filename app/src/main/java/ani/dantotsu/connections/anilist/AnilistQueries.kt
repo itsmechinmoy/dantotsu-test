@@ -58,6 +58,29 @@ class AnilistQueries {
         val cachedAt: Long
     ) : Serializable
 
+    private data class HomePageCache(
+        val data: Map<String, ArrayList<Media>>,
+        val cachedAt: Long
+    ) : Serializable
+
+    fun loadHomePageCache(): Map<String, ArrayList<Media>>? {
+        val cached = PrefManager.getNullableCustomVal(
+            "home_page_cache",
+            null,
+            HomePageCache::class.java
+        ) ?: return null
+        val cacheExpired = System.currentTimeMillis() - cached.cachedAt > 15 * 60 * 1000L
+        if (cacheExpired) return null
+        return cached.data
+    }
+
+    fun saveHomePageCache(data: Map<String, ArrayList<Media>>) {
+        PrefManager.setCustomVal(
+            "home_page_cache",
+            HomePageCache(data, System.currentTimeMillis())
+        )
+    }
+
     suspend fun getUserData(): Boolean {
         val response: Query.Viewer?
         measureTimeMillis {
