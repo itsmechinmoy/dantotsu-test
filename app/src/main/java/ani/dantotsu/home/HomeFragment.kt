@@ -589,8 +589,10 @@ class HomeFragment : Fragment() {
                                     }
                                 }
                             } else {
-                                getUserId(requireContext()) {
-                                    load()
+                                launch(Dispatchers.Main) {
+                                    getUserId(requireContext()) {
+                                        load()
+                                    }
                                 }
                             }
                         }
