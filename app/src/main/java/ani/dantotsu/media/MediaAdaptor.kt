@@ -93,56 +93,71 @@ class MediaAdaptor(
                 setAnimation(activity, b.root)
                 val media = mediaList?.getOrNull(position)
                 if (media != null) {
-                    b.itemCompactImage.loadImage(media.cover)
-                    b.itemCompactOngoing.isVisible =
-                        media.status == currActivity()!!.getString(R.string.status_releasing)
-                    b.itemCompactTitle.text = media.userPreferredName
-                    b.itemCompactScore.text =
-                        ((if (media.userScore == 0) (media.meanScore
-                            ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.background = ContextCompat.getDrawable(
-                        b.root.context,
-                        (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
-                    )
-                    b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
-                    if (media.relation != null) {
-                        b.itemCompactRelation.text = "${media.relation}  "
-                        b.itemCompactType.visibility = View.VISIBLE
+                    if (media.id < 0) {
+                        b.itemCompactTitle.background = ContextCompat.getDrawable(b.root.context, R.drawable.skeleton_text_placeholder)
+                        b.itemCompactTitle.text = ""
+                        b.itemCompactProgressContainer.background = ContextCompat.getDrawable(b.root.context, R.drawable.skeleton_stats_placeholder)
+                        b.itemCompactUserProgress.text = ""
+                        b.itemCompactTotal.text = ""
+                        b.itemCompactScoreBG.isVisible = false
+                        b.itemCompactOngoing.isVisible = false
+                        b.itemCompactType.isVisible = false
+                        b.itemCompactImage.setImageResource(R.drawable.skeleton_cover_placeholder)
+                    } else {
+                        b.itemCompactTitle.background = null
+                        b.itemCompactProgressContainer.background = null
+                        b.itemCompactScoreBG.isVisible = true
+                        b.itemCompactImage.loadImage(media.cover)
+                        b.itemCompactOngoing.isVisible =
+                            media.status == currActivity()!!.getString(R.string.status_releasing)
+                        b.itemCompactTitle.text = media.userPreferredName
+                        b.itemCompactScore.text =
+                            ((if (media.userScore == 0) (media.meanScore
+                                ?: 0) else media.userScore) / 10.0).toString()
+                        b.itemCompactScoreBG.background = ContextCompat.getDrawable(
+                            b.root.context,
+                            (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
+                        )
+                        b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
+                        if (media.relation != null) {
+                            b.itemCompactRelation.text = "${media.relation}  "
+                            b.itemCompactType.visibility = View.VISIBLE
 
-                        if (media.relation!!.contains("\n")) {
-                            b.itemCompactRelation.apply {
-                                isSingleLine = false
-                                maxLines = 2
-                                ellipsize = TextUtils.TruncateAt.START
+                            if (media.relation!!.contains("\n")) {
+                                b.itemCompactRelation.apply {
+                                    isSingleLine = false
+                                    maxLines = 2
+                                    ellipsize = TextUtils.TruncateAt.START
 
-                                includeFontPadding = false
-                                setLineSpacing(0f, 0.9f)
+                                    includeFontPadding = false
+                                    setLineSpacing(0f, 0.9f)
+                                }
+                            } else {
+                                b.itemCompactRelation.isSingleLine = true
+                                b.itemCompactRelation.maxLines = 1
                             }
                         } else {
-                            b.itemCompactRelation.isSingleLine = true
-                            b.itemCompactRelation.maxLines = 1
+                            b.itemCompactType.visibility = View.GONE
                         }
-                    } else {
-                        b.itemCompactType.visibility = View.GONE
-                    }
-                    
-                    if (media.anime != null) {
-                        if (media.relation != null) b.itemCompactTypeImage.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                activity,
-                                R.drawable.ic_round_movie_filter_24
+                        
+                        if (media.anime != null) {
+                            if (media.relation != null) b.itemCompactTypeImage.setImageDrawable(
+                                AppCompatResources.getDrawable(
+                                    activity,
+                                    R.drawable.ic_round_movie_filter_24
+                                )
                             )
-                        )
-                        b.itemCompactTotal.text =
-                            " | ${if (media.anime.nextAiringEpisode != null) (media.anime.nextAiringEpisode.toString() + " | " + (media.anime.totalEpisodes ?: "~").toString()) else (media.anime.totalEpisodes ?: "~").toString()}"
-                    } else if (media.manga != null) {
-                        if (media.relation != null) b.itemCompactTypeImage.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                activity,
-                                R.drawable.ic_round_import_contacts_24
+                            b.itemCompactTotal.text =
+                                " | ${if (media.anime.nextAiringEpisode != null) (media.anime.nextAiringEpisode.toString() + " | " + (media.anime.totalEpisodes ?: "~").toString()) else (media.anime.totalEpisodes ?: "~").toString()}"
+                        } else if (media.manga != null) {
+                            if (media.relation != null) b.itemCompactTypeImage.setImageDrawable(
+                                AppCompatResources.getDrawable(
+                                    activity,
+                                    R.drawable.ic_round_import_contacts_24
+                                )
                             )
-                        )
-                        b.itemCompactTotal.text = " | ${media.manga.totalChapters ?: "~"}"
+                            b.itemCompactTotal.text = " | ${media.manga.totalChapters ?: "~"}"
+                        }
                     }
                     b.itemCompactProgressContainer.visibility = if (fav) View.GONE else View.VISIBLE
                 }
