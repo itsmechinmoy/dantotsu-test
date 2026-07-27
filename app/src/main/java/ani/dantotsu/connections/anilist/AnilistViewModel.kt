@@ -104,13 +104,32 @@ class AnilistHomeViewModel : ViewModel() {
 
     fun getHidden(): LiveData<ArrayList<Media>> = hidden
 
-    suspend fun initHomePage() {
+    suspend fun initHomePage(forceRefresh: Boolean = false) {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         if (rescueMode) {
             initHomePageFromMAL()
             return
         }
+        if (!forceRefresh) {
+            val cachedRes = Anilist.query.loadHomePageCache()
+            if (cachedRes != null) {
+                postHomePageData(cachedRes)
+                CoroutineScope(Dispatchers.IO).launch {
+                    val freshRes = Anilist.query.initHomePage()
+                    Anilist.query.saveHomePageCache(freshRes)
+                    withContext(Dispatchers.Main) {
+                        postHomePageData(freshRes)
+                    }
+                }
+                return
+            }
+        }
         val res = Anilist.query.initHomePage()
+        Anilist.query.saveHomePageCache(res)
+        postHomePageData(res)
+    }
+
+    private fun postHomePageData(res: Map<String, ArrayList<Media>>) {
         res["currentAnime"]?.let { animeContinue.postValue(it) }
         res["favoriteAnime"]?.let { animeFav.postValue(it) }
         res["currentAnimePlanned"]?.let { animePlanned.postValue(it) }
