@@ -238,17 +238,34 @@ class HomeFragment : Fragment() {
         }
 
         //UserData
-        binding.homeUserDataProgressBar.visibility = View.VISIBLE
-        binding.homeUserDataContainer.visibility = View.GONE
-        if (model.loaded) {
-            load()
-        }
+        load()
         //List Images
         model.getListImages().observe(viewLifecycleOwner) {
             if (it.isNotEmpty()) {
                 binding.homeAnimeListImage.loadImage(it[0] ?: "https://bit.ly/31bsIHq")
                 binding.homeMangaListImage.loadImage(it[1] ?: "https://bit.ly/2ZGfcuG")
             }
+        }
+
+        fun getSkeletonMediaList(count: Int = 7): ArrayList<Media> {
+            val list = ArrayList<Media>()
+            for (i in 0 until count) {
+                list.add(
+                    Media(
+                        anime = ani.dantotsu.media.anime.Anime(),
+                        manga = null,
+                        id = -100 - i,
+                        name = "•••",
+                        nameRomaji = "•••",
+                        userPreferredName = "••••••••••••",
+                        cover = null,
+                        isAdult = false,
+                        meanScore = 0,
+                        userProgress = 0
+                    )
+                )
+            }
+            return list
         }
 
         //Function For Recycler Views
@@ -263,15 +280,20 @@ class HomeFragment : Fragment() {
             string: String
         ) {
             container.visibility = View.VISIBLE
-            progress.visibility = View.VISIBLE
-            recyclerView.visibility = View.GONE
+            progress.visibility = View.GONE
             empty.visibility = View.GONE
-            title.visibility = View.INVISIBLE
-            more.visibility = View.INVISIBLE
+            title.visibility = View.VISIBLE
+            more.visibility = View.VISIBLE
+            recyclerView.visibility = View.VISIBLE
+
+            recyclerView.adapter = MediaAdaptor(0, getSkeletonMediaList(), requireActivity())
+            recyclerView.layoutManager = LinearLayoutManager(
+                requireContext(),
+                LinearLayoutManager.HORIZONTAL,
+                false
+            )
 
             mode.observe(viewLifecycleOwner) {
-                recyclerView.visibility = View.GONE
-                empty.visibility = View.GONE
                 if (it != null) {
                     if (it.isNotEmpty()) {
                         recyclerView.adapter = MediaAdaptor(0, it, requireActivity())
@@ -293,13 +315,9 @@ class HomeFragment : Fragment() {
                             LayoutAnimationController(setSlideIn(), 0.25f)
 
                     } else {
+                        recyclerView.visibility = View.GONE
                         empty.visibility = View.VISIBLE
                     }
-                    more.visibility = View.VISIBLE
-                    title.visibility = View.VISIBLE
-                    more.startAnimation(setSlideUp())
-                    title.startAnimation(setSlideUp())
-                    progress.visibility = View.GONE
                 }
             }
 
