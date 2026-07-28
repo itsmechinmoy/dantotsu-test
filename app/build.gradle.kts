@@ -196,3 +196,19 @@ dependencies {
     implementation(libs.libtorrent4j.android.x86)
     implementation(libs.libtorrent4j.android.x86.x64)
 }
+
+val unpackVips by tasks.registering(Copy::class) {
+    val jniDir = layout.projectDirectory.dir("src/main/jniLibs")
+    val zipFile = layout.projectDirectory.file("libs/libvips-android.zip")
+
+    onlyIf {
+        zipFile.asFile.exists() && !jniDir.file("include/vips/vips.h").asFile.exists()
+    }
+
+    from(zipTree(zipFile))
+    into(jniDir)
+}
+
+tasks.named("preBuild") {
+    dependsOn(unpackVips)
+}
