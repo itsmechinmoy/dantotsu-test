@@ -151,12 +151,18 @@ class ContinueWidget : AppWidgetProvider() {
                 }
             }
 
+            val widgetPrefs = context.getSharedPreferences("ani.dantotsu.widgets.UpcomingWidget", Context.MODE_PRIVATE)
+            val backgroundColor = widgetPrefs.getInt("background_color", Color.parseColor("#80000000"))
+            val backgroundFade = widgetPrefs.getInt("background_fade", Color.parseColor("#00000000"))
+            val titleTextColor = widgetPrefs.getInt("title_text_color", Color.WHITE)
+            val subtitleTextColor = widgetPrefs.getInt("countdown_text_color", Color.WHITE)
+
             val gradientDrawable = ResourcesCompat.getDrawable(
                 context.resources,
                 R.drawable.linear_gradient_black,
                 null
             ) as GradientDrawable
-            gradientDrawable.colors = intArrayOf(Color.parseColor("#80000000"), Color.parseColor("#00000000"))
+            gradientDrawable.colors = intArrayOf(backgroundColor, backgroundFade)
             gradientDrawable.cornerRadius = 0f
             val backgroundBitmap = gradientDrawable.toBitmap(720, 360)
 
@@ -165,6 +171,11 @@ class ContinueWidget : AppWidgetProvider() {
                 setTextViewText(R.id.widget_status_header, headerText)
                 setTextViewText(R.id.widget_title, titleText)
                 setTextViewText(R.id.widget_subtitle, detailText)
+
+                setTextColor(R.id.widget_title, titleTextColor)
+                setTextColor(R.id.widget_status_header, subtitleTextColor)
+                setTextColor(R.id.widget_subtitle, subtitleTextColor)
+                setInt(R.id.widget_logo, "setColorFilter", titleTextColor)
 
                 val intent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
