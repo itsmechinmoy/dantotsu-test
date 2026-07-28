@@ -198,19 +198,48 @@ dependencies {
     implementation(libs.libtorrent4j.android.x86.x64)
 }
 
-val unpackVips by tasks.registering(Copy::class) {
-    val jniDir = layout.projectDirectory.dir("src/main/jniLibs")
-    val zipFile = layout.projectDirectory.file("libs/libvips-android.zip")
+abstract class UnpackVipsTask @javax.inject.Inject constructor(
+    private val archiveOperations: ArchiveOperations,
+    private val fileSystemOperations: FileSystemOperations
+) : DefaultTask() {
 
-    onlyIf {
-        val f = zipFile.asFile
-        f.exists() && f.length() > 1_000_000L && !jniDir.file("include/vips/vips.h").asFile.exists()
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val zipFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val jniDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val cppDir: DirectoryProperty
+
+    @TaskAction
+    fun unpack() {
+        val zipTree = archiveOperations.zipTree(zipFile.get())
+        fileSystemOperations.copy {
+            from(zipTree) {
+                exclude("include/**")
+            }
+            into(jniDir)
+        }
+        fileSystemOperations.copy {
+            from(zipTree) {
+                include("include/**")
+            }
+            into(cppDir)
+        }
     }
-
-    from(zipTree(zipFile))
-    into(jniDir)
 }
 
+val unpackVips by tasks.registering(UnpackVipsTask::class) {
+    zipFile.set(layout.projectDirectory.file("libs/libvips-android.zip"))
+    jniDir.set(layout.projectDirectory.dir("src/main/jniLibs"))
+    cppDir.set(layout.projectDirectory.dir("src/main/cpp"))
+    onlyIf {
+        val f = zipFile.get().asFile
+        f.exists() && f.length() > 1_000_000L && !jniDir.get().file("arm64-v8a/libvips.so").asFile.exists()
+    }
+}
 
 tasks.named("preBuild") {
     dependsOn(unpackVips)
