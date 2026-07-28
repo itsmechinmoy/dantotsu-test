@@ -27,7 +27,7 @@
             android:layout_height="76dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:scaleType="centerCrop"
+            android:scaleType="fitXY"
             android:src="@drawable/ic_dantotsu_round"
             tools:ignore="ContentDescription" />
 
