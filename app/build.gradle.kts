@@ -35,7 +35,7 @@ android {
 
     defaultConfig {
         applicationId = "ani.dantotsu"
-        minSdk = 26
+        minSdk = 21
         targetSdk = 36
 
         versionName = "3.2.2"
@@ -112,7 +112,6 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
             pickFirsts.add("**/libavcodec.so")
             pickFirsts.add("**/libavdevice.so")
             pickFirsts.add("**/libavfilter.so")
@@ -203,12 +202,14 @@ val unpackVips by tasks.registering(Copy::class) {
     val zipFile = layout.projectDirectory.file("libs/libvips-android.zip")
 
     onlyIf {
-        zipFile.asFile.exists() && !jniDir.file("include/vips/vips.h").asFile.exists()
+        val f = zipFile.asFile
+        f.exists() && f.length() > 1_000_000L && !jniDir.file("include/vips/vips.h").asFile.exists()
     }
 
     from(zipTree(zipFile))
     into(jniDir)
 }
+
 
 tasks.named("preBuild") {
     dependsOn(unpackVips)
