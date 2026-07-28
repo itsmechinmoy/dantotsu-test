@@ -6,7 +6,14 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.drawable.GradientDrawable
 import android.widget.RemoteViews
 import androidx.core.content.res.ResourcesCompat
@@ -111,6 +118,44 @@ class ContinueWidget : AppWidgetProvider() {
             }
         }
 
+        private fun getRoundedCroppedBitmap(
+            bitmap: Bitmap,
+            targetWidth: Int,
+            targetHeight: Int,
+            cornerRadiusDp: Float,
+            density: Float
+        ): Bitmap {
+            val cornerRadiusPx = cornerRadiusDp * density
+            val output = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(output)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+            val scale: Float
+            var dx = 0f
+            var dy = 0f
+
+            if (bitmap.width * targetHeight > targetWidth * bitmap.height) {
+                scale = targetHeight.toFloat() / bitmap.height.toFloat()
+                dx = (targetWidth - bitmap.width * scale) * 0.5f
+            } else {
+                scale = targetWidth.toFloat() / bitmap.width.toFloat()
+                dy = (targetHeight - bitmap.height * scale) * 0.5f
+            }
+
+            val matrix = Matrix()
+            matrix.setScale(scale, scale)
+            matrix.postTranslate(dx, dy)
+
+            val shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+            shader.setLocalMatrix(matrix)
+            paint.shader = shader
+
+            val rect = RectF(0f, 0f, targetWidth.toFloat(), targetHeight.toFloat())
+            canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, paint)
+
+            return output
+        }
+
         fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -193,10 +238,14 @@ class ContinueWidget : AppWidgetProvider() {
 
             if (!coverUrl.isNullOrEmpty()) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    val bitmap = BitmapUtil.downloadImageAsBitmap(coverUrl)
-                    if (bitmap != null) {
+                    val rawBitmap = BitmapUtil.downloadImageAsBitmap(coverUrl)
+                    if (rawBitmap != null) {
+                        val density = context.resources.displayMetrics.density
+                        val targetW = (56 * density).toInt().coerceAtLeast(1)
+                        val targetH = (76 * density).toInt().coerceAtLeast(1)
+                        val roundedBitmap = getRoundedCroppedBitmap(rawBitmap, targetW, targetH, 12f, density)
                         withContext(Dispatchers.Main) {
-                            views.setImageViewBitmap(R.id.widget_cover, bitmap)
+                            views.setImageViewBitmap(R.id.widget_cover, roundedBitmap)
                             appWidgetManager.updateAppWidget(appWidgetId, views)
                         }
                     }
