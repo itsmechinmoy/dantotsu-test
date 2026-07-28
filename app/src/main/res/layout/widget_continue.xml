@@ -28,7 +28,7 @@
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
             android:scaleType="fitXY"
-            android:src="@drawable/ic_dantotsu_round"
+            android:src="@drawable/mono"
             tools:ignore="ContentDescription" />
 
         <LinearLayout
@@ -58,7 +58,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:fontFamily="@font/poppins_bold"
-                    android:text="@string/continue_watching"
+                    android:text="LAST WATCHED"
                     android:textColor="#BBBBBB"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -73,7 +73,7 @@
                 android:ellipsize="end"
                 android:fontFamily="@font/poppins_bold"
                 android:maxLines="1"
-                android:text="Dantotsu"
+                android:text="Attack on Titan"
                 android:textColor="#FFFFFF"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -86,7 +86,7 @@
                 android:ellipsize="end"
                 android:fontFamily="@font/poppins"
                 android:maxLines="1"
-                android:text="Tap to resume"
+                android:text="Episode 1 - To You, 2000 Years Later"
                 android:textColor="#DDDDDD"
                 android:textSize="12sp" />
 
