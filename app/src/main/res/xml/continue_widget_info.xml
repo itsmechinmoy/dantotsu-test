@@ -5,6 +5,7 @@
     android:initialLayout="@layout/widget_continue"
     android:minWidth="160dp"
     android:minHeight="80dp"
+    android:previewImage="@drawable/continue_widget_preview"
     android:previewLayout="@layout/widget_continue"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
