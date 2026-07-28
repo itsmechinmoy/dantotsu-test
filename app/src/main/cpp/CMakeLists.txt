@@ -25,8 +25,8 @@ set_target_properties(gobject PROPERTIES IMPORTED_LOCATION
 
 # Include directories
 target_include_directories(dantotsuvips PRIVATE
-                           ${CMAKE_SOURCE_DIR}/../jniLibs/include
-                           ${CMAKE_SOURCE_DIR}/../jniLibs/include/glib-2.0)
+                           ${CMAKE_SOURCE_DIR}/include
+                           ${CMAKE_SOURCE_DIR}/include/glib-2.0)
 
 target_link_libraries(dantotsuvips
                       vips
