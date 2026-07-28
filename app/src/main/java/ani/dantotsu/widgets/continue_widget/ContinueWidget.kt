@@ -10,6 +10,8 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.widget.RemoteViews
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import ani.dantotsu.MainActivity
@@ -168,9 +170,11 @@ class ContinueWidget : AppWidgetProvider() {
 
             if (!coverUrl.isNullOrEmpty()) {
                 try {
+                    val cornerRadiusPx = (12 * context.resources.displayMetrics.density).toInt()
                     Glide.with(context.applicationContext)
                         .asBitmap()
                         .load(coverUrl)
+                        .transform(CenterCrop(), RoundedCorners(cornerRadiusPx))
                         .into(object : CustomTarget<Bitmap>() {
                             override fun onResourceReady(
                                 resource: Bitmap,
