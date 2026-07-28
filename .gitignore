@@ -41,5 +41,6 @@ crowdin.yml
 #vscode
 .vscode
 
-# Native prebuilts (unpacked at build time from app/libs/libvips-android.zip)
+# Native prebuilts & headers (unpacked at build time from app/libs/libvips-android.zip)
 app/src/main/jniLibs/
+app/src/main/cpp/include/
