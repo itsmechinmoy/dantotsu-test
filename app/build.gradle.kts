@@ -119,6 +119,7 @@ android {
             pickFirsts.add("**/libavutil.so")
             pickFirsts.add("**/libswresample.so")
             pickFirsts.add("**/libswscale.so")
+            useLegacyPackaging = true
         }
     }
 
