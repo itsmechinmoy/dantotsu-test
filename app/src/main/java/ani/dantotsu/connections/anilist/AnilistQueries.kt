@@ -69,7 +69,7 @@ class AnilistQueries {
             null,
             HomePageCache::class.java
         ) ?: return null
-        val cacheExpired = System.currentTimeMillis() - cached.cachedAt > 15 * 60 * 1000L
+        val cacheExpired = System.currentTimeMillis() - cached.cachedAt > 3 * 60 * 60 * 1000L
         if (cacheExpired) return null
         return cached.data
     }
