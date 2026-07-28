@@ -6,16 +6,18 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.widget.RemoteViews
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import ani.dantotsu.MainActivity
 import ani.dantotsu.R
+import ani.dantotsu.util.BitmapUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ContinueWidget : AppWidgetProvider() {
 
@@ -149,7 +151,17 @@ class ContinueWidget : AppWidgetProvider() {
                 }
             }
 
+            val gradientDrawable = ResourcesCompat.getDrawable(
+                context.resources,
+                R.drawable.linear_gradient_black,
+                null
+            ) as GradientDrawable
+            gradientDrawable.colors = intArrayOf(Color.parseColor("#80000000"), Color.parseColor("#00000000"))
+            gradientDrawable.cornerRadius = 0f
+            val backgroundBitmap = gradientDrawable.toBitmap(720, 360)
+
             val views = RemoteViews(context.packageName, R.layout.widget_continue).apply {
+                setImageViewBitmap(R.id.widget_background, backgroundBitmap)
                 setTextViewText(R.id.widget_status_header, headerText)
                 setTextViewText(R.id.widget_title, titleText)
                 setTextViewText(R.id.widget_subtitle, detailText)
@@ -169,25 +181,14 @@ class ContinueWidget : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(appWidgetId, views)
 
             if (!coverUrl.isNullOrEmpty()) {
-                try {
-                    val cornerRadiusPx = (12 * context.resources.displayMetrics.density).toInt()
-                    Glide.with(context.applicationContext)
-                        .asBitmap()
-                        .load(coverUrl)
-                        .transform(CenterCrop(), RoundedCorners(cornerRadiusPx))
-                        .into(object : CustomTarget<Bitmap>() {
-                            override fun onResourceReady(
-                                resource: Bitmap,
-                                transition: Transition<in Bitmap>?
-                            ) {
-                                views.setImageViewBitmap(R.id.widget_cover, resource)
-                                appWidgetManager.updateAppWidget(appWidgetId, views)
-                            }
-
-                            override fun onLoadCleared(placeholder: Drawable?) {}
-                        })
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                CoroutineScope(Dispatchers.IO).launch {
+                    val bitmap = BitmapUtil.downloadImageAsBitmap(coverUrl)
+                    if (bitmap != null) {
+                        withContext(Dispatchers.Main) {
+                            views.setImageViewBitmap(R.id.widget_cover, bitmap)
+                            appWidgetManager.updateAppWidget(appWidgetId, views)
+                        }
+                    }
                 }
             }
         }
