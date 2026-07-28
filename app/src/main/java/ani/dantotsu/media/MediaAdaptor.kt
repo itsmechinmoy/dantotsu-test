@@ -373,8 +373,12 @@ class MediaAdaptor(
         init {
             if (matchParent) itemView.updateLayoutParams { width = -1 }
             itemView.setSafeOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setSafeOnClickListener
+                val media = mediaList?.getOrNull(pos)
+                if (media == null || media.id < 0) return@setSafeOnClickListener
                 clicked(
-                    bindingAdapterPosition,
+                    pos,
                     binding.itemCompactImage,
                     resizeBitmap(getBitmapFromImageView(binding.itemCompactImage), 100)
                 )
@@ -387,8 +391,12 @@ class MediaAdaptor(
         RecyclerView.ViewHolder(binding.root) {
         init {
             itemView.setSafeOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setSafeOnClickListener
+                val media = mediaList?.getOrNull(pos)
+                if (media == null || media.id < 0) return@setSafeOnClickListener
                 clicked(
-                    bindingAdapterPosition,
+                    pos,
                     binding.itemCompactImage,
                     resizeBitmap(getBitmapFromImageView(binding.itemCompactImage), 100)
                 )
@@ -402,8 +410,12 @@ class MediaAdaptor(
         RecyclerView.ViewHolder(binding.root) {
         init {
             binding.itemCompactImage.setSafeOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setSafeOnClickListener
+                val media = mediaList?.getOrNull(pos)
+                if (media == null || media.id < 0) return@setSafeOnClickListener
                 clicked(
-                    bindingAdapterPosition,
+                    pos,
                     binding.itemCompactImage,
                     resizeBitmap(getBitmapFromImageView(binding.itemCompactImage), 100)
                 )
@@ -418,15 +430,23 @@ class MediaAdaptor(
         RecyclerView.ViewHolder(binding.root) {
         init {
             binding.itemCompactImage.setSafeOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setSafeOnClickListener
+                val media = mediaList?.getOrNull(pos)
+                if (media == null || media.id < 0) return@setSafeOnClickListener
                 clicked(
-                    bindingAdapterPosition,
+                    pos,
                     binding.itemCompactImage,
                     resizeBitmap(getBitmapFromImageView(binding.itemCompactImage), 100)
                 )
             }
             binding.itemCompactTitleContainer.setSafeOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setSafeOnClickListener
+                val media = mediaList?.getOrNull(pos)
+                if (media == null || media.id < 0) return@setSafeOnClickListener
                 clicked(
-                    bindingAdapterPosition,
+                    pos,
                     binding.itemCompactImage,
                     resizeBitmap(getBitmapFromImageView(binding.itemCompactImage), 100)
                 )
@@ -483,12 +503,19 @@ class MediaAdaptor(
             return drawable.bitmap
         }
 
-        // Create a bitmap with the same dimensions as the drawable
-        val bitmap = Bitmap.createBitmap(
-            drawable.intrinsicWidth,
-            drawable.intrinsicHeight,
-            Bitmap.Config.ARGB_8888
-        )
+        val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else imageView.width
+        val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else imageView.height
+        if (width <= 0 || height <= 0) return null
+
+        val bitmap = try {
+            Bitmap.createBitmap(
+                width,
+                height,
+                Bitmap.Config.ARGB_8888
+            )
+        } catch (_: Exception) {
+            return null
+        }
 
         // Draw the drawable onto the bitmap
         val canvas = Canvas(bitmap)
