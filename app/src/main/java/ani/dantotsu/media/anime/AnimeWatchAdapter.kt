@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.NumberPicker
@@ -20,6 +21,7 @@ import ani.dantotsu.FileUrl
 import ani.dantotsu.R
 import ani.dantotsu.currActivity
 import ani.dantotsu.currContext
+import ani.dantotsu.databinding.CustomDialogLayoutBinding
 import ani.dantotsu.databinding.DialogLayoutBinding
 import ani.dantotsu.databinding.ItemChipBinding
 import ani.dantotsu.databinding.ItemMediaSourceBinding
@@ -60,6 +62,14 @@ class AnimeWatchAdapter(
     private var autoSelect = true
     var subscribe: MediaDetailsActivity.PopImageButton? = null
     private var _binding: ItemMediaSourceBinding? = null
+
+    var options: List<String> = listOf()
+    var hiddenScanlators: MutableList<String> = mutableListOf()
+    var scanlatorSelectionListener: ScanlatorSelectionListener? = null
+
+    interface ScanlatorSelectionListener {
+        fun onScanlatorsSelected()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val bind =
@@ -345,8 +355,81 @@ class AnimeWatchAdapter(
 
                 resetProgressDef.text = getString(currContext()!!, R.string.clear_stored_episode)
 
-                // Hidden
-                mangaScanlatorContainer.visibility = View.GONE
+                // Scanlator / Seasons
+                mangaScanlatorContainer.isVisible = options.count() > 1
+                scanlatorNo.text = "${options.count()}"
+                mangaScanlatorTop.setOnClickListener {
+                    val dialogView = CustomDialogLayoutBinding.inflate(fragment.layoutInflater)
+                    val checkboxContainer = dialogView.checkboxContainer
+                    val tickAllButton = dialogView.toggleButton
+
+                    fun getToggleImageResource(container: ViewGroup): Int {
+                        var allChecked = true
+                        var allUnchecked = true
+
+                        for (i in 0 until container.childCount) {
+                            val checkBox = container.getChildAt(i) as CheckBox
+                            if (!checkBox.isChecked) {
+                                allChecked = false
+                            } else {
+                                allUnchecked = false
+                            }
+                        }
+                        return when {
+                            allChecked -> R.drawable.untick_all_boxes
+                            allUnchecked -> R.drawable.tick_all_boxes
+                            else -> R.drawable.invert_all_boxes
+                        }
+                    }
+
+                    options.forEach { option ->
+                        val checkBox = CheckBox(currContext()).apply {
+                            text = option
+                            setOnCheckedChangeListener { _, _ ->
+                                tickAllButton.setImageResource(
+                                    getToggleImageResource(
+                                        checkboxContainer
+                                    )
+                                )
+                            }
+                        }
+
+                        if (media.selected!!.scanlators != null) {
+                            checkBox.isChecked =
+                                media.selected!!.scanlators?.contains(option) != true
+                        } else {
+                            checkBox.isChecked = true
+                        }
+                        checkboxContainer.addView(checkBox)
+                    }
+
+                    fragment.requireContext().customAlertDialog().apply {
+                        setCustomView(dialogView.root)
+                        setPosButton("OK") {
+                            hiddenScanlators.clear()
+                            for (i in 0 until checkboxContainer.childCount) {
+                                val checkBox = checkboxContainer.getChildAt(i) as CheckBox
+                                if (!checkBox.isChecked) {
+                                    hiddenScanlators.add(checkBox.text.toString())
+                                }
+                            }
+                            fragment.onScanlatorChange(hiddenScanlators)
+                            scanlatorSelectionListener?.onScanlatorsSelected()
+                        }
+                        setNegButton("Cancel")
+                    }.show()
+
+                    tickAllButton.setImageResource(getToggleImageResource(checkboxContainer))
+
+                    tickAllButton.setOnClickListener {
+                        val allChecked = getToggleImageResource(checkboxContainer) == R.drawable.untick_all_boxes
+                        for (i in 0 until checkboxContainer.childCount) {
+                            val checkBox = checkboxContainer.getChildAt(i) as CheckBox
+                            checkBox.isChecked = !allChecked
+                        }
+                        tickAllButton.setImageResource(getToggleImageResource(checkboxContainer))
+                    }
+                }
                 //animeDownloadContainer.visibility = View.GONE
                 fragment.requireContext().customAlertDialog().apply {
                     setTitle("Options")
