@@ -45,7 +45,8 @@ internal class ExtensionGithubApi {
         return this
             .filter {
                 val libVersion = it.extractLibVersion()
-                libVersion >= ExtensionLoader.ANIME_LIB_VERSION_MIN && libVersion <= ExtensionLoader.ANIME_LIB_VERSION_MAX
+                val majorLibVersion = libVersion.toInt()
+                majorLibVersion >= ExtensionLoader.ANIME_LIB_VERSION_MIN && majorLibVersion <= ExtensionLoader.ANIME_LIB_VERSION_MAX
             }
             .map {
                 AnimeExtension.Available(
@@ -183,7 +184,8 @@ internal class ExtensionGithubApi {
                             hasReadme = 0,
                             hasChangelog = 0,
                             sources = sourcesMapped,
-                            iconUrl = ext.resources.iconUrl
+                            iconUrl = ext.resources.iconUrl,
+                            extensionLib = ext.extensionLib,
                         )
                     }
                 } else if (targetUrl.endsWith("repo.json")) {
@@ -402,6 +404,7 @@ private data class ExtensionJsonObject(
     val hasChangelog: Int = 0,
     val sources: List<ExtensionSourceJsonObject>?,
     val iconUrl: String? = null,
+    val extensionLib: String? = null,
 )
 
 @Serializable
@@ -413,5 +416,12 @@ private data class ExtensionSourceJsonObject(
 )
 
 private fun ExtensionJsonObject.extractLibVersion(): Double {
-    return version.substringBefore('.').toDoubleOrNull() ?: version.substringBeforeLast('.').toDouble()
+    extensionLib?.toDoubleOrNull()?.let { return it }
+    val parts = version.split('.')
+    return if (parts.size >= 2) {
+        val majorMinor = "${parts[0]}.${parts[1]}"
+        majorMinor.toDoubleOrNull() ?: parts[0].toDoubleOrNull() ?: 1.0
+    } else {
+        version.toDoubleOrNull() ?: 1.0
+    }
 }
