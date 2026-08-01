@@ -29,7 +29,20 @@ class LocalAnimeParser : AnimeParser() {
         sAnime: SAnime
     ): List<Episode> {
         sAnime.url = animeLink
-        val sEpisodes = localSource.getEpisodeList(sAnime)
+        val seasons = try {
+            localSource.getSeasonList(sAnime)
+        } catch (e: Exception) {
+            emptyList()
+        }
+        val sEpisodes = if (seasons.isNotEmpty()) {
+            val all = mutableListOf<SEpisode>()
+            for (season in seasons) {
+                all.addAll(localSource.getEpisodeList(season))
+            }
+            if (all.isEmpty()) localSource.getEpisodeList(sAnime) else all
+        } else {
+            localSource.getEpisodeList(sAnime)
+        }
         return sEpisodes.map { sEpisode ->
             val extraData = mutableMapOf<String, String>()
             extraData["animeUrl"] = animeLink
