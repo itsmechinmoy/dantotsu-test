@@ -356,6 +356,7 @@ class AnimeWatchAdapter(
                 resetProgressDef.text = getString(currContext()!!, R.string.clear_stored_episode)
 
                 // Scanlator / Seasons
+                scanlatorTitle.text = getString(currContext()!!, R.string.season)
                 mangaScanlatorContainer.isVisible = options.count() > 1
                 scanlatorNo.text = "${options.count()}"
                 mangaScanlatorTop.setOnClickListener {
