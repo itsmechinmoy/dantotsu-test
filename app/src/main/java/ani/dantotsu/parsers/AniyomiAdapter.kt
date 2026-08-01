@@ -143,7 +143,31 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             if (networkAnime != null) {
                 sAnime.copyFrom(networkAnime)
             }
-            val res = source.getEpisodeList(sAnime)
+            val seasons = runCatching {
+                source.getSeasonList(sAnime)
+            }.getOrNull()
+
+            val res = if (!seasons.isNullOrEmpty()) {
+                val allEpisodes = mutableListOf<SEpisode>()
+                for (season in seasons) {
+                    val seasonAnime = runCatching {
+                        if (source is AnimeHttpSource) source.getAnimeDetails(season) else season
+                    }.getOrDefault(season)
+                    val seasonEpisodes = runCatching {
+                        source.getEpisodeList(seasonAnime)
+                    }.getOrDefault(emptyList())
+                    allEpisodes.addAll(seasonEpisodes)
+                }
+                if (allEpisodes.isEmpty()) {
+                    source.getEpisodeList(sAnime)
+                } else {
+                    allEpisodes
+                }
+            } else {
+                source.getEpisodeList(sAnime)
+            }
+
+            if (res.isEmpty()) return emptyList()
 
             val sortedEpisodes = if (res[0].episode_number == -1f) {
                 // Find the number in the string and sort by that number
