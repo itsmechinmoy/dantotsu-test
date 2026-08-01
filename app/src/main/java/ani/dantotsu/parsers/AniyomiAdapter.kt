@@ -156,6 +156,11 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                     val seasonEpisodes = runCatching {
                         source.getEpisodeList(seasonAnime)
                     }.getOrDefault(emptyList())
+                    seasonEpisodes.forEach { ep ->
+                        if (ep.scanlator.isNullOrBlank()) {
+                            ep.scanlator = seasonAnime.title.ifBlank { null } ?: season.title
+                        }
+                    }
                     allEpisodes.addAll(seasonEpisodes)
                 }
                 if (allEpisodes.isEmpty()) {
