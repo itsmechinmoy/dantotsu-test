@@ -425,16 +425,16 @@ internal class ExtensionGithubApi {
 
 @Serializable
 private data class ExtensionJsonObject(
-    val name: String,
-    val pkg: String,
-    val apk: String,
-    val lang: String,
-    val code: Long,
-    val version: String,
-    val nsfw: Int,
+    val name: String = "",
+    val pkg: String = "",
+    val apk: String = "",
+    val lang: String = "all",
+    val code: Long = 0,
+    val version: String = "1.0",
+    val nsfw: Int = 0,
     val hasReadme: Int = 0,
     val hasChangelog: Int = 0,
-    val sources: List<ExtensionSourceJsonObject>?,
+    val sources: List<ExtensionSourceJsonObject>? = null,
     val iconUrl: String? = null,
     val extensionLib: String? = null,
 )
