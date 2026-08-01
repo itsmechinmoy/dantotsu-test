@@ -91,15 +91,27 @@ internal class ExtensionGithubApi {
         }
     }
 
+    private fun normalizeRepoUrl(rawUrl: String): String {
+        var url = rawUrl.trim()
+        if (url.startsWith("github.com/")) {
+            url = "https://$url"
+        }
+        if (url.contains("github.com/") && url.contains("/raw/")) {
+            url = url.replace("github.com/", "raw.githubusercontent.com/").replace("/raw/", "/")
+        }
+        return url
+    }
+
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     private suspend fun fetchExtensions(
         repoUrl: String,
         mediaType: MediaType,
         originalUrl: String = repoUrl
     ): List<ExtensionJsonObject> {
-        var targetUrl = repoUrl
-        if (!targetUrl.contains("index.min.json") && !targetUrl.contains("repo.json") && !targetUrl.contains("index.json") && !targetUrl.contains("index.pb")) {
-            targetUrl = "$repoUrl${if (repoUrl.endsWith('/')) "" else "/"}repo.json"
+        val normalizedUrl = normalizeRepoUrl(repoUrl)
+        var targetUrl = normalizedUrl
+        if (!targetUrl.endsWith(".json") && !targetUrl.endsWith(".pb")) {
+            targetUrl = "$normalizedUrl${if (normalizedUrl.endsWith('/')) "" else "/"}repo.json"
         }
 
         try {
@@ -111,6 +123,9 @@ internal class ExtensionGithubApi {
                 if (targetUrl.endsWith("repo.json")) {
                     val fallback = targetUrl.replace("repo.json", "index.min.json")
                     networkService.client.newCall(GET(fallback)).awaitSuccess()
+                } else if (targetUrl.endsWith("index.min.json") || targetUrl.endsWith("index.json")) {
+                    val fallbackPb = targetUrl.substringBeforeLast("/") + "/index.pb"
+                    networkService.client.newCall(GET(fallbackPb)).awaitSuccess()
                 } else {
                     throw e
                 }
@@ -123,9 +138,34 @@ internal class ExtensionGithubApi {
             if (responseBytes.isEmpty()) return emptyList()
             val firstByte = responseBytes[0]
 
-            if (firstByte == 0x5B.toByte()) { // '['
+            if (firstByte == 0x5B.toByte()) { // '[' -> JSON array
                 val bodyString = responseBytes.toString(Charsets.UTF_8)
-                return json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
+                val jsonList = runCatching { json.decodeFromString<List<ExtensionJsonObject>>(bodyString) }.getOrElse { emptyList() }
+
+                val isDummyNotice = jsonList.any {
+                    it.pkg.contains("keiyoushi") || it.pkg.contains("mihon") ||
+                        it.name.contains("Outdated App", ignoreCase = true) ||
+                        it.name.contains("Update to Mihon", ignoreCase = true)
+                }
+
+                if (isDummyNotice || targetUrl.contains("index.min.json")) {
+                    val repoJsonUrl = targetUrl.substringBeforeLast("/") + "/repo.json"
+                    if (repoJsonUrl != targetUrl) {
+                        val repoResult = runCatching { fetchExtensions(repoJsonUrl, mediaType, originalUrl) }.getOrNull()
+                        if (!repoResult.isNullOrEmpty() && repoResult.none { it.pkg.contains("keiyoushi") || it.pkg.contains("mihon") }) {
+                            return repoResult
+                        }
+                    }
+                    val pbUrl = targetUrl.substringBeforeLast("/") + "/index.pb"
+                    if (pbUrl != targetUrl) {
+                        val pbResult = runCatching { fetchExtensions(pbUrl, mediaType, originalUrl) }.getOrNull()
+                        if (!pbResult.isNullOrEmpty()) {
+                            return pbResult
+                        }
+                    }
+                }
+
+                return jsonList
             } else {
                 val store = if (firstByte == 0x7B.toByte()) { // '{'
                     val bodyString = responseBytes.toString(Charsets.UTF_8)
@@ -138,8 +178,16 @@ internal class ExtensionGithubApi {
                         }
                     }
                     json.decodeFromString<NetworkExtensionStore>(bodyString)
-                } else { // Protobuf
-                    ProtoBuf.decodeFromByteArray<NetworkExtensionStore>(responseBytes)
+                } else { // Protobuf (.pb)
+                    try {
+                        ProtoBuf.decodeFromByteArray<NetworkExtensionStore>(responseBytes)
+                    } catch (e: Throwable) {
+                        val directList = runCatching { ProtoBuf.decodeFromByteArray<NetworkExtensionStore.ExtensionList>(responseBytes) }.getOrNull()
+                        if (directList != null) {
+                            return mapExtensionList(directList, mediaType)
+                        }
+                        throw e
+                    }
                 }
 
                 val resolvedList: NetworkExtensionStore.ExtensionList? = if (store.extensionListUrl != null) {
@@ -157,46 +205,53 @@ internal class ExtensionGithubApi {
                 }
 
                 if (resolvedList != null) {
-                    val prefix = when (mediaType) {
-                        MediaType.ANIME -> "Aniyomi: "
-                        MediaType.MANGA -> "Tachiyomi: "
-                        else -> ""
-                    }
-                    return resolvedList.extensions.map { ext ->
-                        val sourcesMapped = ext.sources.map { src ->
-                            ExtensionSourceJsonObject(
-                                id = src.id,
-                                lang = src.language,
-                                name = src.name,
-                                baseUrl = src.homeUrl
-                            )
-                        }
-                        val primaryLang = ext.sources.firstOrNull()?.language ?: "all"
-                        val prefixName = if (ext.name.startsWith(prefix)) ext.name else "$prefix${ext.name}"
-                        ExtensionJsonObject(
-                            name = prefixName,
-                            pkg = ext.packageName,
-                            apk = ext.resources.apkUrl,
-                            lang = primaryLang,
-                            code = ext.versionCode,
-                            version = ext.versionName,
-                            nsfw = if (ext.contentWarning == NetworkExtensionStore.ContentWarning.NSFW || ext.contentWarning == NetworkExtensionStore.ContentWarning.MIXED) 1 else 0,
-                            hasReadme = 0,
-                            hasChangelog = 0,
-                            sources = sourcesMapped,
-                            iconUrl = ext.resources.iconUrl,
-                            extensionLib = ext.extensionLib,
-                        )
-                    }
+                    return mapExtensionList(resolvedList, mediaType)
                 } else if (targetUrl.endsWith("repo.json")) {
                     val fallback = targetUrl.replace("repo.json", "index.min.json")
                     return fetchExtensions(fallback, mediaType, originalUrl)
                 }
             }
         } catch (e: Throwable) {
-            Logger.log("Failed to fetch extensions from $repoUrl: $e")
+            Logger.log("fetchExtensions error for $repoUrl: $e")
         }
         return emptyList()
+    }
+
+    private fun mapExtensionList(
+        resolvedList: NetworkExtensionStore.ExtensionList,
+        mediaType: MediaType
+    ): List<ExtensionJsonObject> {
+        val prefix = when (mediaType) {
+            MediaType.ANIME -> "Aniyomi: "
+            MediaType.MANGA -> "Tachiyomi: "
+            else -> ""
+        }
+        return resolvedList.extensions.map { ext ->
+            val sourcesMapped = ext.sources.map { src ->
+                ExtensionSourceJsonObject(
+                    id = src.id,
+                    lang = src.language,
+                    name = src.name,
+                    baseUrl = src.homeUrl
+                )
+            }
+            val primaryLang = ext.sources.firstOrNull()?.language ?: "all"
+            val prefixName = if (ext.name.startsWith(prefix)) ext.name else "$prefix${ext.name}"
+            ExtensionJsonObject(
+                name = prefixName,
+                pkg = ext.packageName,
+                apk = ext.resources.apkUrl,
+                lang = primaryLang,
+                code = ext.versionCode,
+                version = ext.versionName,
+                nsfw = if (ext.contentWarning == NetworkExtensionStore.ContentWarning.NSFW || ext.contentWarning == NetworkExtensionStore.ContentWarning.MIXED) 1 else 0,
+                hasReadme = 0,
+                hasChangelog = 0,
+                sources = sourcesMapped,
+                iconUrl = ext.resources.iconUrl,
+                extensionLib = ext.extensionLib,
+            )
+        }
     }
 
     suspend fun findAnimeExtensions(): List<AnimeExtension.Available> {
