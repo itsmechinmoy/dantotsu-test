@@ -451,10 +451,20 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
 
                 val deferreds = reIndexedPages.map { page ->
                     async(Dispatchers.IO) {
-                        mangaCache.put(page.imageUrl ?: "", ImageData(page, source))
-                        imageDataList += ImageData(page, source)
-                        Logger.log("put page: ${page.imageUrl}")
-                        pageToMangaImage(page)
+                        val imageUrl = if (page.imageUrl.isNullOrBlank()) {
+                            runCatching { source.getImageUrl(page) }.getOrNull() ?: page.imageUrl
+                        } else {
+                            page.imageUrl
+                        }
+                        val resolvedPage = if (imageUrl != page.imageUrl) {
+                            Page(page.index, page.url, imageUrl, page.uri)
+                        } else {
+                            page
+                        }
+                        mangaCache.put(resolvedPage.imageUrl ?: "", ImageData(resolvedPage, source))
+                        imageDataList += ImageData(resolvedPage, source)
+                        Logger.log("put page: ${resolvedPage.imageUrl}")
+                        pageToMangaImage(resolvedPage)
                     }
                 }
 
@@ -488,7 +498,17 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
                 val deferreds = reIndexedPages.map { page ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
-                            ImageData(page, source)
+                            val imageUrl = if (page.imageUrl.isNullOrBlank()) {
+                                runCatching { source.getImageUrl(page) }.getOrNull() ?: page.imageUrl
+                            } else {
+                                page.imageUrl
+                            }
+                            val resolvedPage = if (imageUrl != page.imageUrl) {
+                                Page(page.index, page.url, imageUrl, page.uri)
+                            } else {
+                                page
+                            }
+                            ImageData(resolvedPage, source)
                         }
                     }
                 }
