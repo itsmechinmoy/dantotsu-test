@@ -634,7 +634,7 @@ internal object ExtensionLoader {
             hasReadme = hasReadme,
             hasChangelog = hasChangelog,
             sources = sources,
-            pkgFactory = appInfo.metaData.getString("$MANGA_PACKAGE$XX_METADATA_SOURCE_FACTORY"),
+            pkgFactory = appInfo.metaData?.getString("$MANGA_PACKAGE$XX_METADATA_SOURCE_FACTORY"),
             isUnofficial = true,
             icon = context.getApplicationIcon(pkgName),
         )
