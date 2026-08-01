@@ -122,8 +122,9 @@ internal object ExtensionLoader {
                 return false
             }
 
-            if (!extensionSignatures.containsAll(getSignatures(currentExtension)!!)) {
-                Logger.log("Installed extension signature is not matched.")
+            val currentSignatures = getSignatures(currentExtension)
+            if (currentSignatures.isNullOrEmpty() || !extensionSignatures.containsAll(currentSignatures)) {
+                Logger.log("Installed extension signature does not match.")
                 return false
             }
         }
@@ -152,14 +153,11 @@ internal object ExtensionLoader {
     }
 
     private fun selectExtensionPackage(shared: ExtensionInfo?, private: ExtensionInfo?): ExtensionInfo? {
-        when {
-            private == null && shared != null -> return shared
-            shared == null && private != null -> return private
-            shared == null && private == null -> return null
-        }
+        if (shared == null) return private
+        if (private == null) return shared
 
-        return if (PackageInfoCompat.getLongVersionCode(shared!!.packageInfo) >=
-            PackageInfoCompat.getLongVersionCode(private!!.packageInfo)
+        return if (PackageInfoCompat.getLongVersionCode(shared.packageInfo) >=
+            PackageInfoCompat.getLongVersionCode(private.packageInfo)
         ) {
             shared
         } else {
@@ -169,7 +167,7 @@ internal object ExtensionLoader {
 
     private fun getSignatures(pkgInfo: PackageInfo): List<String>? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val signingInfo = pkgInfo.signingInfo!!
+            val signingInfo = pkgInfo.signingInfo ?: return null
             if (signingInfo.hasMultipleSigners()) {
                 signingInfo.apkContentsSigners
             } else {
