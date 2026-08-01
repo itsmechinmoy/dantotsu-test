@@ -37,7 +37,13 @@ class LocalAnimeParser : AnimeParser() {
         val sEpisodes = if (seasons.isNotEmpty()) {
             val all = mutableListOf<SEpisode>()
             for (season in seasons) {
-                all.addAll(localSource.getEpisodeList(season))
+                val seasonEpisodes = localSource.getEpisodeList(season)
+                seasonEpisodes.forEach { ep ->
+                    if (ep.scanlator.isNullOrBlank()) {
+                        ep.scanlator = season.title
+                    }
+                }
+                all.addAll(seasonEpisodes)
             }
             if (all.isEmpty()) localSource.getEpisodeList(sAnime) else all
         } else {
