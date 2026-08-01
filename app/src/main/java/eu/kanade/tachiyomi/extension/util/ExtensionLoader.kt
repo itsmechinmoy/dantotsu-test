@@ -435,8 +435,14 @@ internal object ExtensionLoader {
         }
 
         // Validate lib version
-        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
-        val majorLibVersion = versionName.substringBefore('.').toIntOrNull()
+        val libVersion = appInfo.metaData?.getFloat("tachiyomix.extensionLib")
+            ?.takeUnless { it == 0.0f }
+            ?.toDouble()
+            ?: run {
+                val parts = versionName.split('.')
+                if (parts.size >= 2) "${parts[0]}.${parts[1]}".toDoubleOrNull() else versionName.toDoubleOrNull()
+            }
+        val majorLibVersion = libVersion?.toInt()
         if (libVersion == null || majorLibVersion == null || majorLibVersion < ANIME_LIB_VERSION_MIN || majorLibVersion > ANIME_LIB_VERSION_MAX) {
             Logger.log(
                 "Lib version is $libVersion, while only versions " +
@@ -445,15 +451,15 @@ internal object ExtensionLoader {
             return AnimeLoadResult.Error
         }
 
-        val isNsfw = appInfo.metaData.getInt("$ANIME_PACKAGE$XX_METADATA_NSFW") == 1
+        val isNsfw = appInfo.metaData?.getInt("$ANIME_PACKAGE$XX_METADATA_NSFW") == 1
         if (!loadNsfwSource && isNsfw) {
             Logger.log("NSFW extension $pkgName not allowed")
             return AnimeLoadResult.Error
         }
 
-        val hasReadme = appInfo.metaData.getInt("$ANIME_PACKAGE$XX_METADATA_HAS_README", 0) == 1
+        val hasReadme = appInfo.metaData?.getInt("$ANIME_PACKAGE$XX_METADATA_HAS_README", 0) == 1
         val hasChangelog =
-            appInfo.metaData.getInt("$ANIME_PACKAGE$XX_METADATA_HAS_CHANGELOG", 0) == 1
+            appInfo.metaData?.getInt("$ANIME_PACKAGE$XX_METADATA_HAS_CHANGELOG", 0) == 1
 
         val classLoader = try {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
@@ -463,10 +469,10 @@ internal object ExtensionLoader {
             return AnimeLoadResult.Error
         }
 
-        val sourcesString = appInfo.metaData.getString("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")
-            ?: appInfo.metaData.getString("aniyomi.animeextension$XX_METADATA_SOURCE_CLASS")
-            ?: appInfo.metaData.getString("tachiyomi.animeextension$XX_METADATA_SOURCE_CLASS")
-            ?: appInfo.metaData.get("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")?.toString()
+        val sourcesString = appInfo.metaData?.getString("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData?.getString("aniyomi.animeextension$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData?.getString("tachiyomi.animeextension$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData?.get("$ANIME_PACKAGE$XX_METADATA_SOURCE_CLASS")?.toString()
             ?: return AnimeLoadResult.Error
 
         val sources = sourcesString.split(";")
@@ -512,7 +518,7 @@ internal object ExtensionLoader {
             hasReadme = hasReadme,
             hasChangelog = hasChangelog,
             sources = sources,
-            pkgFactory = appInfo.metaData.getString("$ANIME_PACKAGE$XX_METADATA_SOURCE_FACTORY"),
+            pkgFactory = appInfo.metaData?.getString("$ANIME_PACKAGE$XX_METADATA_SOURCE_FACTORY"),
             isUnofficial = true,
             icon = context.getApplicationIcon(pkgName),
         )
@@ -545,8 +551,14 @@ internal object ExtensionLoader {
         }
 
         // Validate lib version
-        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
-        if (libVersion == null || libVersion < MANGA_LIB_VERSION_MIN || libVersion > MANGA_LIB_VERSION_MAX) {
+        val libVersion = appInfo.metaData?.getFloat("tachiyomix.extensionLib")
+            ?.takeUnless { it == 0.0f }
+            ?.toDouble()
+            ?: run {
+                val parts = versionName.split('.')
+                if (parts.size >= 2) "${parts[0]}.${parts[1]}".toDoubleOrNull() else versionName.toDoubleOrNull()
+            }
+        if (libVersion == null || libVersion < MANGA_LIB_VERSION_MIN || libVersion > (MANGA_LIB_VERSION_MAX + 0.09)) {
             Logger.log(
                 "Lib version is $libVersion, while only versions " +
                         "$MANGA_LIB_VERSION_MIN to $MANGA_LIB_VERSION_MAX are allowed"
