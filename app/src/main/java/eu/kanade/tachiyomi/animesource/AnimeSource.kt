@@ -56,7 +56,7 @@ interface AnimeSource {
      * @param anime the anime to fetch seasons for.
      * @return the anime list for the anime.
      */
-    suspend fun getSeasonList(anime: SAnime): List<SAnime>
+    suspend fun getSeasonList(anime: SAnime): List<SAnime> = emptyList()
 
     /**
      * Get the list of hoster for an episode. The first hoster in the list should
