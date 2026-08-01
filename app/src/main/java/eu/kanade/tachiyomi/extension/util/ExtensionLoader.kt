@@ -566,15 +566,15 @@ internal object ExtensionLoader {
             return MangaLoadResult.Error
         }
 
-        val isNsfw = appInfo.metaData.getInt("$MANGA_PACKAGE$XX_METADATA_NSFW") == 1
+        val isNsfw = appInfo.metaData?.getInt("$MANGA_PACKAGE$XX_METADATA_NSFW", 0) == 1
         if (!loadNsfwSource && isNsfw) {
             Logger.log("NSFW extension $pkgName not allowed")
             return MangaLoadResult.Error
         }
 
-        val hasReadme = appInfo.metaData.getInt("$MANGA_PACKAGE$XX_METADATA_HAS_README", 0) == 1
+        val hasReadme = appInfo.metaData?.getInt("$MANGA_PACKAGE$XX_METADATA_HAS_README", 0) == 1
         val hasChangelog =
-            appInfo.metaData.getInt("$MANGA_PACKAGE$XX_METADATA_HAS_CHANGELOG", 0) == 1
+            appInfo.metaData?.getInt("$MANGA_PACKAGE$XX_METADATA_HAS_CHANGELOG", 0) == 1
 
         val classLoader = try {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
@@ -584,7 +584,13 @@ internal object ExtensionLoader {
             return MangaLoadResult.Error
         }
 
-        val sources = appInfo.metaData.getString("$MANGA_PACKAGE$XX_METADATA_SOURCE_CLASS")!!
+        val sourcesClassString = appInfo.metaData?.getString("$MANGA_PACKAGE$XX_METADATA_SOURCE_CLASS")
+            ?: appInfo.metaData?.getString("tachiyomi.extension.class")
+            ?: appInfo.metaData?.getString("tachiyomix.extension.class")
+            ?: appInfo.metaData?.get("$MANGA_PACKAGE$XX_METADATA_SOURCE_CLASS")?.toString()
+            ?: return MangaLoadResult.Error
+
+        val sources = sourcesClassString
             .split(";")
             .map {
                 val sourceClass = it.trim()
