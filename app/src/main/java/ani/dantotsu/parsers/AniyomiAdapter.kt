@@ -223,20 +223,21 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         source: AnimeHttpSource,
         episode: SEpisode
     ): List<Video> {
-
-        val hasHosters = checkHasHosters(source)
-
         val directVideos = runCatching {
             source.getVideoList(episode)
         }.getOrElse { emptyList() }
 
-        val hosterVideos = if (hasHosters) {
-            val hosters = runCatching {
-                source.getHosterList(episode)
-            }.getOrElse { emptyList() }
+        val hosters = runCatching {
+            source.getHosterList(episode)
+        }.getOrElse { emptyList() }
 
+        val sortedHosters = runCatching {
+            source.run { hosters.sortHosters() }
+        }.getOrElse { hosters }
+
+        val hosterVideos = if (sortedHosters.isNotEmpty()) {
             coroutineScope {
-                hosters.map { hoster ->
+                sortedHosters.map { hoster ->
                     async(Dispatchers.IO) {
                         val videos = when {
                             !hoster.videoList.isNullOrEmpty() -> hoster.videoList
@@ -277,38 +278,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         }
 
         val allVideos = (resolvedDirect + hosterVideos)
-            .distinctBy { if (it.videoUrl.isNotBlank() && it.videoUrl != "null") it.videoUrl else it.quality }
+            .distinctBy { if (it.videoUrl.isNotBlank() && it.videoUrl != "null") it.videoUrl else it.videoTitle }
             .filter { it.videoUrl.isNotBlank() && it.videoUrl != "null" }
 
-        return source.run {
-            allVideos.sortVideos()
-        }
-    }
-
-    private fun checkHasHosters(source: AnimeHttpSource): Boolean {
-        var current: Class<in AnimeHttpSource> = source.javaClass
-
-        while (true) {
-            if (current == ParsedAnimeHttpSource::class.java ||
-                current == AnimeHttpSource::class.java ||
-                current == AnimeSource::class.java
-            ) {
-                return false
-            }
-
-            if (current.declaredMethods.any {
-                    it.name in listOf(
-                        "getHosterList",
-                        "hosterListRequest",
-                        "hosterListParse"
-                    )
-                }
-            ) {
-                return true
-            }
-
-            current = current.superclass ?: return false
-        }
+        return runCatching {
+            source.run { allVideos.sortVideos() }
+        }.getOrElse { allVideos }
     }
 
     private suspend fun resolveVideo(
