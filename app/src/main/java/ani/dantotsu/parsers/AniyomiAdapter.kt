@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.Hoster.Companion.NO_HOSTER_LIST
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.copyFrom
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -29,6 +30,7 @@ import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.copyFrom
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.lang.awaitSingle
 import kotlinx.coroutines.Dispatchers
@@ -135,6 +137,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         } as? AnimeHttpSource ?: (extension.sources[sourceLanguage] as? AnimeCatalogueSource
             ?: return emptyList())
         try {
+            val networkAnime = runCatching {
+                if (source is AnimeHttpSource) source.getAnimeDetails(sAnime) else null
+            }.getOrNull()
+            if (networkAnime != null) {
+                sAnime.copyFrom(networkAnime)
+            }
             val res = source.getEpisodeList(sAnime)
 
             val sortedEpisodes = if (res[0].episode_number == -1f) {
@@ -423,6 +431,10 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
         } as? HttpSource ?: return emptyList()
 
         return try {
+            val networkManga = runCatching { source.getMangaDetails(sManga) }.getOrNull()
+            if (networkManga != null) {
+                sManga.copyFrom(networkManga)
+            }
             val res = source.getChapterList(sManga)
             val reversedRes = res.reversed()
             val chapterList = reversedRes.map { sChapterToMangaChapter(it) }
