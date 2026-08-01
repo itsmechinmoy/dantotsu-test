@@ -67,3 +67,14 @@ interface SManga : Serializable {
         }
     }
 }
+
+fun SManga.copyFrom(other: SManga) {
+    if (other.author != null) author = other.author
+    if (other.artist != null) artist = other.artist
+    if (other.description != null) description = other.description
+    if (other.genre != null) genre = other.genre
+    if (other.thumbnail_url != null) thumbnail_url = other.thumbnail_url
+    status = other.status
+    update_strategy = other.update_strategy
+    initialized = other.initialized
+}
