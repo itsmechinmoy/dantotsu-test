@@ -78,7 +78,7 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-class AnimeWatchFragment : Fragment() {
+class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListener {
     private var _binding: FragmentMediaSourceBinding? = null
     private val binding get() = _binding!!
     private val model: MediaDetailsViewModel by activityViewModels()
@@ -206,6 +206,7 @@ class AnimeWatchFragment : Fragment() {
                         model.watchSources!!.isDownloadedSource(media.selected!!.sourceIndex)
 
                     headerAdapter = AnimeWatchAdapter(it, this, model.watchSources!!)
+                    headerAdapter.scanlatorSelectionListener = this
                     episodeAdapter =
                         EpisodeAdapter(
                             style ?: PrefManager.getVal(PrefName.AnimeDefaultView),
@@ -292,35 +293,11 @@ class AnimeWatchFragment : Fragment() {
                         episode.title = anifyTitle ?: kitsuTitle ?: jikanTitle ?: buildFallbackEpisodeTitle(i, episode)
                     }
                     media.anime?.episodes = episodes
-
-                    // CHIP GROUP
-                    val total = episodes.size
-                    val divisions = total.toDouble() / 10
-                    start = 0
-                    end = null
-                    val limit = when {
-                        (divisions < 25) -> 25
-                        (divisions < 50) -> 50
-                        else -> 100
+                    headerAdapter.options = getScanlators(episodes)
+                    if (media.selected!!.scanlators != null) {
+                        headerAdapter.hiddenScanlators = media.selected!!.scanlators!!.toMutableList()
                     }
-                    headerAdapter.clearChips()
-                    if (total > limit) {
-                        val arr = media.anime!!.episodes!!.keys.toTypedArray()
-                        val stored = ceil((total).toDouble() / limit).toInt()
-                        val position = MathUtils.clamp(media.selected!!.chip, 0, stored - 1)
-                        val last = if (position + 1 == stored) total else (limit * (position + 1))
-                        start = limit * (position)
-                        end = last - 1
-                        headerAdapter.updateChips(
-                            limit,
-                            arr,
-                            (1..stored).toList().toTypedArray(),
-                            position
-                        )
-                    }
-
-                    headerAdapter.subscribeButton(true)
-                    reload()
+                    updateEpisodes()
                 }
             }
         }
@@ -350,6 +327,67 @@ class AnimeWatchFragment : Fragment() {
             ?: MediaNameAdapter.findEpisodeNumber(index)
             ?: currentEpisode.number
         return "Episode $parsedNumber"
+    }
+
+    override fun onScanlatorsSelected() {
+        updateEpisodes()
+    }
+
+    fun onScanlatorChange(list: List<String>) {
+        val selected = model.loadSelected(media)
+        selected.scanlators = list
+        model.saveSelected(media.id, selected)
+        media.selected = selected
+    }
+
+    private fun getScanlators(epMap: Map<String, Episode>?): List<String> {
+        val scanlators = mutableListOf<String>()
+        if (epMap != null) {
+            for (episode in epMap.values) {
+                scanlators.add(episode.sEpisode?.scanlator ?: "Unknown")
+            }
+        }
+        return scanlators.distinct()
+    }
+
+    private fun updateEpisodes() {
+        val loadedEpisodes = model.getEpisodes().value
+        if (loadedEpisodes != null) {
+            val episodes = loadedEpisodes[media.selected!!.sourceIndex]
+            if (episodes != null) {
+                val filteredEpisodes = episodes.filterNot { (_, episode) ->
+                    (episode.sEpisode?.scanlator ?: "Unknown") in headerAdapter.hiddenScanlators
+                }
+                media.anime?.episodes = filteredEpisodes.toMutableMap()
+
+                val total = filteredEpisodes.size
+                val divisions = total.toDouble() / 10
+                start = 0
+                end = null
+                val limit = when {
+                    (divisions < 25) -> 25
+                    (divisions < 50) -> 50
+                    else -> 100
+                }
+                headerAdapter.clearChips()
+                if (total > limit) {
+                    val arr = filteredEpisodes.keys.toTypedArray()
+                    val stored = ceil((total).toDouble() / limit).toInt()
+                    val position = MathUtils.clamp(media.selected!!.chip, 0, stored - 1)
+                    val last = if (position + 1 == stored) total else (limit * (position + 1))
+                    start = limit * (position)
+                    end = last - 1
+                    headerAdapter.updateChips(
+                        limit,
+                        arr,
+                        (1..stored).toList().toTypedArray(),
+                        position
+                    )
+                }
+                headerAdapter.subscribeButton(true)
+                reload()
+            }
+        }
     }
 
     //implement Multi download
