@@ -18,6 +18,7 @@ import ani.dantotsu.connections.anilist.api.ReplyResponse
 import ani.dantotsu.currContext
 import ani.dantotsu.isOnline
 import ani.dantotsu.logError
+import ani.dantotsu.home.status.sortUserStatusList
 import ani.dantotsu.media.Author
 import ani.dantotsu.media.Character
 import ani.dantotsu.media.Media
@@ -521,7 +522,7 @@ class AnilistQueries {
         val toShow: List<Boolean> =
             PrefManager.getVal(PrefName.HomeLayout)
         if (toShow.getOrNull(7) != true) return null
-        loadUserStatusCache()?.let { return it }
+        loadUserStatusCache()?.let { return sortUserStatusList(it) }
         val query = """{Page1:${status(1)}Page2:${status(2)}}"""
         val response = executeQuery<Query.HomePageMedia>(query)
         val list = mutableListOf<User>()
@@ -574,7 +575,7 @@ class AnilistQueries {
             list.addAll(0, anilistActivities)
             val result = list.toCollection(ArrayList())
             saveUserStatusCache(result)
-            return result
+            return sortUserStatusList(result)
         } else return null
     }
 
