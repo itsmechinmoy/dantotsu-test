@@ -316,9 +316,6 @@ class MangaReadAdapter(
                 }
                 resetProgressDef.text = getString(currContext()!!, R.string.clear_stored_chapter)
 
-                // Scanlator
-                mangaScanlatorContainer.visibility = View.GONE
-
                 fragment.requireContext().customAlertDialog().apply {
                     setTitle("Options")
                     setCustomView(root)
