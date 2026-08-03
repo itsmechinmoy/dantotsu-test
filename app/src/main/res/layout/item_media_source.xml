@@ -109,10 +109,9 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/mediaSourceLanguageContainer"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
+                android:layout_marginBottom="8dp"
                 android:hint="@string/language"
                 android:visibility="gone"
                 app:boxCornerRadiusBottomEnd="8dp"
@@ -127,7 +126,6 @@
                     android:id="@+id/mediaSourceLanguage"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:fontFamily="@font/poppins_bold"
                     android:freezesText="false"
                     android:inputType="none"
@@ -139,13 +137,18 @@
                     tools:ignore="LabelFor,TextContrastCheck,DuplicateSpeakableTextCheck" />
             </com.google.android.material.textfield.TextInputLayout>
 
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:baselineAligned="false">
+
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/mediaSourceScanlatorContainer"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"
                 android:hint="@string/season"
                 android:visibility="gone"
                 app:boxCornerRadiusBottomEnd="8dp"
@@ -160,7 +163,6 @@
                     android:id="@+id/mediaSourceScanlator"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:fontFamily="@font/poppins_bold"
                     android:freezesText="false"
                     android:inputType="none"
