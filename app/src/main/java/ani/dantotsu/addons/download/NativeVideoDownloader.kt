@@ -259,11 +259,11 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
             // HLS stream with no extra subtitle/audio tracks -> download using parallel HLS engine
             val tempFile = File(context.cacheDir, "hls_dl_${sessionId}.ts")
             val targetUri = uriMap[downloadPath]
-            
+
             val job = scope.launch {
                 try {
                     activeSessions[sessionId]?.let { (it as? DownloadSession.HlsSession)?.currentStatus = "RUNNING" }
-                    
+
                     // Fetch total length if possible to drive statistics callback
                     var totalLength = 0.0
                     executeFFProbe(videoUrl, headers) { durationStr ->
@@ -281,7 +281,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                     } else {
                         tempFile.copyTo(File(downloadPath), overwrite = true)
                     }
-                    
+
                     val session = activeSessions[sessionId] as? DownloadSession.HlsSession
                     session?.currentStatus = "COMPLETED"
                 } catch (e: Exception) {
@@ -467,7 +467,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                     runParallelHlsDownload(videoUrl, headers, tempVideoFile, sessionId) { progressPercent ->
                         val duration = if (totalLength > 0.0) totalLength else 100.0
                         statCallback(progressPercent.toDouble() * duration * 10.0)
-                        
+
                         // Also update downloaded/total bytes
                         if (complexSession != null) {
                             complexSession.downloadedBytes.set(tempVideoFile.length())
@@ -519,27 +519,23 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                         command.append("-i \"${audio.first}\" ")
                     }
 
-                    // Map video and audio from main input 0 explicitly
-                    command.append("-map 0:v:0? -map 0:a:0? ")
+                    // Map video and audio from main input 0, ignoring other tracks (like timed_id3)
+                    command.append("-map 0:v? -map 0:a? ")
 
                     // Map subtitle tracks from input files (from index 1 to localSubtitles.size)
                     for (i in localSubtitles.indices) {
                         val inputIndex = 1 + i
-                        command.append("-map $inputIndex:0? ")
+                        command.append("-map $inputIndex:s? ")
                     }
 
                     // Map audio tracks from extra audio files
                     for (i in localAudio.indices) {
                         val inputIndex = 1 + localSubtitles.size + i
-                        command.append("-map $inputIndex:a:0? ")
+                        command.append("-map $inputIndex:a? ")
                     }
-                    command.append("-c:v copy -c:a copy -bsf:a aac_adtstoasc ")
+                    command.append("-c copy ")
                     if (localSubtitles.isNotEmpty()) {
-                        if (downloadPath.endsWith(".mp4", ignoreCase = true)) {
-                            command.append("-c:s mov_text ")
-                        } else {
-                            command.append("-c:s subrip ")
-                        }
+                        command.append("-c:s srt ")
                     }
                     for ((index, sub) in localSubtitles.withIndex()) {
                         command.append("-metadata:s:s:$index language=\"${sub.second}\" ")
@@ -700,7 +696,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
     ) = withContext(Dispatchers.IO) {
         val client = Injekt.get<NetworkHelper>().downloadClient
         val okHeaders = headers.toHeaders()
-        
+
         var currentUrl = playlistUrl
         var lines: List<String>
 
@@ -754,7 +750,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
 
         val segmentQueue = segments.mapIndexed { index, url -> index to url }.toMutableList()
         val downloadedCount = java.util.concurrent.atomic.LongAdder()
-        
+
         val host = playlistUrl.toUri().host ?: ""
         val threadCount = calculateDynamicConcurrency(host)
         val segmentFolder = File(context.cacheDir, "hls_parts_${System.currentTimeMillis()}")
@@ -769,7 +765,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                 if (segmentQueue.isNotEmpty()) segmentQueue.removeAt(0) else null
                             } ?: break
                             val partFile = File(segmentFolder, "seg_${seg.first}.part")
-                            
+
                             var success = false
                             var attempts = 0
                             while (!success) {
@@ -779,7 +775,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                     client.newCall(req).execute().use { res ->
                                         if (!res.isSuccessful) throw IOException("Res code: ${res.code}")
                                         val body = res.body
-                                        
+
                                         body.byteStream().use { input ->
                                             FileOutputStream(partFile).use { fileOut ->
                                                 if (secretKey != null) {
