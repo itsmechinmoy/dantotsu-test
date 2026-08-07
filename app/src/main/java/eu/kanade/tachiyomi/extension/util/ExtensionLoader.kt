@@ -701,8 +701,8 @@ internal object ExtensionLoader {
         } else {
             pkgInfo.reqFeatures.orEmpty().any {
                 when (type) {
-                    MediaType.ANIME -> it.name == ANIME_PACKAGE || it.name == "aniyomi.animeextension"
-                    MediaType.MANGA -> it.name == MANGA_PACKAGE
+                    MediaType.ANIME -> it.name == ANIME_PACKAGE || it.name == "aniyomi.animeextension" || it.name == "tachiyomi.animeextension" || it.name == "tachiyomix.animeextension"
+                    MediaType.MANGA -> it.name == MANGA_PACKAGE || it.name == "tachiyomix.extension" || it.name == "mihon.extension" || it.name == "aniyomi.extension"
                     else -> false
                 }
             }
