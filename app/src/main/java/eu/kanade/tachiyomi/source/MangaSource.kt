@@ -44,7 +44,7 @@ interface MangaSource {
      * @since tachiyomix 1.6
      * @param page the page number to retrieve.
      */
-    suspend fun getPopularManga(page: Int): MangasPage
+    suspend fun getPopularManga(page: Int): MangasPage = throw UnsupportedOperationException()
 
     /**
      * Get a page with a list of latest manga updates.
@@ -52,7 +52,7 @@ interface MangaSource {
      * @since tachiyomix 1.6
      * @param page the page number to retrieve.
      */
-    suspend fun getLatestUpdates(page: Int): MangasPage
+    suspend fun getLatestUpdates(page: Int): MangasPage = throw UnsupportedOperationException()
 
     /**
      * Get a page with a list of manga.
@@ -62,7 +62,7 @@ interface MangaSource {
      * @param query the search query.
      * @param filters the list of filters to apply.
      */
-    suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage
+    suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage = throw UnsupportedOperationException()
 
     /**
      * Fetches updated information for a manga.
@@ -78,7 +78,11 @@ interface MangaSource {
         chapters: List<SChapter>,
         fetchDetails: Boolean,
         fetchChapters: Boolean,
-    ): SMangaUpdate
+    ): SMangaUpdate {
+        val updatedManga = if (fetchDetails) getMangaDetails(manga) else manga
+        val updatedChapters = if (fetchChapters) getChapterList(manga) else chapters
+        return SMangaUpdate(updatedManga, updatedChapters)
+    }
 
     /**
      * Get the list of pages a chapter has. Pages should be returned
@@ -88,7 +92,7 @@ interface MangaSource {
      * @param chapter the chapter.
      * @return the pages for the chapter.
      */
-    suspend fun getPageList(chapter: SChapter): List<Page>
+    suspend fun getPageList(chapter: SChapter): List<Page> = throw UnsupportedOperationException()
 
     /**
      * Get the updated details for a manga.
