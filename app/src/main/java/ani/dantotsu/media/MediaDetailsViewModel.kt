@@ -14,6 +14,7 @@ import ani.dantotsu.connections.mal.MAL
 import ani.dantotsu.currContext
 import ani.dantotsu.media.anime.Episode
 import ani.dantotsu.media.anime.SelectorDialogFragment
+import ani.dantotsu.media.anime.getEpisode
 import ani.dantotsu.media.manga.MangaChapter
 import ani.dantotsu.media.mangaupdates.MangaAnimeUtil
 import ani.dantotsu.others.AniSkip
@@ -844,7 +845,7 @@ class MediaDetailsViewModel : ViewModel() {
                     episodes.add(i)
                 }
                 for (ep in episodes){
-                    if (media.anime?.episodes?.get(ep) == null) {
+                    if (media.anime?.episodes?.getEpisode(ep) == null) {
                         snackString(currContext()?.getString(R.string.episode_not_found, ep))
                         return@post
                     }
