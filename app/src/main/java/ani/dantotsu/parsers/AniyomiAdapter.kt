@@ -460,11 +460,22 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
         } as? HttpSource ?: return emptyList()
 
         return try {
-            val networkManga = runCatching { source.getMangaDetails(sManga) }.getOrNull()
+            val (networkManga, res) = try {
+                val update = runCatching { source.getMangaUpdate(sManga, emptyList(), fetchDetails = true, fetchChapters = true) }.getOrNull()
+                if (update != null) {
+                    Pair(update.manga, update.chapters)
+                } else {
+                    val details = runCatching { source.getMangaDetails(sManga) }.getOrNull()
+                    val chapters = runCatching { source.getChapterList(sManga) }.getOrDefault(emptyList())
+                    Pair(details, chapters)
+                }
+            } catch (e: Exception) {
+                Pair(null, emptyList<eu.kanade.tachiyomi.source.model.SChapter>())
+            }
+
             if (networkManga != null) {
                 sManga.copyFrom(networkManga)
             }
-            val res = source.getChapterList(sManga)
             val reversedRes = res.reversed()
             val chapterList = reversedRes.map { sChapterToMangaChapter(it) }
             chapterList
