@@ -145,8 +145,8 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
                 }
             } else {
                 val clean = input.removeSuffix("/")
-                if (!clean.endsWith("index.min.json") && !clean.endsWith("repo.json") && !clean.endsWith("index.json")) {
-                    return "URL must end with repo.json or index.json or index.min.json"
+                if (!clean.endsWith("index.min.json") && !clean.endsWith("repo.json") && !clean.endsWith("index.json") && !clean.endsWith("index.pb")) {
+                    return "URL must end with repo.json or index.json or index.min.json or index.pb"
                 }
             }
             return null
