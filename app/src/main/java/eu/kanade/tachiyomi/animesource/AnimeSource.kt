@@ -2,6 +2,8 @@ package eu.kanade.tachiyomi.animesource
 
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
+import eu.kanade.tachiyomi.animesource.model.SAnimeSeasonUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.util.awaitSingle
@@ -47,6 +49,46 @@ interface AnimeSource {
     @Suppress("DEPRECATION")
     suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         return fetchEpisodeList(anime).awaitSingle()
+    }
+
+    /**
+     * Fetches updated information for an anime.
+     *
+     * @since extensions-lib 16
+     * @param anime The anime to fetch updates for.
+     * @param episodes Existing episodes of the anime.
+     * @param fetchDetails Whether to fetch updated anime details.
+     * @param fetchEpisodes Whether to fetch available episodes.
+     */
+    suspend fun getAnimeEpisodeUpdate(
+        anime: SAnime,
+        episodes: List<SEpisode>,
+        fetchDetails: Boolean,
+        fetchEpisodes: Boolean,
+    ): SAnimeEpisodeUpdate {
+        val updatedAnime = if (fetchDetails) getAnimeDetails(anime) else anime
+        val updatedEpisodes = if (fetchEpisodes) getEpisodeList(anime) else episodes
+        return SAnimeEpisodeUpdate(updatedAnime, updatedEpisodes)
+    }
+
+    /**
+     * Fetches updated information for an anime including seasons.
+     *
+     * @since extensions-lib 17
+     * @param anime The anime to fetch updates for.
+     * @param seasons Existing seasons of the anime.
+     * @param fetchDetails Whether to fetch updated anime details.
+     * @param fetchSeasons Whether to fetch available seasons.
+     */
+    suspend fun getAnimeSeasonUpdate(
+        anime: SAnime,
+        seasons: List<SAnime>,
+        fetchDetails: Boolean,
+        fetchSeasons: Boolean,
+    ): SAnimeSeasonUpdate {
+        val updatedAnime = if (fetchDetails) getAnimeDetails(anime) else anime
+        val updatedSeasons = if (fetchSeasons) getSeasonList(anime) else seasons
+        return SAnimeSeasonUpdate(updatedAnime, updatedSeasons)
     }
 
     /**
