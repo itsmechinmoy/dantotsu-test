@@ -34,10 +34,6 @@ import ani.dantotsu.media.anime.AnimeWatchFragment
 import ani.dantotsu.media.anime.getEpisode
 import ani.dantotsu.parsers.Video
 import ani.dantotsu.settings.saving.PrefManager
-import ani.dantotsu.settings.saving.PrefName
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import ani.dantotsu.snackString
 import ani.dantotsu.toast
 import ani.dantotsu.util.Logger
@@ -146,36 +142,24 @@ class AnimeDownloaderService : Service() {
 
     private fun processQueue() {
         CoroutineScope(Dispatchers.Default).launch {
-            val maxParallel = PrefManager.getVal<Int>(PrefName.MaxParallelDownloads).coerceIn(0, 10)
-            val concurrency = if (maxParallel > 0) maxParallel else 1
-            val semaphore = Semaphore(concurrency)
-            val activeJobs = mutableListOf<Job>()
-
             while (AnimeServiceDataSingleton.downloadQueue.isNotEmpty()) {
-                val task = AnimeServiceDataSingleton.downloadQueue.poll() ?: continue
-                val job = launch {
-                    semaphore.withPermit {
-                        currentTasks.add(task)
-                        try {
-                            download(task)
-                        } finally {
-                            mutex.withLock {
-                                downloadJobs.remove(task.getTaskName())
-                            }
-                            currentTasks.remove(task)
-                            updateNotification()
-                        }
+                val task = AnimeServiceDataSingleton.downloadQueue.poll()
+                if (task != null) {
+                    val job = launch { download(task) }
+                    currentTasks.add(task)
+                    mutex.withLock {
+                        downloadJobs[task.getTaskName()] = job
                     }
+                    job.join() // Wait for the job to complete before continuing to the next task
+                    mutex.withLock {
+                        downloadJobs.remove(task.getTaskName())
+                    }
+                    updateNotification() // Update the notification after each task is completed
                 }
-                mutex.withLock {
-                    downloadJobs[task.getTaskName()] = job
-                }
-                activeJobs.add(job)
-            }
-            activeJobs.joinAll()
-            if (AnimeServiceDataSingleton.downloadQueue.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    stopSelf()
+                if (AnimeServiceDataSingleton.downloadQueue.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        stopSelf() // Stop the service when the queue is empty
+                    }
                 }
             }
         }
@@ -276,7 +260,7 @@ class AnimeDownloaderService : Service() {
                 val outputDir = getSubDirectory(
                     this@AnimeDownloaderService,
                     MediaType.ANIME,
-                    false,
+                    true,
                     task.title,
                     task.episode
                 ) ?: throw Exception("Failed to create output directory")
