@@ -843,26 +843,24 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
 
 private suspend fun AnimeSource.getEpisodeListCompat(anime: SAnime): List<SEpisode> {
     return try {
-        val method = this.javaClass.getMethod("getAnimeEpisodeUpdate", SAnime::class.java, List::class.java, Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType)
-        val update = method.invoke(this, anime, emptyList<SEpisode>(), false, true)
-        val epField = update.javaClass.getDeclaredField("episodes")
-        epField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        (epField.get(update) as? List<SEpisode>) ?: getEpisodeList(anime)
+        getAnimeEpisodeUpdate(anime, emptyList(), fetchDetails = false, fetchEpisodes = true).episodes
     } catch (_: Throwable) {
-        getEpisodeList(anime)
+        try {
+            getEpisodeList(anime)
+        } catch (_: Throwable) {
+            emptyList()
+        }
     }
 }
 
 private suspend fun AnimeSource.getSeasonListCompat(anime: SAnime): List<SAnime> {
     return try {
-        val method = this.javaClass.getMethod("getAnimeSeasonUpdate", SAnime::class.java, List::class.java, Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType)
-        val update = method.invoke(this, anime, emptyList<SAnime>(), false, true)
-        val seasonField = update.javaClass.getDeclaredField("seasons")
-        seasonField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        (seasonField.get(update) as? List<SAnime>) ?: getSeasonList(anime)
+        getAnimeSeasonUpdate(anime, emptyList(), fetchDetails = false, fetchSeasons = true).seasons
     } catch (_: Throwable) {
-        getSeasonList(anime)
+        try {
+            getSeasonList(anime)
+        } catch (_: Throwable) {
+            emptyList()
+        }
     }
 }
