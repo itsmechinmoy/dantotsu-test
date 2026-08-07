@@ -365,7 +365,7 @@ internal class ExtensionGithubApi {
                     source.baseUrl,
                 )
             }
-            val iconUrl = extension.iconUrl ?: "${repository.removeSuffix("/index.min.json").removeSuffix("/index.json").removeSuffix("/repo.json")}/icon/${extension.pkg}.png"
+            val iconUrl = extension.iconUrl ?: "${cleanRepoUrl(repository)}/icon/${extension.pkg}.png"
             NovelExtension.Available(
                 extension.name,
                 extension.pkg,
@@ -393,19 +393,15 @@ internal class ExtensionGithubApi {
         return if (extension.versionName.startsWith("http")) {
             extension.versionName
         } else {
-            "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.pkgName}.apk"
+            "${cleanRepoUrl(extension.repository)}/apk/${extension.pkgName.removePrefix("/")}.apk"
         }
     }
 
     private fun fallbackRepoUrl(repoUrl: String): String? {
         var fallbackRepoUrl = "https://gcore.jsdelivr.net/gh/"
-        val strippedRepoUrl = repoUrl
+        val strippedRepoUrl = cleanRepoUrl(repoUrl)
             .removePrefix("https://")
             .removePrefix("http://")
-            .removeSuffix("/")
-            .removeSuffix("/index.min.json")
-            .removeSuffix("/index.json")
-            .removeSuffix("/repo.json")
         val repoUrlParts = strippedRepoUrl.split("/")
         if (repoUrlParts.size < 3) {
             return null
