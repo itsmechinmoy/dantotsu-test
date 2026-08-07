@@ -144,7 +144,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 sAnime.copyFrom(networkAnime)
             }
             val seasons = runCatching {
-                source.getSeasonList(sAnime)
+                source.getSeasonListCompat(sAnime)
             }.getOrNull()
 
             val res = if (!seasons.isNullOrEmpty()) {
@@ -154,7 +154,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                         if (source is AnimeHttpSource) source.getAnimeDetails(season) else season
                     }.getOrDefault(season)
                     val seasonEpisodes = runCatching {
-                        source.getEpisodeList(seasonAnime)
+                        source.getEpisodeListCompat(seasonAnime)
                     }.getOrDefault(emptyList())
                     seasonEpisodes.forEach { ep ->
                         if (ep.scanlator.isNullOrBlank()) {
@@ -164,12 +164,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                     allEpisodes.addAll(seasonEpisodes)
                 }
                 if (allEpisodes.isEmpty()) {
-                    source.getEpisodeList(sAnime)
+                    source.getEpisodeListCompat(sAnime)
                 } else {
                     allEpisodes
                 }
             } else {
-                source.getEpisodeList(sAnime)
+                source.getEpisodeListCompat(sAnime)
             }
 
             if (res.isEmpty()) return emptyList()
@@ -827,5 +827,31 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
         return extensions.any { ext ->
             base.endsWith(ext)
         }
+    }
+}
+
+private suspend fun AnimeSource.getEpisodeListCompat(anime: SAnime): List<SEpisode> {
+    return try {
+        val method = this.javaClass.getMethod("getAnimeEpisodeUpdate", SAnime::class.java, List::class.java, Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType)
+        val update = method.invoke(this, anime, emptyList<SEpisode>(), false, true)
+        val epField = update.javaClass.getDeclaredField("episodes")
+        epField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (epField.get(update) as? List<SEpisode>) ?: getEpisodeList(anime)
+    } catch (_: Throwable) {
+        getEpisodeList(anime)
+    }
+}
+
+private suspend fun AnimeSource.getSeasonListCompat(anime: SAnime): List<SAnime> {
+    return try {
+        val method = this.javaClass.getMethod("getAnimeSeasonUpdate", SAnime::class.java, List::class.java, Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType)
+        val update = method.invoke(this, anime, emptyList<SAnime>(), false, true)
+        val seasonField = update.javaClass.getDeclaredField("seasons")
+        seasonField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (seasonField.get(update) as? List<SAnime>) ?: getSeasonList(anime)
+    } catch (_: Throwable) {
+        getSeasonList(anime)
     }
 }
