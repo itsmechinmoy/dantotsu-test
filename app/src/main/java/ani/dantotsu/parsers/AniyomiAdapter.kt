@@ -355,15 +355,15 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     }
 
     override suspend fun search(query: String): List<ShowResponse> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? AnimeHttpSource ?: (extension.sources[sourceLanguage] as? AnimeCatalogueSource
-            ?: return emptyList())
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? AnimeCatalogueSource
+            ?: return emptyList()
         return try {
-            val res = source.getSearchAnime(1, query, source.getFilterList())
+            val res = try {
+                source.getSearchAnime(1, query, source.getFilterList())
+            } catch (e: Throwable) {
+                source.fetchSearchAnime(1, query, source.getFilterList()).awaitSingle()
+            }
             Logger.log("query: $query")
             convertAnimesPageToShowResponse(res)
         } catch (e: CloudflareBypassException) {
@@ -452,17 +452,13 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
         extra: Map<String, String>?,
         sManga: SManga
     ): List<MangaChapter> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? HttpSource ?: return emptyList()
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? MangaSource ?: return emptyList()
 
         return try {
             val (networkManga, res) = try {
                 val update = runCatching { source.getMangaUpdate(sManga, emptyList(), fetchDetails = true, fetchChapters = true) }.getOrNull()
-                if (update != null) {
+                if (update != null && (update.chapters.isNotEmpty() || update.manga.title.isNotBlank())) {
                     Pair(update.manga, update.chapters)
                 } else {
                     val details = runCatching { source.getMangaDetails(sManga) }.getOrNull()
@@ -487,12 +483,8 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
 
 
     override suspend fun loadImages(chapterLink: String, sChapter: SChapter): List<MangaImage> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? HttpSource ?: return emptyList()
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? MangaSource ?: return emptyList()
         val imageDataList: MutableList<ImageData> = mutableListOf()
         val ret = coroutineScope {
             try {
@@ -504,7 +496,7 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
                 val deferreds = reIndexedPages.map { page ->
                     async(Dispatchers.IO) {
                         val imageUrl = if (page.imageUrl.isNullOrBlank()) {
-                            runCatching { source.getImageUrl(page) }.getOrNull() ?: page.imageUrl
+                            runCatching { if (source is HttpSource) source.getImageUrl(page) else page.imageUrl }.getOrNull() ?: page.imageUrl
                         } else {
                             page.imageUrl
                         }
@@ -532,12 +524,8 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
     }
 
     suspend fun imageList(sChapter: SChapter): List<ImageData> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? HttpSource ?: return emptyList()
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? MangaSource ?: return emptyList()
 
         return coroutineScope {
             try {
@@ -551,7 +539,7 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
                             val imageUrl = if (page.imageUrl.isNullOrBlank()) {
-                                runCatching { source.getImageUrl(page) }.getOrNull() ?: page.imageUrl
+                                runCatching { if (source is HttpSource) source.getImageUrl(page) else page.imageUrl }.getOrNull() ?: page.imageUrl
                             } else {
                                 page.imageUrl
                             }
@@ -575,15 +563,19 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
     }
 
     override suspend fun search(query: String): List<ShowResponse> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? HttpSource ?: return emptyList()
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? MangaSource ?: return emptyList()
 
         return try {
-            val res = source.fetchSearchManga(1, query, source.getFilterList()).awaitSingle()
+            val res = try {
+                source.getSearchManga(1, query, source.getFilterList())
+            } catch (e: Throwable) {
+                if (source is CatalogueSource) {
+                    source.fetchSearchManga(1, query, source.getFilterList()).awaitSingle()
+                } else {
+                    throw e
+                }
+            }
             Logger.log("res observable: $res")
             convertMangasPageToShowResponse(res)
         } catch (e: CloudflareBypassException) {
