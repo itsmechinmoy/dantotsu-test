@@ -120,3 +120,9 @@ fun SAnime.copyFrom(other: SAnime) {
     season_number = other.season_number
     initialized = other.initialized
 }
+
+@Suppress("UNUSED")
+class SAnimeEpisodeUpdate(val anime: SAnime, val episodes: List<SEpisode>)
+
+@Suppress("UNUSED")
+class SAnimeSeasonUpdate(val anime: SAnime, val seasons: List<SAnime>)
