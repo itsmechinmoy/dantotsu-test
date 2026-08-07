@@ -1668,7 +1668,7 @@ class ExoplayerView :
                      // Prefetch episode mapping so SubtitleDialogFragment doesn't have visual label pop
                      val selectedEpisodeStr = media.anime?.selectedEpisode ?: "1"
                      val episodeNum = selectedEpisodeStr.toIntOrNull() ?: 1
-                     val currentEpisode = media.anime?.episodes?.get(selectedEpisodeStr)
+                     val currentEpisode = media.anime?.episodes?.getEpisode(selectedEpisodeStr)
                      EpisodeMapper.mapEpisode(media, episodeNum, currentEpisode)
                  } catch (e: Exception) {
                      e.printStackTrace()
