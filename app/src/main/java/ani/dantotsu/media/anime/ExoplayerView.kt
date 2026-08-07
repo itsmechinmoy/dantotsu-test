@@ -310,7 +310,7 @@ class ExoplayerView :
 
     override fun onAttachedToWindow() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val displayCutout = window.decorView.rootWindowInsets.displayCutout
+            val displayCutout = window.decorView.rootWindowInsets?.displayCutout
             if (displayCutout != null) {
                 if (displayCutout.boundingRects.size > 0) {
                     notchHeight =
@@ -471,16 +471,19 @@ class ExoplayerView :
         setContentView(binding.root)
 
         // Initialize
-        isCastApiAvailable = GoogleApiAvailability
-            .getInstance()
-            .isGooglePlayServicesAvailable(this) == ConnectionResult.SUCCESS
-        try {
-            castContext =
-                CastContext.getSharedInstance(this, Executors.newSingleThreadExecutor()).result
-            castPlayer = CastPlayer(castContext!!)
-            castPlayer!!.setSessionAvailabilityListener(this)
-        } catch (e: Exception) {
-            isCastApiAvailable = false
+        if (isCastApiAvailable) {
+            try {
+                castContext =
+                    CastContext.getSharedInstance(this, Executors.newSingleThreadExecutor()).result
+                if (castContext != null) {
+                    castPlayer = CastPlayer(castContext!!)
+                    castPlayer?.setSessionAvailabilityListener(this)
+                } else {
+                    isCastApiAvailable = false
+                }
+            } catch (e: Exception) {
+                isCastApiAvailable = false
+            }
         }
 
         hideSystemBarsExtendView()
