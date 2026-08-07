@@ -24,7 +24,7 @@ import kotlin.coroutines.resume
 
 object MangaAnimeUtil {
 
-    private const val MANGABAKA_BASE = "https://api.mangabaka.dev/v1"
+    private const val MANGABAKA_BASE = "https://api.mangabaka.org/v1"
     private const val MU_ARCHIVE_BASE = "https://www.mangaupdates.com/releases/archive"
 
     private val json = Json { ignoreUnknownKeys = true }
