@@ -415,6 +415,18 @@ class DownloadsManager(private val context: Context) {
             val ratio = FuzzySearch.ratio(mainName, compareName)
             return ratio > RATIO_THRESHOLD
         }
+
+        fun buildResumableRequest(url: String, headers: okhttp3.Headers = okhttp3.Headers.Builder().build(), existingSize: Long = 0L): okhttp3.Request {
+            return okhttp3.Request.Builder()
+                .url(url)
+                .headers(headers)
+                .apply {
+                    if (existingSize > 0) {
+                        header("Range", "bytes=$existingSize-")
+                    }
+                }
+                .build()
+        }
     }
 }
 
