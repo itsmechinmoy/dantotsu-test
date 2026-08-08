@@ -19,10 +19,20 @@ class SMangaImpl : SManga {
     override var description: String? = null
 
     override var genre: String? = null
+        set(value) {
+            field = value
+            _genres = null
+        }
+
+    @Transient
+    private var _genres: List<String>? = null
 
     override var genres: List<String>
-        get() = getGenres().orEmpty()
+        get() {
+            return _genres ?: genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct().orEmpty()
+        }
         set(value) {
+            _genres = value
             genre = value.joinToString(", ")
         }
 
