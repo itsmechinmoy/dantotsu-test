@@ -1221,4 +1221,9 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="download_queue_header">Queue</string>
     <string name="clear_media_confirm">Are you sure you want to delete all downloaded content for %1$s?</string>
 
+    <string name="search_settings">Search settings</string>
+    <string name="search_settings_hint">Search settings by name, description, or category…</string>
+    <string name="no_settings_found">No matching settings found</string>
+    <string name="search_settings_no_results_desc">Try searching for different keywords or checking for spelling</string>
+
 </resources>
