@@ -84,7 +84,9 @@
                     app:boxCornerRadiusBottomStart="28dp"
                     app:boxCornerRadiusTopEnd="28dp"
                     app:boxCornerRadiusTopStart="28dp"
-                    app:boxStrokeColor="@color/nav_bg_inv"
+                    app:boxStrokeColor="?attr/colorPrimary"
+                    app:boxStrokeWidth="1.5dp"
+                    app:boxStrokeWidthFocused="2dp"
                     app:endIconDrawable="@drawable/ic_round_search_24"
                     app:endIconTint="?attr/colorPrimary"
                     app:hintAnimationEnabled="true">
