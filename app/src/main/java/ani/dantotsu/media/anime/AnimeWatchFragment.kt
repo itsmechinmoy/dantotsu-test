@@ -245,33 +245,37 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                 if (episodes != null) {
                     val metadataPriority = PrefManager.getVal<Int>(PrefName.EpisodeMetadataSource)
                     episodes.forEach { (i, episode) ->
+                        val epNum = episode.number
                         // 1. Jikan (Lowest for metadata, only source for filler flag)
                         if (media.anime?.fillerEpisodes != null) {
-                            if (media.anime!!.fillerEpisodes!!.containsKey(i)) {
-                                val fillerEp = media.anime!!.fillerEpisodes!![i]
-                                episode.filler = fillerEp?.filler ?: false
-                                episode.date = fillerEp?.date ?: episode.date
+                            val fillerEp = media.anime!!.fillerEpisodes!![epNum]
+                                ?: media.anime!!.fillerEpisodes!!.getEpisode(epNum)
+                            if (fillerEp != null) {
+                                episode.filler = fillerEp.filler
+                                episode.date = fillerEp.date ?: episode.date
                             }
                         }
 
                         val applyKitsu = {
                             if (media.anime?.kitsuEpisodes != null) {
-                                if (media.anime!!.kitsuEpisodes!!.containsKey(i)) {
-                                    val kitsuEp = media.anime!!.kitsuEpisodes!![i]
-                                    episode.desc = kitsuEp?.desc ?: episode.desc
-                                    episode.thumb = kitsuEp?.thumb ?: episode.thumb
+                                val kitsuEp = media.anime!!.kitsuEpisodes!![epNum]
+                                    ?: media.anime!!.kitsuEpisodes!!.getEpisode(epNum)
+                                if (kitsuEp != null) {
+                                    episode.desc = kitsuEp.desc ?: episode.desc
+                                    episode.thumb = kitsuEp.thumb ?: episode.thumb
                                 }
                             }
                         }
 
                         val applyAniZip = {
                             if (media.anime?.anifyEpisodes != null) {
-                                if (media.anime!!.anifyEpisodes!!.containsKey(i)) {
-                                    val anifyEp = media.anime!!.anifyEpisodes!![i]
-                                    episode.desc = anifyEp?.desc ?: episode.desc
-                                    episode.thumb = anifyEp?.thumb ?: episode.thumb
-                                    episode.rating = anifyEp?.extra?.get("rating") ?: episode.rating
-                                    val airDate = anifyEp?.extra?.get("airDate")
+                                val anifyEp = media.anime!!.anifyEpisodes!![epNum]
+                                    ?: media.anime!!.anifyEpisodes!!.getEpisode(epNum)
+                                if (anifyEp != null) {
+                                    episode.desc = anifyEp.desc ?: episode.desc
+                                    episode.thumb = anifyEp.thumb ?: episode.thumb
+                                    episode.rating = anifyEp.extra?.get("rating") ?: episode.rating
+                                    val airDate = anifyEp.extra?.get("airDate")
                                     if (!airDate.isNullOrBlank()) {
                                         episode.date = airDate.substringBefore("T")
                                     }
@@ -288,9 +292,9 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                         }
 
                         // Title fallback order: AniZip English -> Kitsu -> Jikan/MAL -> "Episode X"
-                        val anifyTitle = cleanTitle(media.anime?.anifyEpisodes?.get(i)?.title)
-                        val kitsuTitle = cleanTitle(media.anime?.kitsuEpisodes?.get(i)?.title)
-                        val jikanTitle = cleanTitle(media.anime?.fillerEpisodes?.get(i)?.title)
+                        val anifyTitle = cleanTitle((media.anime?.anifyEpisodes?.get(epNum) ?: media.anime?.anifyEpisodes?.getEpisode(epNum))?.title)
+                        val kitsuTitle = cleanTitle((media.anime?.kitsuEpisodes?.get(epNum) ?: media.anime?.kitsuEpisodes?.getEpisode(epNum))?.title)
+                        val jikanTitle = cleanTitle((media.anime?.fillerEpisodes?.get(epNum) ?: media.anime?.fillerEpisodes?.getEpisode(epNum))?.title)
                         episode.title = anifyTitle ?: kitsuTitle ?: jikanTitle ?: buildFallbackEpisodeTitle(i, episode)
                     }
                     media.anime?.episodes = episodes
@@ -307,18 +311,26 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
             if (i != null) {
                 media.anime?.kitsuEpisodes = i
                 if (loaded) {
-                    reload()
+                    updateEpisodes()
                 }
             }
         }
 
         model.getFillerEpisodes().observe(viewLifecycleOwner) { i ->
-            if (i != null)
+            if (i != null) {
                 media.anime?.fillerEpisodes = i
+                if (loaded) {
+                    updateEpisodes()
+                }
+            }
         }
         model.getAnifyEpisodes().observe(viewLifecycleOwner) { i ->
-            if (i != null)
+            if (i != null) {
                 media.anime?.anifyEpisodes = i
+                if (loaded) {
+                    updateEpisodes()
+                }
+            }
         }
     }
 
