@@ -45,6 +45,7 @@ class SettingsAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val settings = settings[position]
         when (settings.type) {
+            1 -> {
                 val b = (holder as SettingsViewHolder).binding
                 setAnimation(b.root.context, b.root)
 
