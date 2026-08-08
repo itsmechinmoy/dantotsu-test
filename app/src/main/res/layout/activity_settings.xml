@@ -77,16 +77,16 @@
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:textColorHint="@color/bg_opp"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"
                     android:transitionName="@string/search"
-                    app:boxBackgroundColor="?attr/colorPrimaryContainer"
+                    app:boxBackgroundColor="@color/nav_bg_inv"
                     app:boxCornerRadiusBottomEnd="28dp"
                     app:boxCornerRadiusBottomStart="28dp"
                     app:boxCornerRadiusTopEnd="28dp"
                     app:boxCornerRadiusTopStart="28dp"
-                    app:boxStrokeColor="@color/text_input_layout_stroke_color"
+                    app:boxStrokeColor="@color/nav_bg_inv"
                     app:endIconDrawable="@drawable/ic_round_search_24"
-                    app:endIconTint="@color/bg_opp"
+                    app:endIconTint="?attr/colorPrimary"
                     app:hintAnimationEnabled="true">
 
                     <AutoCompleteTextView
@@ -100,7 +100,8 @@
                         android:inputType="text"
                         android:padding="8dp"
                         android:selectAllOnFocus="true"
-                        android:textColor="?android:attr/textColorSecondary"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
                         android:textSize="14sp"
                         tools:ignore="LabelFor,TextContrastCheck" />
                 </com.google.android.material.textfield.TextInputLayout>
