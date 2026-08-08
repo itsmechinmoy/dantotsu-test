@@ -620,10 +620,6 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
     }
 
     fun onAnimeEpisodeStopDownloadClick(i: String) {
-        // Idle UI immediately (not "Failed"); ignore late progress broadcasts
-        AnimeDownloader.stopDownload(media.id, i)
-        episodeAdapter.clearDownloadState(i)
-
         val cancelIntent = Intent().apply {
             action = AnimeDownloaderService.ACTION_CANCEL_DOWNLOAD
             putExtra(
@@ -633,14 +629,16 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
         }
         requireContext().sendBroadcast(cancelIntent)
 
-        // Remove partial files from the manager
+        // Remove the download from the manager and update the UI
         downloadManager.removeDownload(
             DownloadedType(
                 media.mainName(),
                 i,
                 MediaType.ANIME
             )
-        ) {}
+        ) {
+            episodeAdapter.purgeDownload(i)
+        }
     }
 
     @OptIn(UnstableApi::class)
