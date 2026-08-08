@@ -129,16 +129,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         extra: Map<String, String>?,
         sAnime: SAnime
     ): List<Episode> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? AnimeHttpSource ?: (extension.sources[sourceLanguage] as? AnimeCatalogueSource
-            ?: return emptyList())
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? AnimeSource
+            ?: return emptyList()
         try {
             val networkAnime = runCatching {
-                if (source is AnimeHttpSource) source.getAnimeDetails(sAnime) else null
+                source.getAnimeDetails(sAnime)
             }.getOrNull()
             if (networkAnime != null) {
                 sAnime.copyFrom(networkAnime)
@@ -240,15 +236,11 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         extra: Map<String, String>?,
         sEpisode: SEpisode
     ): List<VideoServer> {
-        val source = try {
-            extension.sources[sourceLanguage]
-        } catch (e: Exception) {
-            sourceLanguage = 0
-            extension.sources[sourceLanguage]
-        } as? AnimeHttpSource ?: return emptyList()
+        val source = (extension.sources.getOrNull(sourceLanguage)
+            ?: extension.sources.firstOrNull()) as? AnimeSource ?: return emptyList()
 
         return try {
-            val videos = getVideoList(source,sEpisode)
+            val videos = getVideoList(source, sEpisode)
 
             videos.map { videoToVideoServer(it) }
         } catch (e: Exception) {
@@ -257,7 +249,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         }
     }
     suspend fun getVideoList(
-        source: AnimeHttpSource,
+        source: AnimeSource,
         episode: SEpisode
     ): List<Video> {
         val directVideos = runCatching {
@@ -269,7 +261,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         }.getOrElse { emptyList() }
 
         val sortedHosters = runCatching {
-            source.run { hosters.sortHosters() }
+            if (source is AnimeHttpSource) source.run { hosters.sortHosters() } else hosters
         }.getOrElse { hosters }
 
         val hosterVideos = if (sortedHosters.isNotEmpty()) {
@@ -319,12 +311,12 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             .filter { it.videoUrl.isNotBlank() && it.videoUrl != "null" }
 
         return runCatching {
-            source.run { allVideos.sortVideos() }
+            if (source is AnimeHttpSource) source.run { allVideos.sortVideos() } else allVideos
         }.getOrElse { allVideos }
     }
 
     private suspend fun resolveVideo(
-        source: AnimeHttpSource,
+        source: AnimeSource,
         video: Video
     ): Video {
         if (video.initialized && video.videoUrl.isNotEmpty() && video.videoUrl != "null") {
@@ -333,7 +325,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
         if (video.videoUrl == "null" || video.videoUrl.isEmpty()) {
             val newUrl = runCatching {
-                source.getVideoUrl(video)
+                if (source is AnimeHttpSource) source.getVideoUrl(video) else null
             }.getOrNull()
 
             if (!newUrl.isNullOrEmpty() && newUrl != "null") {
@@ -342,7 +334,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         }
 
         val resolved = runCatching {
-            source.resolveVideo(video)
+            if (source is AnimeHttpSource) source.resolveVideo(video) else null
         }.getOrNull()
 
         if (resolved != null) return resolved
