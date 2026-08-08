@@ -17,8 +17,6 @@ interface SManga : Serializable {
      * @since tachiyomix 1.7
      */
     var altTitles: List<String>
-        get() = emptyList()
-        set(_) {}
 
     var artist: String?
 
@@ -30,10 +28,6 @@ interface SManga : Serializable {
     var genre: String?
 
     var genres: List<String>
-        get() = getGenres().orEmpty()
-        set(value) {
-            genre = value.joinToString(", ")
-        }
 
     var status: Int
 
@@ -45,8 +39,6 @@ interface SManga : Serializable {
      * @since tachiyomix 1.7
      */
     var banner: String?
-        get() = null
-        set(_) {}
 
     /**
      * Primary language of the manga.
@@ -54,15 +46,11 @@ interface SManga : Serializable {
      * @since tachiyomix 1.7
      */
     var language: String?
-        get() = null
-        set(_) {}
 
     /**
      * Age or content rating for the manga.
      */
     var contentRating: ContentRating
-        get() = ContentRating.SAFE
-        set(_) {}
 
     /**
      * Source-provided rating score for the manga.
@@ -70,8 +58,6 @@ interface SManga : Serializable {
      * @since tachiyomix 1.7
      */
     var score: Int?
-        get() = null
-        set(_) {}
 
     /**
      * Preferred reading mode provided by the source.
@@ -79,8 +65,6 @@ interface SManga : Serializable {
      * @since tachiyomix 1.7
      */
     var readingMode: ReadingMode?
-        get() = null
-        set(_) {}
 
     var update_strategy: UpdateStrategy
 
@@ -92,11 +76,6 @@ interface SManga : Serializable {
      * @since tachiyomix 1.6
      */
     var memo: JsonObject
-
-    fun getGenres(): List<String>? {
-        if (genre.isNullOrBlank()) return null
-        return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
-    }
 
     fun copy() = create().also {
         it.url = url
