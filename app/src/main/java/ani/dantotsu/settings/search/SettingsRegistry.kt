@@ -99,13 +99,90 @@ object SettingsRegistry {
         )
         list.add(
             SearchableSetting(
-                title = context.getString(R.string.incognito_mode),
-                desc = context.getString(R.string.incognito_mode),
-                icon = R.drawable.ic_incognito_24,
+                title = context.getString(R.string.download_manager_select),
+                desc = context.getString(R.string.download_manager_select_desc),
+                icon = R.drawable.ic_download_24,
                 category = context.getString(R.string.common),
                 breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
                 targetActivity = SettingsCommonActivity::class.java,
-                highlightKey = context.getString(R.string.incognito_mode)
+                highlightKey = context.getString(R.string.download_manager_select)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.app_lock),
+                desc = context.getString(R.string.app_lock_desc),
+                icon = R.drawable.ic_round_lock_open_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.app_lock)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.backup_restore),
+                desc = context.getString(R.string.backup_restore_desc),
+                icon = R.drawable.backup_restore,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.backup_restore)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.change_download_location),
+                desc = context.getString(R.string.change_download_location_desc),
+                icon = R.drawable.ic_round_source_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.change_download_location)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.always_continue_content),
+                desc = context.getString(R.string.always_continue_content_desc),
+                icon = R.drawable.ic_round_delete_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.always_continue_content)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.hide_private),
+                desc = context.getString(R.string.hide_private_desc),
+                icon = R.drawable.ic_round_remove_red_eye_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.hide_private)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.search_source_list),
+                desc = context.getString(R.string.search_source_list_desc),
+                icon = R.drawable.ic_round_search_sources_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.search_source_list)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.recentlyListOnly),
+                desc = context.getString(R.string.recentlyListOnly_desc),
+                icon = R.drawable.ic_round_new_releases_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.recentlyListOnly)
             )
         )
         list.add(
@@ -120,34 +197,12 @@ object SettingsRegistry {
                 isVisible = Anilist.adult
             )
         )
-        list.add(
-            SearchableSetting(
-                title = context.getString(R.string.app_lock),
-                desc = context.getString(R.string.app_lock_desc),
-                icon = R.drawable.ic_round_lock_open_24,
-                category = context.getString(R.string.common),
-                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
-                targetActivity = SettingsCommonActivity::class.java,
-                highlightKey = context.getString(R.string.app_lock)
-            )
-        )
 
         // 3. User Interface Settings
         list.add(
             SearchableSetting(
-                title = context.getString(R.string.small_view),
-                desc = context.getString(R.string.small_view),
-                icon = R.drawable.ic_round_view_comfy_24,
-                category = context.getString(R.string.ui_settings),
-                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
-                targetActivity = UserInterfaceSettingsActivity::class.java,
-                highlightKey = context.getString(R.string.small_view)
-            )
-        )
-        list.add(
-            SearchableSetting(
                 title = context.getString(R.string.immersive_mode),
-                desc = context.getString(R.string.immersive_mode),
+                desc = context.getString(R.string.immersive_mode_info),
                 icon = R.drawable.ic_round_fullscreen_24,
                 category = context.getString(R.string.ui_settings),
                 breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
@@ -157,9 +212,42 @@ object SettingsRegistry {
         )
         list.add(
             SearchableSetting(
+                title = context.getString(R.string.hide_notification_dot),
+                desc = context.getString(R.string.hide_notification_dot),
+                icon = R.drawable.ic_round_notifications_active_24,
+                category = context.getString(R.string.ui_settings),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
+                targetActivity = UserInterfaceSettingsActivity::class.java,
+                highlightKey = context.getString(R.string.hide_notification_dot)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.home_layout_show),
+                desc = context.getString(R.string.home_layout_show),
+                icon = R.drawable.ic_round_playlist_add_24,
+                category = context.getString(R.string.ui_settings),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
+                targetActivity = UserInterfaceSettingsActivity::class.java,
+                highlightKey = context.getString(R.string.home_layout_show)
+            )
+        )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.small_view),
+                desc = context.getString(R.string.small_view),
+                icon = R.drawable.ic_round_art_track_24,
+                category = context.getString(R.string.ui_settings),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
+                targetActivity = UserInterfaceSettingsActivity::class.java,
+                highlightKey = context.getString(R.string.small_view)
+            )
+        )
+        list.add(
+            SearchableSetting(
                 title = context.getString(R.string.banner_animations),
                 desc = context.getString(R.string.banner_animations),
-                icon = R.drawable.ic_round_video_settings_24,
+                icon = R.drawable.ic_round_animation_24,
                 category = context.getString(R.string.ui_settings),
                 breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
                 targetActivity = UserInterfaceSettingsActivity::class.java,
@@ -170,7 +258,7 @@ object SettingsRegistry {
             SearchableSetting(
                 title = context.getString(R.string.layout_animations),
                 desc = context.getString(R.string.layout_animations),
-                icon = R.drawable.ic_round_video_settings_24,
+                icon = R.drawable.ic_round_animation_24,
                 category = context.getString(R.string.ui_settings),
                 breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)} > ${context.getString(R.string.ui_settings)}",
                 targetActivity = UserInterfaceSettingsActivity::class.java,
@@ -275,7 +363,7 @@ object SettingsRegistry {
             SearchableSetting(
                 title = context.getString(R.string.crop_borders),
                 desc = context.getString(R.string.crop_borders),
-                icon = R.drawable.ic_round_fullscreen_24,
+                icon = R.drawable.ic_round_screen_rotation_alt_24,
                 category = context.getString(R.string.reader_settings),
                 breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.manga)} > ${context.getString(R.string.reader_settings)}",
                 targetActivity = ReaderSettingsActivity::class.java,
