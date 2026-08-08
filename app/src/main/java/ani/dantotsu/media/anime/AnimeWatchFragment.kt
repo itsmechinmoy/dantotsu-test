@@ -227,7 +227,7 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                             media.selected!!.sourceIndex = model.watchSources!!.list.lastIndex
                         } else if (!offline && !isLocal) {
                             val kitsuEpisodes = async { model.loadKitsuEpisodes(media) }
-                            val anifyEpisodes = async { model.loadAnifyEpisodes(media.id) }
+                            val anifyEpisodes = async { model.loadAnifyEpisodes(media) }
                             val fillerEpisodes = async { model.loadFillerEpisodes(media) }
                             awaitAll(kitsuEpisodes, anifyEpisodes, fillerEpisodes)
                         }
