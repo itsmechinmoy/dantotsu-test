@@ -9,7 +9,10 @@ import ani.dantotsu.databinding.ItemSettingsBinding
 import ani.dantotsu.databinding.ItemSettingsSwitchBinding
 import ani.dantotsu.setAnimation
 
-class SettingsAdapter(private val settings: ArrayList<Settings>) :
+class SettingsAdapter(
+    private val settings: ArrayList<Settings>,
+    var highlightKey: String? = null
+) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     inner class SettingsViewHolder(val binding: ItemSettingsBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -42,9 +45,13 @@ class SettingsAdapter(private val settings: ArrayList<Settings>) :
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val settings = settings[position]
         when (settings.type) {
-            1 -> {
                 val b = (holder as SettingsViewHolder).binding
                 setAnimation(b.root.context, b.root)
+
+                if (highlightKey != null && settings.name.equals(highlightKey, ignoreCase = true)) {
+                    b.root.alpha = 0.3f
+                    b.root.animate().alpha(1f).setDuration(600).start()
+                }
 
                 b.settingsTitle.text = settings.name
                 b.settingsDesc.text = settings.desc
@@ -81,6 +88,11 @@ class SettingsAdapter(private val settings: ArrayList<Settings>) :
             2 -> {
                 val b = (holder as SettingsSwitchViewHolder).binding
                 setAnimation(b.root.context, b.root)
+
+                if (highlightKey != null && settings.name.equals(highlightKey, ignoreCase = true)) {
+                    b.root.alpha = 0.3f
+                    b.root.animate().alpha(1f).setDuration(600).start()
+                }
 
                 b.settingsButton.text = settings.name
                 b.settingsDesc.text = settings.desc
