@@ -69,7 +69,9 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             onBackPressedDispatcher.addCallback(context) {
-                if (PrefManager.getCustomVal("reload", false)) {
+                if (settingsSearchBarText.text?.isNotBlank() == true) {
+                    settingsSearchBarText.setText("")
+                } else if (PrefManager.getCustomVal("reload", false)) {
                     startMainActivity(context)
                     PrefManager.setCustomVal("reload", false)
                 } else {
@@ -78,10 +80,14 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             settingsBack.setOnClickListener {
-                onBackPressedDispatcher.onBackPressed()
+                if (settingsSearchBarText.text?.isNotBlank() == true) {
+                    settingsSearchBarText.setText("")
+                } else {
+                    onBackPressedDispatcher.onBackPressed()
+                }
             }
 
-            binding.settingsRecyclerView.adapter = SettingsAdapter(
+            val mainAdapter = SettingsAdapter(
                 arrayListOf(
                     Settings(
                         type = 1,
@@ -176,10 +182,45 @@ class SettingsActivity : AppCompatActivity() {
                 )
             )
 
+            val searchAdapter = ani.dantotsu.settings.search.SettingsSearchAdapter(emptyList())
+
             settingsRecyclerView.apply {
+                adapter = mainAdapter
                 layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
                 setHasFixedSize(true)
             }
+
+            settingsSearchBarText.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    val query = s?.toString()?.trim() ?: ""
+                    if (query.isNotEmpty()) {
+                        val results = ani.dantotsu.settings.search.SettingsRegistry.search(context, query)
+                        if (results.isNotEmpty()) {
+                            searchAdapter.updateResults(results)
+                            settingsRecyclerView.adapter = searchAdapter
+                            settingsRecyclerView.visibility = View.VISIBLE
+                            settingsEmptyLayout.visibility = View.GONE
+                        } else {
+                            settingsRecyclerView.visibility = View.GONE
+                            settingsEmptyLayout.visibility = View.VISIBLE
+                        }
+                        settingsFooterLayout.visibility = View.GONE
+                        settingsSearchBar.setEndIconDrawable(R.drawable.ic_round_close_24)
+                        settingsSearchBar.setEndIconOnClickListener {
+                            settingsSearchBarText.setText("")
+                        }
+                    } else {
+                        settingsRecyclerView.adapter = mainAdapter
+                        settingsRecyclerView.visibility = View.VISIBLE
+                        settingsEmptyLayout.visibility = View.GONE
+                        settingsFooterLayout.visibility = View.VISIBLE
+                        settingsSearchBar.setEndIconDrawable(R.drawable.ic_round_search_24)
+                        settingsSearchBar.setEndIconOnClickListener(null)
+                    }
+                }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
 
             if (!BuildConfig.FLAVOR.contains("fdroid")) {
                 settingsLogo.setOnLongClickListener {
