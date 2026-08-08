@@ -77,8 +77,6 @@ private fun setupSocks5Proxy() {
             )
             .addInterceptor(UncaughtExceptionInterceptor())
             .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
-            .addNetworkInterceptor(IgnoreGzipInterceptor())
-            .addNetworkInterceptor(BrotliInterceptor)
 
         class ConsoleLogger : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
@@ -115,14 +113,15 @@ private fun setupSocks5Proxy() {
       builder.build()
      }
 
+    // Tuned for HLS segment fan-out (~16 workers/host) without oversized pools/radio tail.
     val downloadClient = client.newBuilder()
         .dispatcher(
             okhttp3.Dispatcher().apply {
-                maxRequests = 512
-                maxRequestsPerHost = 64
+                maxRequests = 96
+                maxRequestsPerHost = 20
             },
         )
-        .connectionPool(okhttp3.ConnectionPool(256, 5, TimeUnit.MINUTES))
+        .connectionPool(okhttp3.ConnectionPool(40, 45, TimeUnit.SECONDS))
         .retryOnConnectionFailure(true)
         .callTimeout(20, TimeUnit.MINUTES)
         .build()
