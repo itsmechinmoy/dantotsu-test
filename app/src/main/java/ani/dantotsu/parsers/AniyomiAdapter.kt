@@ -478,7 +478,7 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
 
     override suspend fun loadImages(chapterLink: String, sChapter: SChapter): List<MangaImage> {
         val source = (extension.sources.getOrNull(sourceLanguage)
-            ?: extension.sources.firstOrNull()) as? MangaSource ?: return emptyList()
+            ?: extension.sources.firstOrNull()) as? HttpSource ?: return emptyList()
         val imageDataList: MutableList<ImageData> = mutableListOf()
         val ret = coroutineScope {
             try {
@@ -490,7 +490,7 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
                 val deferreds = reIndexedPages.map { page ->
                     async(Dispatchers.IO) {
                         val imageUrl = if (page.imageUrl.isNullOrBlank()) {
-                            runCatching { if (source is HttpSource) source.getImageUrl(page) else page.imageUrl }.getOrNull() ?: page.imageUrl
+                            runCatching { source.getImageUrl(page) }.getOrNull() ?: page.imageUrl
                         } else {
                             page.imageUrl
                         }
@@ -519,7 +519,7 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
 
     suspend fun imageList(sChapter: SChapter): List<ImageData> {
         val source = (extension.sources.getOrNull(sourceLanguage)
-            ?: extension.sources.firstOrNull()) as? MangaSource ?: return emptyList()
+            ?: extension.sources.firstOrNull()) as? HttpSource ?: return emptyList()
 
         return coroutineScope {
             try {
@@ -533,7 +533,7 @@ class DynamicMangaParser(extension: MangaExtension.Installed) : MangaParser() {
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
                             val imageUrl = if (page.imageUrl.isNullOrBlank()) {
-                                runCatching { if (source is HttpSource) source.getImageUrl(page) else page.imageUrl }.getOrNull() ?: page.imageUrl
+                                runCatching { source.getImageUrl(page) }.getOrNull() ?: page.imageUrl
                             } else {
                                 page.imageUrl
                             }
