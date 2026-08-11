@@ -265,9 +265,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Validate Media immediately before initializing UI and managers
-        val hasValidMedia = initialized && runCatching { media }.isSuccess && media.anime != null && !media.anime!!.episodes.isNullOrEmpty()
-        if (!hasValidMedia) {
+        if (!initialized) {
             startMainActivity(this)
             finish()
             return
@@ -337,7 +335,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     .load(if (isPlaying) R.drawable.anim_play_to_pause else R.drawable.anim_pause_to_play)
                     .into(exoPlay)
             }
-            if (::media.isInitialized && ::episode.isInitialized) {
+            if (initialized && this::episode.isInitialized) {
                 discordManager.updatePresence(media, episode, playerManager.exoPlayer, isPlaying)
             }
         }
@@ -391,8 +389,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
         castManager.onSessionStartedListener = { deviceName ->
             playerManager.exoPlayer?.pause()
-            if (::media.isInitialized) {
-                castScreenView.updateMediaInfo(media, if (::episode.isInitialized) episode else null)
+            if (initialized) {
+                castScreenView.updateMediaInfo(media, if (this::episode.isInitialized) episode else null)
             }
             castScreenView.updateDeviceName(deviceName)
             castScreenView.show(true)
@@ -551,13 +549,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         // Initialize Gestures
         gestureManager.initGestures()
 
-        // Validate Media
-        val hasValidMedia = initialized && runCatching { media }.isSuccess && media.anime != null && !media.anime!!.episodes.isNullOrEmpty()
-        if (!hasValidMedia) {
-            startMainActivity(this)
-            finish()
-            return
-        }
+        // Handle Media
+        if (!initialized) return startMainActivity(this)
         model.setMedia(media)
         title = media.userPreferredName
         val eps = media.anime?.episodes
