@@ -256,7 +256,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     displayCutout.boundingRects[0].width(),
                     displayCutout.boundingRects[0].height()
                 )
-                gestureManager.updateNotchHeight(notch)
+                if (this::gestureManager.isInitialized) {
+                    gestureManager.updateNotchHeight(notch)
+                }
             }
         }
         super.onAttachedToWindow()
