@@ -64,6 +64,7 @@ import ani.dantotsu.media.EpisodeMapper
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaDetailsViewModel
 import ani.dantotsu.media.MediaNameAdapter
+import ani.dantotsu.media.anime.player.CastScreenView
 import ani.dantotsu.media.anime.player.DantotsuPlayerManager
 import ani.dantotsu.media.anime.player.PlayerAniSkipManager
 import ani.dantotsu.media.anime.player.PlayerCastManager
@@ -154,6 +155,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private lateinit var episodeTitle: Spinner
     private lateinit var customSubtitleView: Xubtitle
     private lateinit var customCastButton: CustomCastButton
+    private lateinit var castScreenView: CastScreenView
 
     private var orientationListener: OrientationEventListener? = null
     private var downloadId: String? = null
@@ -327,6 +329,69 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     .into(exoPlay)
             }
             discordManager.updatePresence(media, episode, playerManager.exoPlayer, isPlaying)
+        }
+
+        castScreenView = CastScreenView(
+            activity = this,
+            binding = binding.castScreenView,
+            castManager = castManager,
+            onPlayPauseClick = {
+                castManager.togglePlayPause()
+            },
+            onPreviousClick = {
+                if (currentEpisodeIndex > 0) {
+                    changeEpisode(currentEpisodeIndex - 1)
+                } else {
+                    snackString(getString(R.string.first_episode), this)
+                }
+            },
+            onNextClick = {
+                progressManager.nextEpisode { i ->
+                    progressManager.updateAniProgress()
+                    changeEpisode(currentEpisodeIndex + i)
+                }
+            },
+            onSeekTo = { posMs: Long ->
+                castManager.seekTo(posMs)
+            },
+            onPlaylistClick = {
+                episodeTitle.performClick()
+            },
+            onSpeedClick = {
+                exoSpeed.performClick()
+            },
+            onSubtitlesClick = {
+                exoSubtitle.performClick()
+            },
+            onAudioClick = {
+                exoAudioTrack.performClick()
+            },
+            onQualityClick = {
+                exoSource.performClick()
+            },
+            onCustomSkipClick = {
+                exoSkip.performLongClick()
+            },
+            onSkipIntroClick = {
+                aniSkipManager.skipCurrentInterval()
+            }
+        )
+        castManager.castScreenView = castScreenView
+
+        castManager.onSessionStartedListener = { deviceName ->
+            playerManager.exoPlayer?.pause()
+            castScreenView.updateMediaInfo(media, if (::episode.isInitialized) episode else null)
+            castScreenView.updateDeviceName(deviceName)
+            castScreenView.show(true)
+            playerView.hideController()
+        }
+
+        castManager.onSessionEndedListener = { resumePositionMs ->
+            castScreenView.hide(true)
+            playerManager.exoPlayer?.let { p ->
+                p.seekTo(resumePositionMs)
+                p.play()
+            }
         }
 
         // Sensor & Orientation
