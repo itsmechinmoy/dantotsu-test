@@ -114,6 +114,12 @@ class PlayerAniSkipManager(
         cancelTimer()
     }
 
+    fun skipCurrentInterval() {
+        val new = currentTimeStamp ?: return
+        val player = getPlayer() ?: return
+        player.seekTo((new.interval.endTime * 1000).toLong())
+    }
+
     private fun cancelTimer() {
         countDownTimer?.cancel()
         countDownTimer = null
