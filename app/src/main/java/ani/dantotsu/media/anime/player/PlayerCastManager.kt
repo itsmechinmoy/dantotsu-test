@@ -123,10 +123,14 @@ class PlayerCastManager(
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful && task.result != null) {
                         castContext = task.result
-                        castContext?.sessionManager?.addSessionManagerListener(sessionManagerListener, CastSession::class.java)
-                        castPlayer = castContext?.let { CastPlayer(it) }
-                        castPlayer?.setSessionAvailabilityListener(this)
-                        setupCastPlayerListener()
+                        try {
+                            castContext?.sessionManager?.addSessionManagerListener(sessionManagerListener, CastSession::class.java)
+                            castPlayer = castContext?.let { CastPlayer(it) }
+                            castPlayer?.setSessionAvailabilityListener(this)
+                            setupCastPlayerListener()
+                        } catch (e: Exception) {
+                            isCastApiAvailable = false
+                        }
                     } else {
                         isCastApiAvailable = false
                     }
