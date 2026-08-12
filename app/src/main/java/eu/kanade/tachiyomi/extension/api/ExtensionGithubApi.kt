@@ -123,11 +123,19 @@ internal class ExtensionGithubApi {
                     .newCall(GET(targetUrl))
                     .awaitSuccess()
             } catch (e: Throwable) {
-                if (targetUrl.endsWith("index.pb") && mediaType == MediaType.MANGA) {
+                if (targetUrl.endsWith("index.pb")) {
                     val fallback = "${cleanRepoUrl(targetUrl)}/repo.json"
-                    networkService.client.newCall(GET(fallback)).awaitSuccess()
+                    try {
+                        networkService.client.newCall(GET(fallback)).awaitSuccess()
+                    } catch (_: Throwable) {
+                        val minFallback = "${cleanRepoUrl(targetUrl)}/index.min.json"
+                        networkService.client.newCall(GET(minFallback)).awaitSuccess()
+                    }
                 } else if (targetUrl.endsWith("repo.json")) {
                     val fallback = "${cleanRepoUrl(targetUrl)}/index.min.json"
+                    networkService.client.newCall(GET(fallback)).awaitSuccess()
+                } else if (targetUrl.endsWith("index.min.json")) {
+                    val fallback = "${cleanRepoUrl(targetUrl)}/index.pb"
                     networkService.client.newCall(GET(fallback)).awaitSuccess()
                 } else {
                     throw e
