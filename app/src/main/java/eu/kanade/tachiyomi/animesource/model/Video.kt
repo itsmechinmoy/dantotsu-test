@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animesource.model
 
 import android.net.Uri
-import fi.iki.elonen.NanoHTTPD
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -166,20 +165,6 @@ data class SerializableVideo(
                         sVid.initialized,
                     )
                 }
-    }
-}
-
-/**
- * Class for NanoHTTPD server.
- *
- * @since extensions-lib 17
- */
-open class HttpServer : NanoHTTPD(0) {
-    val url: String
-        get() = "http://localhost:$listeningPort"
-
-    companion object {
-        const val PLACEHOLDER_URL = "http://localhost:1"
     }
 }
 
