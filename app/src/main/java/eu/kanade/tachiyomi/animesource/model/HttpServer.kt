@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.animesource.model
 import fi.iki.elonen.NanoHTTPD
 
 /**
- * Class for NanoHTTPD server used by anime extensions for local proxies/streams.
+ * Class for NanoHTTPD server.
  *
  * @since extensions-lib 17
  */
