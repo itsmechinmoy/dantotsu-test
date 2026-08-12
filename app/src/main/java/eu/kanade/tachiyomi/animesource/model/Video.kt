@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.animesource.model
 
 import android.net.Uri
+import fi.iki.elonen.NanoHTTPD
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -167,3 +168,37 @@ data class SerializableVideo(
                 }
     }
 }
+
+/**
+ * Class for NanoHTTPD server.
+ *
+ * @since extensions-lib 17
+ */
+open class HttpServer : NanoHTTPD(0) {
+    val url: String
+        get() = "http://localhost:$listeningPort"
+
+    companion object {
+        const val PLACEHOLDER_URL = "http://localhost:1"
+    }
+}
+
+/**
+ * The class containing info for displaying thumbnails.
+ */
+open class ThumbnailInfo(
+    val tileInfo: List<TileInfo>,
+    val imageTileUrls: List<String>,
+)
+
+/**
+ * The class containing info for an image tile to be used as a thumbnail
+ */
+data class TileInfo(
+    val imageIndex: Int,
+    val timeMs: Long,
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
