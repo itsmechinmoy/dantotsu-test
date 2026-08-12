@@ -11,7 +11,7 @@ import kotlinx.coroutines.supervisorScope
 import rx.Observable
 import tachiyomi.core.util.lang.awaitSingle
 
-interface CatalogueSource : MangaSource {
+interface CatalogueSource : Source {
 
     /**
      * An ISO 639-1 compliant language code (two letters in lower case).
