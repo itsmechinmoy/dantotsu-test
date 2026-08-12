@@ -6,13 +6,13 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.SMangaUpdate
-import eu.kanade.tachiyomi.util.awaitSingle
 import rx.Observable
 
 /**
- * A basic interface for creating a source. It could be an online source, a local source, etc.
+ * A basic interface for creating a source. It could be an online source, a local source, etc...
  */
-interface MangaSource {
+@Suppress("Unused")
+interface Source {
 
     /**
      * ID for the source. Must be unique.
@@ -24,8 +24,18 @@ interface MangaSource {
      */
     val name: String
 
+    /**
+     * Legacy language code.
+     */
     val lang: String
         get() = ""
+
+    /**
+     * Primary language of the source (BCP 47 tag).
+     * @since tachiyomix 1.7
+     */
+    val language: String
+        get() = lang
 
     /**
      * Whether the source has support for latest updates.
@@ -70,8 +80,8 @@ interface MangaSource {
      * @since tachiyomix 1.6
      * @param manga The manga to fetch updates for.
      * @param chapters Existing chapters of the manga
-     * @param fetchDetails Whether to fetch updated manga details.
-     * @param fetchChapters Whether to fetch available chapters.
+     * @param fetchDetails Whether to include updated manga details.
+     * @param fetchChapters Whether to include available chapters.
      */
     suspend fun getMangaUpdate(
         manga: SManga,
@@ -85,8 +95,7 @@ interface MangaSource {
     }
 
     /**
-     * Get the list of pages a chapter has. Pages should be returned
-     * in the expected order; the index is ignored.
+     * Get the list of pages a chapter has.
      *
      * @since extensions-lib 1.5
      * @param chapter the chapter.
