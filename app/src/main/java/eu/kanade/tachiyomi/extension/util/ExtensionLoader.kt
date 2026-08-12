@@ -68,7 +68,7 @@ internal object ExtensionLoader {
     const val ANIME_LIB_VERSION_MAX = 17
 
     const val MANGA_LIB_VERSION_MIN = 1.4
-    const val MANGA_LIB_VERSION_MAX = 1.6
+    const val MANGA_LIB_VERSION_MAX = 1.7
 
     val PACKAGE_FLAGS = PackageManager.GET_CONFIGURATIONS or
             PackageManager.GET_META_DATA or
