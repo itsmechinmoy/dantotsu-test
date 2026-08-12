@@ -35,11 +35,13 @@ class AppModule(val app: Application) : InjektModule {
     @OptIn(UnstableApi::class)
     override fun InjektRegistrar.registerInjectables() {
         addSingleton(app)
+        addSingleton<android.content.Context>(app)
+        addSingleton<Application>(app)
 
         addSingletonFactory { DownloadsManager(app) }
 
         addSingletonFactory { NetworkHelper(app) }
-        addSingletonFactory { NetworkHelper(app).client }
+        addSingletonFactory { get<NetworkHelper>().client }
         addSingletonFactory { eu.kanade.tachiyomi.network.JavaScriptEngine(app) }
 
         addSingletonFactory { AnimeExtensionManager(app) }
@@ -56,6 +58,9 @@ class AppModule(val app: Application) : InjektModule {
                 ignoreUnknownKeys = true
                 explicitNulls = false
             }
+        }
+        addSingletonFactory<kotlinx.serialization.protobuf.ProtoBuf> {
+            kotlinx.serialization.protobuf.ProtoBuf
         }
 
         addSingletonFactory { StandaloneDatabaseProvider(app) }
