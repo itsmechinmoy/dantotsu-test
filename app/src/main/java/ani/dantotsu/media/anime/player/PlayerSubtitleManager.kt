@@ -517,7 +517,8 @@ class PlayerSubtitleManager(
         index: Int = 0
     ) {
         val player = getPlayer() ?: return
-        val isDisabled = trackGroup.getTrackFormat(0).language == "none"
+        val format = trackGroup.getTrackFormat(index)
+        val isDisabled = format.language == "none"
         player.trackSelectionParameters = player.trackSelectionParameters
             .buildUpon()
             .setTrackTypeDisabled(TRACK_TYPE_TEXT, isDisabled)
@@ -527,6 +528,7 @@ class PlayerSubtitleManager(
         if (type == TRACK_TYPE_TEXT) {
             setupSubFormatting(playerView)
             applySubtitleStyles(customSubtitleView)
+            playerView.subtitleView?.visibility = if (isDisabled) View.GONE else View.VISIBLE
         }
         playerView.subtitleView?.alpha = when (isDisabled) {
             false -> PrefManager.getVal(PrefName.SubAlpha)
@@ -542,8 +544,14 @@ class PlayerSubtitleManager(
             tracks.groups.forEachIndexed { groupIndex, group ->
                 if (group.type == TRACK_TYPE_TEXT) {
                     for (trackIndex in 0 until group.length) {
-                        val trackLabel = group.getTrackFormat(trackIndex).label
-                        if (trackLabel == pendingLabel) {
+                        val format = group.getTrackFormat(trackIndex)
+                        val trackLabel = format.label ?: ""
+                        val trackLang = format.language ?: ""
+                        if (trackLabel.equals(pendingLabel, ignoreCase = true) ||
+                            trackLang.equals(pendingLabel, ignoreCase = true) ||
+                            (trackLabel.isNotBlank() && trackLabel.contains(pendingLabel, ignoreCase = true)) ||
+                            (pendingLabel.isNotBlank() && pendingLabel.contains(trackLabel, ignoreCase = true))
+                        ) {
                             pendingSubtitleLabel = null
                             initialSubtitleLabel = null
                             matched = true
