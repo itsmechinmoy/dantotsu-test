@@ -119,6 +119,9 @@ class DantotsuPlayerManager(
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         val extractorsFactory = subtitleManager.createExtractorsFactory()
+        val assParserFactory = subtitleManager.createSubtitleParserFactory()
+        val assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
+            .setSubtitleParserFactory(assParserFactory)
 
         val mediaItem = downloadedMediaItem?.buildUpon()?.apply {
             if (mediaMetadata != null) setMediaMetadata(mediaMetadata)
@@ -132,18 +135,28 @@ class DantotsuPlayerManager(
             .build()
         this.currentMediaItem = mediaItem
 
-        val primarySource = when (video.format) {
-            VideoType.M3U8 -> HlsMediaSource.Factory(cacheFactory)
-                .setAllowChunklessPreparation(true)
+        val isContentUri = video.file.url.startsWith("content://")
+        val primarySource = if (isContentUri) {
+            val localDataSourceFactory = DefaultDataSource.Factory(activity)
+            DefaultMediaSourceFactory(localDataSourceFactory, extractorsFactory)
                 .createMediaSource(mediaItem)
-            VideoType.DASH -> DashMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
-            else -> ProgressiveMediaSource.Factory(cacheFactory, extractorsFactory)
-                .createMediaSource(mediaItem)
+        } else {
+            when (video.format) {
+                VideoType.M3U8 -> HlsMediaSource.Factory(cacheFactory)
+                    .setAllowChunklessPreparation(true)
+                    .createMediaSource(mediaItem)
+                VideoType.DASH -> DashMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
+                else -> assMediaSourceFactory.createMediaSource(mediaItem)
+            }
         }
 
-        val subSources = subConfigs.map { subConfig ->
-            SingleSampleMediaSource.Factory(cacheFactory)
-                .createMediaSource(subConfig, C.TIME_UNSET)
+        val subSources = if (video.format == VideoType.M3U8 && subConfigs.isNotEmpty()) {
+            subConfigs.map { subConfig ->
+                SingleSampleMediaSource.Factory(cacheFactory)
+                    .createMediaSource(subConfig, C.TIME_UNSET)
+            }
+        } else {
+            emptyList()
         }
 
         val source = if (subSources.isNotEmpty()) {
@@ -211,19 +224,6 @@ class DantotsuPlayerManager(
 
         audioFocusListener = AudioFocusListener(activity, player)
         player.addListener(audioFocusListener!!)
-
-        player.trackSelectionParameters = player.trackSelectionParameters
-            .buildUpon()
-            .setAudioOffloadPreferences(
-                TrackSelectionParameters.AudioOffloadPreferences.Builder()
-                    .setAudioOffloadMode(
-                        TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
-                    )
-                    .setIsGaplessSupportRequired(true)
-                    .setIsSpeedChangeSupportRequired(true)
-                    .build()
-            )
-            .build()
 
         Logger.log("Libass: Calling handler.init(exoPlayer)")
         handler.init(player)
