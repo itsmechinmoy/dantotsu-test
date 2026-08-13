@@ -362,9 +362,11 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         }
                     } else {
                         // Standard built-in local subtitle
-                        episode.selectedSubtitle = adjustedPosition
+                        val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
+                        val subIndex = currentExtractor?.subtitles?.indexOf(item) ?: -1
+                        episode.selectedSubtitle = if (subIndex != -1) subIndex else adjustedPosition
                         model.setEpisode(episode, "Subtitle")
-                        model.getMedia().observe(viewLifecycleOwner) { media ->
+                        model.getMedia().value?.let { media ->
                             val mediaID: Int = media.id
                             PrefManager.setCustomVal(
                                 "subLang_${mediaID}",
