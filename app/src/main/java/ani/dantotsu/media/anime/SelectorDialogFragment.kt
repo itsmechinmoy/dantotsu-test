@@ -536,10 +536,11 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                                         startActivity(this)
                                     }
                                 } else {
-                                    model.setEpisode(
-                                        media.anime!!.episodes!![media.anime.selectedEpisode!!]!!,
-                                        "startExo no launch"
-                                    )
+                                    val epKey = media.anime?.selectedEpisode
+                                    val targetEp = media.anime?.episodes?.getEpisode(epKey) ?: ep
+                                    if (targetEp != null) {
+                                        model.setEpisode(targetEp, "startExo no launch")
+                                    }
                                 }
                                 dismissAllowingStateLoss()
                             } catch (e: Exception) {
@@ -585,10 +586,11 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
             ExoplayerView.initialized = true
             startActivity(intent)
         } else {
-            model.setEpisode(
-                media.anime!!.episodes!![media.anime.selectedEpisode!!]!!,
-                "startExo no launch"
-            )
+            val epKey = media.anime?.selectedEpisode
+            val targetEp = media.anime?.episodes?.getEpisode(epKey) ?: episode
+            if (targetEp != null) {
+                model.setEpisode(targetEp, "startExo no launch")
+            }
         }
     }
 
