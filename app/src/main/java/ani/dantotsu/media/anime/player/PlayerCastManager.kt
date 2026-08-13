@@ -200,6 +200,10 @@ class PlayerCastManager(
         }
 
         castButton.visibility = View.VISIBLE
+        try {
+            castButton.setAlwaysVisible(true)
+        } catch (_: Exception) {}
+
         if (PrefManager.getVal(PrefName.UseInternalCast)) {
             if (castContext == null && isCastApiAvailable) {
                 pendingCastButtonSetup = {
@@ -209,6 +213,9 @@ class PlayerCastManager(
                 try {
                     CastButtonFactory.setUpMediaRouteButton(activity, castButton)
                     castButton.dialogFactory = CustomCastThemeFactory()
+                    try {
+                        castButton.setAlwaysVisible(true)
+                    } catch (_: Exception) {}
                 } catch (e: Exception) {
                     isCastApiAvailable = false
                 }
