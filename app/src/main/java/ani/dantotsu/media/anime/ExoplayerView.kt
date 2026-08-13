@@ -38,6 +38,7 @@ import androidx.media3.common.C.TRACK_TYPE_AUDIO
 import androidx.media3.common.C.TRACK_TYPE_TEXT
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -569,7 +570,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         animeTitle.text = media.userPreferredName
 
         episodeArr = episodes.keys.toList()
-        val currentSelected = media.anime?.selectedEpisode?.takeIf { episodes.containsKey(it) }
+        val currentSelected = episodes.getEpisodeKey(media.anime?.selectedEpisode)
             ?: episodeArr.firstOrNull() ?: run {
                 startMainActivity(this)
                 finish()
@@ -897,10 +898,20 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         } else null
 
         playerManager.initTrackSelector()
-        val (_, mediaItem) = playerManager.buildMediaSource(video!!, subConfigs, mimeType, downloadedMediaItem)
+        val epTitle = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: ("Episode " + (media.anime?.selectedEpisode ?: "1"))
+        val currentEp = media.anime?.episodes?.getEpisode(media.anime?.selectedEpisode)
+        val thumbUri = (currentEp?.thumb?.url ?: media.banner ?: media.cover)?.toUri()
+        val mediaMetadata = MediaMetadata.Builder()
+            .setTitle(epTitle)
+            .setArtist(media.userPreferredName)
+            .setDisplayTitle(epTitle)
+            .apply {
+                if (thumbUri != null) setArtworkUri(thumbUri)
+            }
+            .build()
+        val (_, mediaItem) = playerManager.buildMediaSource(video!!, subConfigs, mimeType, downloadedMediaItem, mediaMetadata)
 
         castManager.updateCurrentMedia(mediaItem, playerManager.exoPlayer)
-        val epTitle = episodeTitleArr.getOrNull(currentEpisodeIndex)
         castManager.setupCastButton(customCastButton, media, video, subtitle, hasExtSubtitles, epTitle)
 
         buildExoplayer()
