@@ -630,6 +630,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         model.getEpisode().observe(this) { ep ->
             hideSystemBars()
             if (ep != null && !epChanging) {
+                val currentPos = playerManager.exoPlayer?.currentPosition
                 episode = ep
                 media.selected = model.loadSelected(media)
                 model.setMedia(media)
@@ -641,8 +642,12 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 if (currentEpisodeIndex in 0 until episodeTitleArr.size) {
                     episodeTitle.setSelection(currentEpisodeIndex)
                 }
-                if (playerManager.isInitialized) releasePlayer()
-                playbackPosition = PrefManager.getCustomVal("${media.id}_${epKey ?: ep.number}", 0L)
+                if (playerManager.isInitialized) {
+                    releasePlayer()
+                    playbackPosition = currentPos ?: PrefManager.getCustomVal("${media.id}_${epKey ?: ep.number}", 0L)
+                } else {
+                    playbackPosition = PrefManager.getCustomVal("${media.id}_${epKey ?: ep.number}", 0L)
+                }
                 initPlayer()
                 progressManager.startTracking()
             }
@@ -820,12 +825,15 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Slovak", "Slovenian", "Spanish",
             "Turkish", "Ukrainian", "Urdu", "Vietnamese"
         )
-        val lang = subLanguages[PrefManager.getVal(PrefName.SubLanguage)]
+        val lang = subLanguages.getOrNull(PrefManager.getVal<Int>(PrefName.SubLanguage)) ?: "English"
         subtitle = intent.getSerialized("subtitle")
             ?: when (val subLang: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)) {
                 null -> when (episode.selectedSubtitle) {
-                    null -> null
-                    -1 -> ext.subtitles.find { it.language.contains(lang, true) }
+                    null, -1 -> ext.subtitles.find {
+                        it.language.contains(lang, true) ||
+                        it.language.contains("English", true) ||
+                        it.language.contains("en", true)
+                    } ?: ext.subtitles.firstOrNull()
                     else -> ext.subtitles.getOrNull(episode.selectedSubtitle!!)
                 }
                 "None" -> null
@@ -836,10 +844,16 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         if (subtitle == null && hasExtSubtitles) {
             val savedLang = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
             if (savedLang != "None") {
-                subtitle = ext.subtitles.getOrNull(0)
+                subtitle = ext.subtitles.find {
+                    it.language.contains(lang, true) ||
+                    it.language.contains("English", true) ||
+                    it.language.contains("en", true)
+                } ?: ext.subtitles.firstOrNull()
             }
         }
         subtitleManager.initialSubtitleLabel = subtitle?.language
+
+        exoSource.setOnClickListener { sourceClick() }
 
         if (isOnline(this)) {
             lifecycleScope.launch(Dispatchers.IO) {
@@ -875,39 +889,49 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     val decoded = java.net.URLDecoder.decode(url, "UTF-8").lowercase()
                     when {
                         decoded.endsWith(".mkv") -> androidx.media3.common.MimeTypes.APPLICATION_MATROSKA
-                        decoded.endsWith(".webm") -> androidx.media3.common.MimeTypes.APPLICATION_WEBM
-                        else -> androidx.media3.common.MimeTypes.APPLICATION_MP4
+                        decoded.endsWith(".mp4") -> androidx.media3.common.MimeTypes.APPLICATION_MP4
+                        else -> null
                     }
                 } else null
             }
             else -> androidx.media3.common.MimeTypes.APPLICATION_MP4
         }
 
-        val downloadedMediaItem = if (ext.server.offline) {
-            val titleName = ext.server.name.split("/").first()
-            val episodeName = ext.server.name.split("/").last()
-            downloadId = PrefManager.getAnimeDownloadPreferences().getString("$titleName - $episodeName", null)
-                ?: PrefManager.getAnimeDownloadPreferences().getString(ext.server.name, null)
-            null
-        } else null
+        val downloadedMediaItem = offlineManager.getDownloadedMediaItem(
+            ext.server.offline, ext.server.name, subConfigs, episode
+        )
 
-        playerManager.initTrackSelector()
-        val epTitle = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: ("Episode " + (media.anime?.selectedEpisode ?: "1"))
-        val currentEp = media.anime?.episodes?.getEpisode(media.anime?.selectedEpisode)
-        val thumbUrl = currentEp?.thumb?.url ?: media.banner ?: media.cover
-        val thumbUri = if (!thumbUrl.isNullOrBlank()) Uri.parse(thumbUrl) else null
+        val episodeDisplayName = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: episode.number
         val mediaMetadata = MediaMetadata.Builder()
-            .setTitle(epTitle)
+            .setTitle(episodeDisplayName)
             .setArtist(media.userPreferredName)
-            .setDisplayTitle(epTitle)
+            .setDisplayTitle(episodeDisplayName)
+            .setAlbumArtist(media.userPreferredName)
             .apply {
-                if (thumbUri != null) setArtworkUri(thumbUri)
+                val thumbUrl = episode.thumb?.url ?: media.cover
+                if (!thumbUrl.isNullOrEmpty()) {
+                    try {
+                        setArtworkUri(Uri.parse(thumbUrl))
+                    } catch (_: Exception) {}
+                }
             }
             .build()
-        val (_, mediaItem) = playerManager.buildMediaSource(video!!, subConfigs, mimeType, downloadedMediaItem, mediaMetadata)
 
-        castManager.updateCurrentMedia(mediaItem, playerManager.exoPlayer)
-        castManager.setupCastButton(customCastButton, media, video, subtitle, hasExtSubtitles, epTitle)
+        playerManager.buildMediaSource(
+            video!!, subConfigs, mimeType, downloadedMediaItem, mediaMetadata
+        )
+
+        val exo = playerManager.buildExoplayer(
+            playbackPosition, PlaybackParameters(1f), playerListener
+        )
+
+        castManager.setupCastButton(
+            exoCast, media, video, subtitle, hasExtSubtitles,
+            episodeTitleArr.getOrNull(currentEpisodeIndex) ?: episode.number
+        )
+
+        subtitleManager.applySubtitleStyles(customSubtitleView)
+        subtitleManager.setupSubFormatting(playerView)
 
         buildExoplayer()
     }
@@ -952,10 +976,26 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         val isDisabled = if (hasExtSubtitles) {
             savedLang == "None"
         } else {
-            subtitle == null && !PrefManager.getVal<Boolean>(PrefName.Subtitles)
+            savedLang == "None" || (subtitle == null && !PrefManager.getVal<Boolean>(PrefName.Subtitles))
         }
+
+        val subLanguages = arrayOf(
+            "Albanian", "Arabic", "Bosnian", "Bulgarian", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English",
+            "Estonian", "Finnish", "French", "Georgian", "German", "Greek", "Hebrew", "Hindi", "Indonesian", "Irish",
+            "Italian", "Japanese", "Korean", "Lithuanian", "Luxembourgish", "Macedonian", "Mongolian", "Norwegian",
+            "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Slovak", "Slovenian", "Spanish",
+            "Turkish", "Ukrainian", "Urdu", "Vietnamese"
+        )
+        val lang = subLanguages.getOrNull(PrefManager.getVal<Int>(PrefName.SubLanguage)) ?: "English"
+
+        val preferredLanguage = subtitle?.let { LanguageMapper.getLanguageCode(it.language) }
+            ?: (if (lang.isNotBlank()) LanguageMapper.getLanguageCode(lang) else "en")
+            ?: "en"
+
         exo.trackSelectionParameters = exo.trackSelectionParameters
             .buildUpon()
+            .setPreferredTextLanguage(preferredLanguage)
+            .setPreferredTextRoleFlags(C.ROLE_FLAG_SUBTITLE)
             .setTrackTypeDisabled(TRACK_TYPE_TEXT, isDisabled)
             .build()
     }
@@ -975,13 +1015,18 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
     private fun sourceClick() {
         if (playerManager.isInitialized) {
-            playerManager.exoPlayer?.pause()
+            playerManager.exoPlayer?.let { p ->
+                PrefManager.setCustomVal("${media.id}_${media.anime?.selectedEpisode}", p.currentPosition)
+                p.pause()
+            }
+            val currentEpKey = media.anime?.selectedEpisode ?: episodeArr.getOrNull(currentEpisodeIndex)
+            val episodesList = if (currentEpKey != null) arrayListOf(currentEpKey) else arrayListOf()
             SelectorDialogFragment.newInstance(
                 extractor?.server?.name,
                 false,
                 null,
                 false,
-                ArrayList(episodeArr)
+                episodesList
             ).show(supportFragmentManager, "dialog")
         }
     }
