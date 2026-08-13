@@ -5,6 +5,7 @@ import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -82,11 +83,14 @@ class DantotsuPlayerManager(
         video: Video,
         subConfigs: List<MediaItem.SubtitleConfiguration>,
         mimeType: String?,
-        downloadedMediaItem: MediaItem? = null
+        downloadedMediaItem: MediaItem?,
+        mediaMetadata: MediaMetadata? = null
     ): Pair<MediaSource, MediaItem> {
         val headers = mutableMapOf<String, String>()
-        defaultHeaders.forEach { headers[it.key] = it.value }
-        video.file.headers?.forEach { headers[it.key] = it.value }
+        headers.putAll(defaultHeaders)
+        video.file.headers?.let {
+            headers.putAll(it)
+        }
 
         val httpSource: HttpDataSource.Factory = if (video.file.url.startsWith("http")) {
             val hf = DefaultHttpDataSource.Factory()
@@ -114,11 +118,14 @@ class DantotsuPlayerManager(
 
         val extractorsFactory = subtitleManager.createExtractorsFactory()
 
-        val mediaItem = downloadedMediaItem ?: MediaItem.Builder()
+        val mediaItem = downloadedMediaItem?.buildUpon()?.apply {
+            if (mediaMetadata != null) setMediaMetadata(mediaMetadata)
+        }?.build() ?: MediaItem.Builder()
             .setUri(video.file.url.toUri())
             .apply {
                 if (mimeType != null) setMimeType(mimeType)
                 if (subConfigs.isNotEmpty()) setSubtitleConfigurations(subConfigs)
+                if (mediaMetadata != null) setMediaMetadata(mediaMetadata)
             }
             .build()
         this.currentMediaItem = mediaItem
