@@ -633,11 +633,16 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 episode = ep
                 media.selected = model.loadSelected(media)
                 model.setMedia(media)
-                currentEpisodeIndex = episodeArr.indexOf(ep.number)
+                val epKey = episodes.getEpisodeKey(ep.number)
+                    ?: episodeArr.find { episodes[it] == ep || episodes[it]?.number == ep.number }
+                    ?: episodeArr.firstOrNull()
+                currentEpisodeIndex = if (epKey != null) max(0, episodeArr.indexOf(epKey)) else 0
                 progressManager.currentEpisodeIndex = currentEpisodeIndex
-                episodeTitle.setSelection(currentEpisodeIndex)
+                if (currentEpisodeIndex in 0 until episodeTitleArr.size) {
+                    episodeTitle.setSelection(currentEpisodeIndex)
+                }
                 if (playerManager.isInitialized) releasePlayer()
-                playbackPosition = PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
+                playbackPosition = PrefManager.getCustomVal("${media.id}_${epKey ?: ep.number}", 0L)
                 initPlayer()
                 progressManager.startTracking()
             }
@@ -714,12 +719,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 touchTimer.cancel()
                 touchTimer.purge()
                 touchTimer = Timer()
-                touchTimer.schedule(
-                    object : TimerTask() {
-                        override fun run() { interacted = false }
-                    },
-                    1000 * 60 * 60
-                )
+                touchTimer.schedule(object : TimerTask() {
+                    override fun run() { interacted = false }
+                }, 1000 * 60 * 60)
             }
             playerView.findViewById<View>(R.id.exo_touch_view).setOnTouchListener { _, _ ->
                 touched()
@@ -728,6 +730,12 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         }
 
         isFullscreen = PrefManager.getVal(PrefName.Resize)
+        playerView.resizeMode = when (isFullscreen) {
+            0 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+            1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
 
         // Progress Dialog & Initial Episode
         val incognito = PrefManager.getVal<Boolean>(PrefName.Incognito)
@@ -763,20 +771,6 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         } else {
             model.setEpisode(initialEp, "invoke")
         }
-
-        // Recursive source finder
-        val index = if (media.selected?.sourceIndex != null) {
-            media.selected!!.sourceIndex
-        } else {
-            val isDub = PrefManager.getVal<Boolean>(PrefName.SettingsPreferDub)
-            if (isDub) {
-                val dub = model.watchSources?.list?.indexOfFirst { it.name.contains("dub", true) } ?: -1
-                if (dub != -1) dub else 0
-            } else {
-                0
-            }
-        }
-        model.onEpisodeClick(media, initialEp.number, supportFragmentManager, false, "", false, ArrayList(episodeArr))
     }
 
     private fun changeEpisode(index: Int) {
@@ -797,7 +791,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             model.setMedia(media)
             model.epChanged.postValue(false)
             model.setEpisode(targetEpisode, "change")
-            model.onEpisodeClick(media, newEpKey, supportFragmentManager, false, prevEpKey ?: "", false, ArrayList(episodeArr))
+            model.onEpisodeClick(media, newEpKey, supportFragmentManager, false, prevEpKey ?: "", false)
         }
     }
 
