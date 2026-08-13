@@ -24,7 +24,9 @@ import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
@@ -130,13 +132,24 @@ class DantotsuPlayerManager(
             .build()
         this.currentMediaItem = mediaItem
 
-        val source = when (video.format) {
+        val primarySource = when (video.format) {
             VideoType.M3U8 -> HlsMediaSource.Factory(cacheFactory)
                 .setAllowChunklessPreparation(true)
                 .createMediaSource(mediaItem)
             VideoType.DASH -> DashMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
             else -> ProgressiveMediaSource.Factory(cacheFactory, extractorsFactory)
                 .createMediaSource(mediaItem)
+        }
+
+        val subSources = subConfigs.map { subConfig ->
+            SingleSampleMediaSource.Factory(cacheFactory)
+                .createMediaSource(subConfig, C.TIME_UNSET)
+        }
+
+        val source = if (subSources.isNotEmpty()) {
+            MergingMediaSource(primarySource, *subSources.toTypedArray())
+        } else {
+            primarySource
         }
 
         this.mediaSource = source
