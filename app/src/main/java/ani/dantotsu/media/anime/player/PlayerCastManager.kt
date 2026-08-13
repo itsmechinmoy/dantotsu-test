@@ -113,6 +113,8 @@ class PlayerCastManager(
         override fun onSessionSuspended(session: CastSession, reason: Int) {}
     }
 
+    private var pendingCastButtonSetup: (() -> Unit)? = null
+
     init {
         initCastApi()
     }
@@ -128,6 +130,10 @@ class PlayerCastManager(
                             castPlayer = castContext?.let { CastPlayer(it) }
                             castPlayer?.setSessionAvailabilityListener(this)
                             setupCastPlayerListener()
+                            activity.runOnUiThread {
+                                pendingCastButtonSetup?.invoke()
+                                pendingCastButtonSetup = null
+                            }
                         } catch (e: Exception) {
                             isCastApiAvailable = false
                         }
@@ -195,11 +201,17 @@ class PlayerCastManager(
 
         castButton.visibility = View.VISIBLE
         if (PrefManager.getVal(PrefName.UseInternalCast)) {
-            try {
-                CastButtonFactory.setUpMediaRouteButton(activity, castButton)
-                castButton.dialogFactory = CustomCastThemeFactory()
-            } catch (e: Exception) {
-                isCastApiAvailable = false
+            if (castContext == null && isCastApiAvailable) {
+                pendingCastButtonSetup = {
+                    setupCastButton(castButton, media, video, subtitle, hasExtSubtitles, episodeTitle)
+                }
+            } else {
+                try {
+                    CastButtonFactory.setUpMediaRouteButton(activity, castButton)
+                    castButton.dialogFactory = CustomCastThemeFactory()
+                } catch (e: Exception) {
+                    isCastApiAvailable = false
+                }
             }
         } else {
             castButton.setCastCallback {
