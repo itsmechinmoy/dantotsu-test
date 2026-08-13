@@ -900,7 +900,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         playerManager.initTrackSelector()
         val epTitle = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: ("Episode " + (media.anime?.selectedEpisode ?: "1"))
         val currentEp = media.anime?.episodes?.getEpisode(media.anime?.selectedEpisode)
-        val thumbUri = (currentEp?.thumb?.url ?: media.banner ?: media.cover)?.toUri()
+        val thumbUrl = currentEp?.thumb?.url ?: media.banner ?: media.cover
+        val thumbUri = if (!thumbUrl.isNullOrBlank()) Uri.parse(thumbUrl) else null
         val mediaMetadata = MediaMetadata.Builder()
             .setTitle(epTitle)
             .setArtist(media.userPreferredName)
