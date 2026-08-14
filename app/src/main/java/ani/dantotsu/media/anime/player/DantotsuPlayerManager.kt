@@ -93,26 +93,19 @@ class DantotsuPlayerManager(
             headers.putAll(it)
         }
 
-        val httpSource: HttpDataSource.Factory = if (video.file.url.startsWith("http")) {
-            val hf = DefaultHttpDataSource.Factory()
-                .setDefaultRequestProperties(headers)
-                .setUserAgent(defaultHeaders["User-Agent"])
-                .setAllowCrossProtocolRedirects(true)
-            if (video.file.headers?.containsKey("User-Agent") == true) {
-                hf.setUserAgent(video.file.headers?.get("User-Agent"))
+        val httpClient = client.newBuilder().apply {
+            connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+        }.build()
+        val httpDataSourceFactory = OkHttpDataSource.Factory(httpClient).apply {
+            setDefaultRequestProperties(headers)
+            if (headers.containsKey("User-Agent")) {
+                setUserAgent(headers["User-Agent"])
             }
-            hf
-        } else {
-            val hf = OkHttpDataSource.Factory(client)
-                .setDefaultRequestProperties(headers)
-                .setUserAgent(defaultHeaders["User-Agent"])
-            if (video.file.headers?.containsKey("User-Agent") == true) {
-                hf.setUserAgent(video.file.headers?.get("User-Agent"))
-            }
-            hf
         }
 
-        val upstream = DefaultDataSource.Factory(activity, httpSource)
+        val upstream = DefaultDataSource.Factory(activity, httpDataSourceFactory)
         val cacheFactory: DataSource.Factory = CacheDataSource.Factory()
             .setCache(VideoCache.getInstance(activity))
             .setUpstreamDataSourceFactory(upstream)
@@ -176,6 +169,8 @@ class DantotsuPlayerManager(
         listener: Player.Listener,
         forceDefaultRenderers: Boolean = false
     ): ExoPlayer {
+        releaseExoPlayer()
+
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(BACK_BUFFER_DURATION_MS, false)
             .setBufferDurationsMs(
@@ -240,8 +235,8 @@ class DantotsuPlayerManager(
         player.playbackParameters = playbackParameters
         mediaSource?.let { player.setMediaSource(it) }
         player.prepare()
-        if (this.exoPlayer != null) {
-            release()
+        if (playbackPosition > 0L) {
+            player.seekTo(playbackPosition)
         }
 
         try {
@@ -259,15 +254,19 @@ class DantotsuPlayerManager(
         return player
     }
 
-    fun release() {
+    fun releaseExoPlayer() {
         audioFocusListener?.abandonRequest()
         audioFocusListener = null
         isInitialized = false
         exoPlayer?.release()
         exoPlayer = null
-        VideoCache.release()
         mediaSession?.release()
         mediaSession = null
+    }
+
+    fun release() {
+        releaseExoPlayer()
+        VideoCache.release()
         subtitleManager.release()
     }
 }
