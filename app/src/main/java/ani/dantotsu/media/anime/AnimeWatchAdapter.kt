@@ -483,10 +483,24 @@ class AnimeWatchAdapter(
                 val anilistEp = (media.userProgress ?: 0).plus(1)
                 val appEp = PrefManager.getCustomVal<String?>(
                     "${media.id}_current_ep", ""
-                )?.toIntOrNull() ?: 1
+                )?.let { MediaNameAdapter.findEpisodeNumber(it)?.toInt() ?: it.toIntOrNull() } ?: 1
 
-                var continueEp = (if (anilistEp > appEp) anilistEp else appEp).toString()
-                if (episodes.contains(continueEp)) {
+                val targetEpNum = (if (anilistEp > appEp) anilistEp else appEp).toFloat()
+
+                // Find matching episode key in media.anime.episodes
+                var matchingKey: String? = episodes.find { key ->
+                    val epObj = media.anime.episodes?.get(key)
+                    MediaNameAdapter.findEpisodeNumber(key) == targetEpNum ||
+                    (epObj?.number != null && MediaNameAdapter.findEpisodeNumber(epObj.number) == targetEpNum)
+                }
+
+                if (matchingKey == null && episodes.isNotEmpty()) {
+                    val targetIdx = (targetEpNum.toInt() - 1).coerceIn(0, episodes.size - 1)
+                    matchingKey = episodes[targetIdx]
+                }
+
+                var continueEp = matchingKey
+                if (continueEp != null && episodes.contains(continueEp)) {
                     binding.sourceContinue.visibility = View.VISIBLE
                     handleProgress(
                         binding.itemMediaProgressCont,
