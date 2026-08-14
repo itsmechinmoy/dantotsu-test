@@ -930,12 +930,6 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             video!!, subConfigs, mimeType, downloadedMediaItem, mediaMetadata
         )
 
-        val exo = playerManager.buildExoplayer(
-            playbackPosition, PlaybackParameters(1f), this
-        )
-
-        castManager.updateCurrentMedia(playerManager.currentMediaItem, exo, video)
-
         castManager.setupCastButton(
             customCastButton, media, video, subtitle, hasExtSubtitles,
             episodeTitleArr.getOrNull(currentEpisodeIndex) ?: episode.number
@@ -973,6 +967,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             PlaybackParameters(currentSpeed),
             this
         )
+
+        castManager.updateCurrentMedia(playerManager.currentMediaItem, exo, video)
 
         subtitleManager.applySubtitleStyles(customSubtitleView)
         subtitleManager.setupSubFormatting(playerView)
