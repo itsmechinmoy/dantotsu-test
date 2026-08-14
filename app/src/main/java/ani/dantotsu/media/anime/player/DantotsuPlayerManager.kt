@@ -32,7 +32,6 @@ import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
 import ani.dantotsu.defaultHeaders
-import ani.dantotsu.media.anime.AnimePlayerService
 import ani.dantotsu.media.anime.AudioFocusListener
 import ani.dantotsu.media.anime.VideoCache
 import ani.dantotsu.parsers.Video
@@ -241,14 +240,15 @@ class DantotsuPlayerManager(
         player.playbackParameters = playbackParameters
         mediaSource?.let { player.setMediaSource(it) }
         player.prepare()
-        player.seekTo(playbackPosition)
+        if (this.exoPlayer != null) {
+            release()
+        }
 
         try {
             val rightNow = Calendar.getInstance()
             mediaSession = MediaSession.Builder(activity, player)
                 .setId(rightNow.timeInMillis.toString())
                 .build()
-            mediaSession?.let { AnimePlayerService.start(activity, it) }
         } catch (e: Exception) {
             toast(e.toString())
         }
@@ -266,7 +266,6 @@ class DantotsuPlayerManager(
         exoPlayer?.release()
         exoPlayer = null
         VideoCache.release()
-        AnimePlayerService.stop(activity)
         mediaSession?.release()
         mediaSession = null
         subtitleManager.release()
