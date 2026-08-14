@@ -1169,8 +1169,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         val player = playerManager.exoPlayer ?: return
         if (!aniSkipManager.isTimeStampsLoaded && PrefManager.getVal(PrefName.TimeStampsEnabled)) {
             val dur = player.duration
-            if (dur > 0) {
-                val extTimestamps = extractor?.server?.video?.timestamps ?: emptyList()
+            val extTimestamps = extractor?.server?.video?.timestamps ?: emptyList()
+            if (extTimestamps.isNotEmpty() || dur > 0) {
                 val epString = if (this::episode.isInitialized) episode.number else (media.anime?.selectedEpisode ?: "1")
                 val epNum = Regex("""\d+""").find(epString)?.value?.toIntOrNull()
                     ?: epString.trim().toIntOrNull()
@@ -1179,7 +1179,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     model.loadTimeStamps(
                         media.idMAL,
                         epNum,
-                        dur / 1000,
+                        if (dur > 0) dur / 1000 else 0L,
                         PrefManager.getVal(PrefName.UseProxyForTimeStamps),
                         extTimestamps
                     )
