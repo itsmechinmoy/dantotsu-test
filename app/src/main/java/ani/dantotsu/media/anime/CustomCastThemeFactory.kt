@@ -51,7 +51,7 @@ class CustomCastButton @JvmOverloads constructor(
     private var callback: (() -> Unit)? = null
     private var forceAlwaysVisible: Boolean = false
 
-    fun setAlwaysVisible(alwaysVisible: Boolean) {
+    override fun setAlwaysVisible(alwaysVisible: Boolean) {
         this.forceAlwaysVisible = alwaysVisible
         try {
             super.setAlwaysVisible(alwaysVisible)
