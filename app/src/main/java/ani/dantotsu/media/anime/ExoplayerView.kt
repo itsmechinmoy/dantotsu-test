@@ -222,6 +222,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 }
             }
         }
+        subtitleManager.setupSubFormatting(playerView)
+        subtitleManager.applySubtitleStyles(customSubtitleView)
         if (playerManager.isInitialized) playerManager.exoPlayer?.play()
     }
 
@@ -805,6 +807,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
     private fun initPlayer() {
         gestureManager.checkNotch()
+        aniSkipManager.resetForNewEpisode()
         val selEp = media.anime?.selectedEpisode ?: episodeArr.firstOrNull() ?: return
         media.anime!!.selectedEpisode = selEp
         PrefManager.setCustomVal("${media.id}_current_ep", selEp)
@@ -1374,9 +1377,27 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         }
     }
 
+    @SuppressLint("UnsafeIntentLaunch")
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        finishAndRemoveTask()
+        startActivity(intent)
+    }
+
     override fun onDestroy() {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         orientationListener?.disable()
-        releasePlayer()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                extractor?.onVideoStopped(video)
+            } catch (_: Exception) {}
+        }
+        if (playerManager.isInitialized) {
+            progressManager.updateAniProgress()
+            val episodeId = "${media.id}-${media.anime?.selectedEpisode ?: ""}"
+            subtitleManager.clearTransientSubtitleCache(episodeId)
+            releasePlayer()
+        }
         castManager.release()
         super.onDestroy()
     }
