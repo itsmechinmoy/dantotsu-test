@@ -157,24 +157,8 @@ class DantotsuPlayerManager(
             assMediaSourceFactory.createMediaSource(mediaItem)
         }
 
-        val subSources = if (isM3U8 && subConfigs.isNotEmpty()) {
-            subConfigs.map { subConfig ->
-                SingleSampleMediaSource.Factory(cacheFactory)
-                    .setSubtitleParserFactory(assParserFactory)
-                    .createMediaSource(subConfig, C.TIME_UNSET)
-            }
-        } else {
-            emptyList()
-        }
-
-        val source = if (subSources.isNotEmpty()) {
-            MergingMediaSource(primarySource, *subSources.toTypedArray())
-        } else {
-            primarySource
-        }
-
-        this.mediaSource = source
-        return Pair(source, mediaItem)
+        this.mediaSource = primarySource
+        return Pair(primarySource, mediaItem)
     }
 
     fun buildExoplayer(
