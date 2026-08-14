@@ -135,10 +135,15 @@ class DantotsuPlayerManager(
                 .createMediaSource(mediaItem)
         } else {
             when (video.format) {
-                VideoType.M3U8 -> HlsMediaSource.Factory(cacheFactory)
-                    .setAllowChunklessPreparation(false)
-                    .setTimestampAdjusterInitializationTimeoutMs(10_000L)
-                    .createMediaSource(mediaItem)
+                VideoType.M3U8 -> {
+                    val hlsExtractorFactory = androidx.media3.exoplayer.hls.DefaultHlsExtractorFactory()
+                        .setSubtitleParserFactory(subtitleManager.createSubtitleParserFactory())
+                    HlsMediaSource.Factory(cacheFactory)
+                        .setExtractorFactory(hlsExtractorFactory)
+                        .setAllowChunklessPreparation(false)
+                        .setTimestampAdjusterInitializationTimeoutMs(10_000L)
+                        .createMediaSource(mediaItem)
+                }
                 VideoType.DASH -> DashMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
                 else -> assMediaSourceFactory.createMediaSource(mediaItem)
             }
