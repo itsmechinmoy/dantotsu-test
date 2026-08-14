@@ -430,7 +430,16 @@ class AnimeWatchAdapter(
                     )
                 }
 
-                val chipText = "${names[limit * (position)]} - ${names[last - 1]}"
+                val startRaw = names[limit * position]
+                val endRaw = names[last - 1]
+                val startDisplay = MediaNameAdapter.findEpisodeNumber(startRaw)?.let {
+                    if (it % 1 == 0f) it.toInt().toString() else it.toString()
+                } ?: startRaw
+                val endDisplay = MediaNameAdapter.findEpisodeNumber(endRaw)?.let {
+                    if (it % 1 == 0f) it.toInt().toString() else it.toString()
+                } ?: endRaw
+
+                val chipText = "$startDisplay - $endDisplay"
                 chip.text = chipText
                 chip.setTextColor(
                     ContextCompat.getColorStateList(
