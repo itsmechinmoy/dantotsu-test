@@ -35,6 +35,7 @@ import ani.dantotsu.R
 import ani.dantotsu.connections.subtitles.StremioSub
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaDetailsViewModel
+import ani.dantotsu.media.anime.ExoplayerView
 import ani.dantotsu.others.LanguageMapper
 import ani.dantotsu.others.Xubtitle
 import ani.dantotsu.parsers.Subtitle
