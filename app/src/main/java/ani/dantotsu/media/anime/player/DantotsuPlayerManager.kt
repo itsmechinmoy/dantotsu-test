@@ -98,6 +98,7 @@ class DantotsuPlayerManager(
             val hf = DefaultHttpDataSource.Factory()
                 .setDefaultRequestProperties(headers)
                 .setUserAgent(defaultHeaders["User-Agent"])
+                .setAllowCrossProtocolRedirects(true)
             if (video.file.headers?.containsKey("User-Agent") == true) {
                 hf.setUserAgent(video.file.headers?.get("User-Agent"))
             }
@@ -143,7 +144,8 @@ class DantotsuPlayerManager(
         } else {
             when (video.format) {
                 VideoType.M3U8 -> HlsMediaSource.Factory(cacheFactory)
-                    .setAllowChunklessPreparation(true)
+                    .setAllowChunklessPreparation(false)
+                    .setTimestampAdjusterInitializationTimeoutMs(10_000L)
                     .createMediaSource(mediaItem)
                 VideoType.DASH -> DashMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
                 else -> assMediaSourceFactory.createMediaSource(mediaItem)
@@ -172,7 +174,8 @@ class DantotsuPlayerManager(
     fun buildExoplayer(
         playbackPosition: Long,
         playbackParameters: PlaybackParameters,
-        listener: Player.Listener
+        listener: Player.Listener,
+        forceDefaultRenderers: Boolean = false
     ): ExoPlayer {
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(BACK_BUFFER_DURATION_MS, false)
@@ -186,9 +189,9 @@ class DantotsuPlayerManager(
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
-        val useExtensionDecoder = PrefManager.getVal<Boolean>(PrefName.UseAdditionalCodec)
+        val useExtensionDecoder = PrefManager.getVal<Boolean>(PrefName.UseAdditionalCodec) && !forceDefaultRenderers
         val decoder = if (useExtensionDecoder) {
-            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
         } else {
             DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
         }
@@ -200,7 +203,13 @@ class DantotsuPlayerManager(
         subtitleManager.initAssHandler()
         val handler = subtitleManager.assHandler!!
         Logger.log("Libass: Calling nextRenderersFactory.withAssSupport()")
-        val renderersFactory = nextRenderersFactory.withAssSupport(handler)
+        val renderersFactory = if (forceDefaultRenderers) {
+            DefaultRenderersFactory(activity)
+                .setEnableDecoderFallback(true)
+                .withAssSupport(handler)
+        } else {
+            nextRenderersFactory.withAssSupport(handler)
+        }
 
         val assMediaSourceFactory = DefaultMediaSourceFactory(activity)
             .setSubtitleParserFactory(subtitleManager.createSubtitleParserFactory())
