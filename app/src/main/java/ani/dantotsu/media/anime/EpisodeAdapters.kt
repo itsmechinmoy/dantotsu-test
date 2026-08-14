@@ -30,16 +30,21 @@ import ani.dantotsu.currContext
 import ani.dantotsu.download.anime.AnimeDownloader
 
 fun handleProgress(cont: LinearLayout, bar: View, empty: View, mediaId: Int, ep: String) {
+    val cleanEp = MediaNameAdapter.findEpisodeNumber(ep)?.let {
+        if (it % 1 == 0f) it.toInt().toString() else it.toString()
+    }
     val curr = PrefManager.getNullableCustomVal("${mediaId}_${ep}", null, Long::class.java)
+        ?: cleanEp?.let { PrefManager.getNullableCustomVal("${mediaId}_${it}", null, Long::class.java) }
     val max = PrefManager.getNullableCustomVal("${mediaId}_${ep}_max", null, Long::class.java)
-    if (curr != null && max != null) {
+        ?: cleanEp?.let { PrefManager.getNullableCustomVal("${mediaId}_${it}_max", null, Long::class.java) }
+    if (curr != null && max != null && max > 0L) {
         cont.visibility = View.VISIBLE
-        val div = curr.toFloat() / max.toFloat()
+        val div = (curr.toFloat() / max.toFloat()).coerceIn(0f, 1f)
         val barParams = bar.layoutParams as LinearLayout.LayoutParams
         barParams.weight = div
         bar.layoutParams = barParams
         val params = empty.layoutParams as LinearLayout.LayoutParams
-        params.weight = 1 - div
+        params.weight = 1f - div
         empty.layoutParams = params
     } else {
         cont.visibility = View.GONE
