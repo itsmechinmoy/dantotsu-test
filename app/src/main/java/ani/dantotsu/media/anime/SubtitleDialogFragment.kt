@@ -31,6 +31,7 @@ import ani.dantotsu.databinding.ItemSubtitleCardBinding
 import ani.dantotsu.getThemeColor
 import ani.dantotsu.media.EpisodeMapper
 import ani.dantotsu.media.MediaDetailsViewModel
+import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.others.IdMappers
 import ani.dantotsu.parsers.Subtitle
 import ani.dantotsu.settings.saving.PrefManager
