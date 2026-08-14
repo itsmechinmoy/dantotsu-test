@@ -18,9 +18,11 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Format
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
+import androidx.media3.extractor.text.DefaultSubtitleParserFactory
+import androidx.media3.extractor.text.SubtitleParser
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_DEPRESSED
@@ -95,6 +97,7 @@ class PlayerSubtitleManager(
         initAssHandler()
         val handler = assHandler!!
         val assSubtitleParserFactory = AssSubtitleParserFactory(handler)
+        val compositeParserFactory = createSubtitleParserFactory()
         val defaultExtractorsFactory = DefaultExtractorsFactory()
             .setTsExtractorFlags(
                 androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS or
@@ -103,12 +106,36 @@ class PlayerSubtitleManager(
             .setTsExtractorTimestampSearchBytes(1500 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
             .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
             .setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
+            .setSubtitleParserFactory(compositeParserFactory)
         return defaultExtractorsFactory.withAssMkvSupport(assSubtitleParserFactory, handler)
     }
 
-    fun createSubtitleParserFactory(): AssSubtitleParserFactory {
+    fun createSubtitleParserFactory(): SubtitleParser.Factory {
         initAssHandler()
-        return AssSubtitleParserFactory(assHandler!!)
+        val handler = assHandler!!
+        val assFactory = AssSubtitleParserFactory(handler)
+        val defaultFactory = DefaultSubtitleParserFactory()
+        return object : SubtitleParser.Factory {
+            override fun supportsFormat(format: Format): Boolean {
+                return assFactory.supportsFormat(format) || defaultFactory.supportsFormat(format)
+            }
+
+            override fun getCueReplacementBehavior(format: Format): Int {
+                return if (assFactory.supportsFormat(format)) {
+                    assFactory.getCueReplacementBehavior(format)
+                } else {
+                    defaultFactory.getCueReplacementBehavior(format)
+                }
+            }
+
+            override fun create(format: Format): SubtitleParser {
+                return if (assFactory.supportsFormat(format)) {
+                    assFactory.create(format)
+                } else {
+                    defaultFactory.create(format)
+                }
+            }
+        }
     }
 
     fun resolveSubtitleUrl(subtitleUrl: String, vararg baseUrls: String): String {
