@@ -129,30 +129,11 @@ class DantotsuPlayerManager(
         this.currentMediaItem = mediaItem
 
         val isContentUri = video.file.url.startsWith("content://")
-        val isM3U8 = video.format == VideoType.M3U8 ||
-                mimeType == androidx.media3.common.MimeTypes.APPLICATION_M3U8 ||
-                video.file.url.contains(".m3u8", ignoreCase = true) ||
-                video.file.url.contains("/m3u8", ignoreCase = true) ||
-                video.file.url.contains("m3u8", ignoreCase = true)
-        val isDash = video.format == VideoType.DASH ||
-                mimeType == androidx.media3.common.MimeTypes.APPLICATION_MPD ||
-                video.file.url.contains(".mpd", ignoreCase = true)
-
         val primarySource = if (isContentUri) {
             val localDataSourceFactory = DefaultDataSource.Factory(activity)
             DefaultMediaSourceFactory(localDataSourceFactory, extractorsFactory)
                 .setSubtitleParserFactory(assParserFactory)
                 .createMediaSource(mediaItem)
-        } else if (isM3U8) {
-            val hlsExtractorFactory = androidx.media3.exoplayer.hls.DefaultHlsExtractorFactory()
-                .setSubtitleParserFactory(assParserFactory)
-            HlsMediaSource.Factory(cacheFactory)
-                .setExtractorFactory(hlsExtractorFactory)
-                .setAllowChunklessPreparation(false)
-                .setTimestampAdjusterInitializationTimeoutMs(10_000L)
-                .createMediaSource(mediaItem)
-        } else if (isDash) {
-            DashMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
         } else {
             assMediaSourceFactory.createMediaSource(mediaItem)
         }
