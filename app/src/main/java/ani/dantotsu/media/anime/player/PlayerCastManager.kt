@@ -165,44 +165,51 @@ class PlayerCastManager(
                             }
                         } catch (e: Exception) {
                             isCastApiAvailable = false
+                            activity.runOnUiThread {
+                                pendingCastButtonSetup?.invoke()
+                                pendingCastButtonSetup = null
+                            }
                         }
                     } else {
                         isCastApiAvailable = false
+                        activity.runOnUiThread {
+                            pendingCastButtonSetup?.invoke()
+                            pendingCastButtonSetup = null
+                        }
                     }
                 }
         } catch (e: Exception) {
             isCastApiAvailable = false
+            activity.runOnUiThread {
+                pendingCastButtonSetup?.invoke()
+                pendingCastButtonSetup = null
+            }
         }
     }
 
     private fun setupCastPlayerListener() {
         castPlayer?.addListener(object : Player.Listener {
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                super.onPlayWhenReadyChanged(playWhenReady, reason)
                 onCastStateChanged(playWhenReady)
                 castScreenView?.updatePlaybackState(playWhenReady, isBuffering)
-                if (playWhenReady) startProgressTracking()
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                super.onIsPlayingChanged(isPlaying)
                 onCastStateChanged(isPlaying)
                 castScreenView?.updatePlaybackState(isPlaying, isBuffering)
-                if (isPlaying) startProgressTracking()
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                super.onPlaybackStateChanged(playbackState)
                 isBuffering = playbackState == Player.STATE_BUFFERING
-                castScreenView?.updatePlaybackState(castPlayer?.isPlaying == true, isBuffering)
                 if (playbackState == Player.STATE_READY) {
-                    startProgressTracking()
+                    castScreenView?.updatePlaybackState(true, isBuffering)
                 }
+                castScreenView?.updatePlaybackState(castPlayer?.isPlaying == true, isBuffering)
             }
         })
     }
 
-    private fun startProgressTracking() {
+    fun startProgressTracking() {
         if (!isTrackingProgress) {
             isTrackingProgress = true
             progressHandler.removeCallbacks(progressRunnable)
@@ -210,7 +217,7 @@ class PlayerCastManager(
         }
     }
 
-    private fun stopProgressTracking() {
+    fun stopProgressTracking() {
         isTrackingProgress = false
         progressHandler.removeCallbacks(progressRunnable)
     }
@@ -229,24 +236,27 @@ class PlayerCastManager(
         }
 
         castButton.visibility = View.VISIBLE
-        try {
-            castButton.setAlwaysVisible(true)
-        } catch (_: Exception) {}
+        castButton.setAlwaysVisible(true)
 
         if (PrefManager.getVal(PrefName.UseInternalCast)) {
             if (castContext == null && isCastApiAvailable) {
                 pendingCastButtonSetup = {
                     setupCastButton(castButton, media, video, subtitle, hasExtSubtitles, episodeTitle)
                 }
-            } else {
+            } else if (castContext != null) {
                 try {
                     CastButtonFactory.setUpMediaRouteButton(activity, castButton)
                     castButton.dialogFactory = CustomCastThemeFactory()
-                    try {
-                        castButton.setAlwaysVisible(true)
-                    } catch (_: Exception) {}
+                    castButton.setAlwaysVisible(true)
                 } catch (e: Exception) {
                     isCastApiAvailable = false
+                    castButton.setCastCallback {
+                        castExternal(media, video, subtitle, hasExtSubtitles, episodeTitle)
+                    }
+                }
+            } else {
+                castButton.setCastCallback {
+                    castExternal(media, video, subtitle, hasExtSubtitles, episodeTitle)
                 }
             }
         } else {
