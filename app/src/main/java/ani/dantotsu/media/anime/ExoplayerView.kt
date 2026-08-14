@@ -163,6 +163,10 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private var downloadId: String? = null
     private var hasExtSubtitles = false
     private var audioLanguages = mutableListOf<Pair<String, String>>()
+    var currentSubTrackGroups: ArrayList<Tracks.Group> = arrayListOf()
+        private set
+    var currentSubTracks: MutableList<Pair<String, String>> = mutableListOf()
+        private set
 
     private lateinit var episode: Episode
     private lateinit var episodes: MutableMap<String, Episode>
@@ -877,10 +881,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             }
         }
 
-        if (hasExtSubtitles || media.idIMDB != null) {
-            exoSubtitle.isVisible = true
-            exoSubtitle.setOnClickListener { subClick() }
-        }
+        exoSubtitle.isVisible = true
+        exoSubtitle.setOnClickListener { subClick() }
 
         val subConfigs = subtitleManager.buildSubtitleConfigurations(
             ext.subtitles, ext.server.embed.url, video!!.file.url, hasExtSubtitles
@@ -1135,13 +1137,13 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 .show(supportFragmentManager, "dialog")
         }
 
-        if (!hasExtSubtitles) {
-            exoSubtitle.isVisible = subTracks.size > 1
-            exoSubtitle.setOnClickListener {
-                TrackGroupDialogFragment(this, subTrackGroups, TRACK_TYPE_TEXT, subTracks)
-                    .show(supportFragmentManager, "dialog")
-            }
-        }
+        currentSubTrackGroups.clear()
+        currentSubTrackGroups.addAll(subTrackGroups)
+        currentSubTracks.clear()
+        currentSubTracks.addAll(subTracks)
+
+        exoSubtitle.isVisible = true
+        exoSubtitle.setOnClickListener { subClick() }
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
