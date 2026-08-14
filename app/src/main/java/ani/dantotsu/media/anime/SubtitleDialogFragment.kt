@@ -585,22 +585,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.onlineSubtitlesRecycler.adapter = SubtitleAdapter(filtered, TabType.ONLINE)
     }
 
-    private fun matchesLanguage(codeOrName: String, filterLanguage: String): Boolean {
-        val mapped = mapLanguageCode(codeOrName).lowercase(Locale.ROOT)
-        val filter = filterLanguage.lowercase(Locale.ROOT)
-        return mapped.contains(filter) || codeOrName.lowercase(Locale.ROOT).contains(filter)
-    }
-
-    private fun mapLanguageCode(code: String): String {
-        return try {
-            val locale = Locale.forLanguageTag(code)
-            val display = locale.getDisplayLanguage(Locale.ENGLISH)
-            if (display.isNotBlank() && display != code) display else code
-        } catch (_: Exception) {
-            code
-        }
-    }
-
     // ==========================================
     // RECYCLER VIEW ADAPTER
     // ==========================================
