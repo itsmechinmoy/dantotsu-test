@@ -978,12 +978,12 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         playerErrorRetryCount = 0
         hideSystemBars()
 
-        val selEp = media.anime!!.selectedEpisode
-        val cleanEp = MediaNameAdapter.findEpisodeNumber(selEp)?.let {
+        val selEp = media.anime?.selectedEpisode
+        val cleanEp = selEp?.let { MediaNameAdapter.findEpisodeNumber(it) }?.let {
             if (it % 1 == 0f) it.toInt().toString() else it.toString()
         }
-        val savedMax = PrefManager.getCustomVal("${media.id}_${selEp}_max", Long.MAX_VALUE)
-            .takeIf { it != Long.MAX_VALUE }
+        val savedMax = selEp?.let { PrefManager.getCustomVal("${media.id}_${it}_max", Long.MAX_VALUE) }
+            ?.takeIf { it != Long.MAX_VALUE }
             ?: (cleanEp?.let { PrefManager.getCustomVal("${media.id}_${it}_max", Long.MAX_VALUE) }?.takeIf { it != Long.MAX_VALUE })
 
         val savedPosition = savedMax?.let { if (it <= playbackPosition) max(0, it - 5) else playbackPosition }
@@ -1249,13 +1249,15 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         super.onRenderedFirstFrame()
         val player = playerManager.exoPlayer ?: return
 
-        val selEp = media.anime!!.selectedEpisode
-        PrefManager.setCustomVal("${media.id}_${selEp}_max", player.duration)
-        val cleanEp = MediaNameAdapter.findEpisodeNumber(selEp)?.let {
-            if (it % 1 == 0f) it.toInt().toString() else it.toString()
-        }
-        if (cleanEp != null && cleanEp != selEp) {
-            PrefManager.setCustomVal("${media.id}_${cleanEp}_max", player.duration)
+        val selEp = media.anime?.selectedEpisode
+        if (selEp != null) {
+            PrefManager.setCustomVal("${media.id}_${selEp}_max", player.duration)
+            val cleanEp = MediaNameAdapter.findEpisodeNumber(selEp)?.let {
+                if (it % 1 == 0f) it.toInt().toString() else it.toString()
+            }
+            if (cleanEp != null && cleanEp != selEp) {
+                PrefManager.setCustomVal("${media.id}_${cleanEp}_max", player.duration)
+            }
         }
 
         val format = player.videoFormat ?: return
