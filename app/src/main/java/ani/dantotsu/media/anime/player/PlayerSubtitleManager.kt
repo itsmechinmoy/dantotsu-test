@@ -342,11 +342,11 @@ class PlayerSubtitleManager(
         }
     }
 
-    fun applyOnlineSubtitle(subtitle: StremioSub) {
+    fun applyOnlineSubtitleUrl(url: String, id: String, lang: String) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val client = OkHttpClient()
-                val request = Request.Builder().url(subtitle.url).build()
+                val request = Request.Builder().url(url).build()
                 val response = client.newCall(request).execute()
                 if (!response.isSuccessful) {
                     withContext(Dispatchers.Main) {
@@ -390,15 +390,45 @@ class PlayerSubtitleManager(
                     else -> "srt"
                 }
 
-                val subtitleFile = File(activity.cacheDir, "online_subtitle_${subtitle.id}.$extension")
+                val subtitleFile = File(activity.cacheDir, "online_subtitle_${id.hashCode()}.$extension")
                 subtitleFile.writeText(cleanedContent)
 
                 withContext(Dispatchers.Main) {
-                    applySubtitleFromFile(subtitleFile, subtitle.lang, mimeType)
+                    applySubtitleFromFile(subtitleFile, lang, mimeType)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     snackString("Failed to load subtitle: ${e.message}", activity)
+                }
+            }
+        }
+    }
+
+    fun applyOnlineSubtitle(subtitle: StremioSub) {
+        applyOnlineSubtitleUrl(subtitle.url, subtitle.id, subtitle.lang)
+    }
+
+    fun applySubSourceSubtitle(sub: SubSourceSub) {
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            val downloadUrl = SubSourceSubtitles.getDownloadUrl(sub)
+            if (downloadUrl != null) {
+                applyOnlineSubtitleUrl(downloadUrl, sub.id, sub.lang)
+            } else {
+                withContext(Dispatchers.Main) {
+                    snackString("Failed to get SubSource download link", activity)
+                }
+            }
+        }
+    }
+
+    fun applyOpenSubRestSubtitle(item: OpenSubRestItem) {
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            val downloadUrl = OpenSubtitlesRestApi.getDownloadUrl(item.fileId)
+            if (downloadUrl != null) {
+                applyOnlineSubtitleUrl(downloadUrl, item.fileId.toString(), item.language)
+            } else {
+                withContext(Dispatchers.Main) {
+                    snackString("Failed to get OpenSubtitles download link", activity)
                 }
             }
         }
