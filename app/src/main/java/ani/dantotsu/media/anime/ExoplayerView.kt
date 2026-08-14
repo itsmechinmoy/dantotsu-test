@@ -886,13 +886,17 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
         lifecycleScope.launch(Dispatchers.IO) { ext.onVideoPlayed(video) }
 
-        val mimeType = when (video?.format) {
-            VideoType.M3U8 -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
-            VideoType.DASH -> androidx.media3.common.MimeTypes.APPLICATION_MPD
-            VideoType.CONTAINER -> {
-                val url = video?.file?.url ?: ""
-                if (url.startsWith("content://")) {
-                    val decoded = runCatching { java.net.URLDecoder.decode(url, "UTF-8").lowercase() }.getOrDefault("")
+        val videoUrl = video?.file?.url ?: ""
+        val mimeType = when {
+            video?.format == VideoType.M3U8 ||
+                    videoUrl.contains(".m3u8", ignoreCase = true) ||
+                    videoUrl.contains("/m3u8", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
+            video?.format == VideoType.DASH ||
+                    videoUrl.contains(".mpd", ignoreCase = true) ||
+                    videoUrl.contains("/mpd", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_MPD
+            video?.format == VideoType.CONTAINER -> {
+                if (videoUrl.startsWith("content://")) {
+                    val decoded = runCatching { java.net.URLDecoder.decode(videoUrl, "UTF-8").lowercase() }.getOrDefault("")
                     when {
                         decoded.endsWith(".mkv") -> androidx.media3.common.MimeTypes.APPLICATION_MATROSKA
                         decoded.endsWith(".webm") -> androidx.media3.common.MimeTypes.APPLICATION_WEBM
