@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
@@ -18,6 +19,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.connections.subtitles.StremioSub
@@ -26,6 +28,7 @@ import ani.dantotsu.connections.subtitles.WyzieSub
 import ani.dantotsu.connections.subtitles.WyzieSubtitles
 import ani.dantotsu.databinding.BottomSheetSubtitlesBinding
 import ani.dantotsu.databinding.ItemSubtitleCardBinding
+import ani.dantotsu.getThemeColor
 import ani.dantotsu.media.EpisodeMapper
 import ani.dantotsu.media.MediaDetailsViewModel
 import ani.dantotsu.others.IdMappers
@@ -46,6 +49,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
     object NoneSubtitleOption
     data class OtherServerSubtitle(val serverName: String, val subtitle: Subtitle)
     data class EmbeddedSubtitleTrack(val group: Tracks.Group, val trackIndex: Int, val language: String?, val label: String?)
+    enum class TabType { SERVER, ONLINE, LOCAL }
 
     private var _binding: BottomSheetSubtitlesBinding? = null
     private val binding get() = _binding!!
@@ -101,6 +105,36 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         else -> isoCode
     }
 
+    private fun matchesLanguage(langText: String, filterLanguage: String): Boolean {
+        if (filterLanguage.equals("All", ignoreCase = true)) return true
+        val mapped = mapLanguageCode(langText)
+        if (mapped.contains(filterLanguage, ignoreCase = true)) return true
+        if (langText.contains(filterLanguage, ignoreCase = true)) return true
+
+        val matchCodes = when (filterLanguage.lowercase(Locale.ROOT)) {
+            "english" -> listOf("eng", "en", "en-us", "en-gb")
+            "spanish" -> listOf("spa", "es", "es-es", "es-419", "es-la")
+            "french" -> listOf("fra", "fre", "fr", "fr-fr")
+            "german" -> listOf("deu", "ger", "de", "de-de")
+            "portuguese" -> listOf("por", "pt", "pt-br", "pt-pt")
+            "arabic" -> listOf("ara", "ar", "ar-me", "ar-sa")
+            "russian" -> listOf("rus", "ru", "ru-ru")
+            "japanese" -> listOf("jpn", "ja", "ja-jp")
+            "chinese" -> listOf("zho", "chi", "zh", "zh-cn", "zh-tw")
+            "hindi" -> listOf("hin", "hi")
+            "korean" -> listOf("kor", "ko", "ko-kr")
+            "polish" -> listOf("pol", "pl")
+            "turkish" -> listOf("tur", "tr")
+            "indonesian" -> listOf("ind", "id")
+            "vietnamese" -> listOf("vie", "vi")
+            "thai" -> listOf("tha", "th")
+            "italian" -> listOf("ita", "it")
+            else -> listOf(filterLanguage.lowercase(Locale.ROOT))
+        }
+        val lower = langText.lowercase(Locale.ROOT)
+        return matchCodes.any { lower.contains(it) }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -108,6 +142,18 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
     ): View {
         _binding = BottomSheetSubtitlesBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onStart() {
+        super.onStart()
+        dialog?.let { dlg ->
+            val bottomSheet = dlg.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            if (bottomSheet != null) {
+                val behavior = BottomSheetBehavior.from(bottomSheet)
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                behavior.skipCollapsed = true
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -138,7 +184,9 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
 
             // Pre-fill search input
             val animeTitleText = media.userPreferredName
-            binding.onlineSearchEditText.setText("$animeTitleText Episode $episodeNum")
+            if (binding.onlineSearchEditText.text.isNullOrBlank()) {
+                binding.onlineSearchEditText.setText("$animeTitleText Episode $episodeNum")
+            }
 
             updateActiveSubtitleBadge()
             loadSubtitlesTab(episodeId)
@@ -155,7 +203,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 if (media.idIMDB == null) {
                     try {
-                        media.idIMDB = IdMappers.getImdbId(media.id)
+                        val imdb = IdMappers.getImdbId(media.id)
+                        if (imdb != null) {
+                            media.idIMDB = imdb
+                        }
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -201,7 +252,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
     private fun updateTabStyles() {
         val primaryColor = PrefManager.getVal<Int>(PrefName.PrimaryColor)
         val selectedBgColor = ColorUtils.setAlphaComponent(primaryColor, 40)
-        val unselectedTextColor = ContextCompatHelper.getColorSecondary(requireContext())
+        val unselectedTextColor = try {
+            val themeColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+            if (themeColor != 0) themeColor else ContextCompat.getColor(requireContext(), R.color.grey_60)
+        } catch (_: Exception) {
+            ContextCompat.getColor(requireContext(), R.color.grey_60)
+        }
 
         // Subtitles Tab
         if (currentTab == 0) {
@@ -338,7 +394,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         val exoActivity = activity as? ExoplayerView
         val trackGroups = exoActivity?.currentSubTrackGroups
         if (trackGroups != null && trackGroups.isNotEmpty()) {
-            trackGroups.forEachIndexed { groupIndex, group ->
+            trackGroups.forEachIndexed { _, group ->
                 for (trackIndex in 0 until group.length) {
                     val format = group.getTrackFormat(trackIndex)
                     val lang = format.language
@@ -381,17 +437,21 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         searchJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val imdbId = media.idIMDB ?: IdMappers.getImdbId(media.id)
+                if (imdbId != null) {
+                    media.idIMDB = imdbId
+                }
+
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
                 val episodeNum = selectedEpisode.toIntOrNull() ?: 1
 
-                val currentEpisode = media.anime?.episodes?.get(selectedEpisode)
-                val seasonEpisode = currentSeasonEpisode ?: EpisodeMapper.mapEpisode(media, episodeNum, currentEpisode)
+                val currentEp = media.anime?.episodes?.get(selectedEpisode)
+                val seasonEpisode = currentSeasonEpisode ?: EpisodeMapper.mapEpisode(media, episodeNum, currentEp)
                 currentSeasonEpisode = seasonEpisode
 
                 val onlineSubs = mutableListOf<Any>()
 
                 if (imdbId != null) {
-                    // 1. Wyzie Subtitles
+                    // 1. Fetch Wyzie Subtitles
                     try {
                         val wyzieSubs = WyzieSubtitles.getWyzieSubtitles(imdbId, seasonEpisode.season, seasonEpisode.episode)
                         onlineSubs.addAll(wyzieSubs)
@@ -399,10 +459,9 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         e.printStackTrace()
                     }
 
-                    // 2. Stremio / OpenSubtitles
+                    // 2. Fetch Stremio / OpenSubtitles
                     try {
                         val fetchedStremio = StremioSubtitles.getSubtitles(media, seasonEpisode.season, seasonEpisode.episode)
-                        // Filter out any duplicates already retrieved
                         val existingUrls = onlineSubs.mapNotNull { (it as? WyzieSub)?.url }.toSet()
                         val uniqueStremio = fetchedStremio.filter { it.url !in existingUrls }
                         onlineSubs.addAll(uniqueStremio)
@@ -441,11 +500,24 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         if (selectedLanguageFilter != "All") {
             filtered = filtered.filter { item ->
                 when (item) {
-                    is WyzieSub -> item.language.contains(selectedLanguageFilter, ignoreCase = true) ||
-                            mapLanguageCode(item.language).equals(selectedLanguageFilter, ignoreCase = true) ||
-                            (item.display?.contains(selectedLanguageFilter, ignoreCase = true) == true)
-                    is StremioSub -> item.lang.contains(selectedLanguageFilter, ignoreCase = true) ||
-                            mapLanguageCode(item.lang).equals(selectedLanguageFilter, ignoreCase = true)
+                    is WyzieSub -> matchesLanguage(item.language, selectedLanguageFilter) ||
+                            matchesLanguage(item.displayLabel, selectedLanguageFilter)
+                    is StremioSub -> matchesLanguage(item.lang, selectedLanguageFilter)
+                    else -> true
+                }
+            }
+        }
+
+        // Text Search Filter if user entered custom text
+        val queryText = binding.onlineSearchEditText.text?.toString()?.trim() ?: ""
+        if (queryText.isNotEmpty() && !queryText.startsWith(model.getMedia().value?.userPreferredName ?: "", ignoreCase = true)) {
+            filtered = filtered.filter { item ->
+                when (item) {
+                    is WyzieSub -> item.displayLabel.contains(queryText, ignoreCase = true) ||
+                            item.language.contains(queryText, ignoreCase = true) ||
+                            item.format.contains(queryText, ignoreCase = true)
+                    is StremioSub -> item.lang.contains(queryText, ignoreCase = true) ||
+                            mapLanguageCode(item.lang).contains(queryText, ignoreCase = true)
                     else -> true
                 }
             }
@@ -455,8 +527,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.onlineSubtitlesRecycler.isVisible = filtered.isNotEmpty()
         binding.onlineSubtitlesRecycler.adapter = SubtitleAdapter(filtered, TabType.ONLINE)
     }
-
-    enum class TabType { SERVER, ONLINE, LOCAL }
 
     // ==========================================
     // RECYCLER VIEW ADAPTER
@@ -486,7 +556,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             val primaryColor = PrefManager.getVal<Int>(PrefName.PrimaryColor)
             val highlightColor = ColorUtils.setAlphaComponent(primaryColor, 35)
             val borderSelectedColor = ColorUtils.setAlphaComponent(primaryColor, 180)
-            val normalBorderColor = ContextCompatHelper.getColorSurfaceVariant(requireContext())
+            val normalBorderColor = try {
+                val themeColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurfaceVariant)
+                if (themeColor != 0) themeColor else ContextCompat.getColor(requireContext(), R.color.grey_20)
+            } catch (_: Exception) {
+                ContextCompat.getColor(requireContext(), R.color.grey_20)
+            }
             val media = model.getMedia().value
             val mediaId = media?.id ?: 0
             val savedLang: String? = PrefManager.getNullableCustomVal("subLang_${mediaId}", null, String::class.java)
@@ -729,19 +804,5 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         searchJob?.cancel()
         _binding = null
         super.onDestroyView()
-    }
-
-    private object ContextCompatHelper {
-        fun getColorSecondary(context: android.content.Context): Int {
-            val typedValue = android.util.TypedValue()
-            context.theme.resolveAttribute(android.R.attr.textColorSecondary, typedValue, true)
-            return typedValue.data
-        }
-
-        fun getColorSurfaceVariant(context: android.content.Context): Int {
-            val typedValue = android.util.TypedValue()
-            context.theme.resolveAttribute(com.google.android.material.R.attr.colorSurfaceVariant, typedValue, true)
-            return typedValue.data
-        }
     }
 }
