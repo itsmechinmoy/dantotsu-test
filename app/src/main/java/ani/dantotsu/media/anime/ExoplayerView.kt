@@ -74,6 +74,7 @@ import ani.dantotsu.media.anime.player.PlayerGestureManager
 import ani.dantotsu.media.anime.player.PlayerProgressManager
 import ani.dantotsu.media.anime.player.PlayerSubtitleManager
 import ani.dantotsu.others.IdMappers
+import ani.dantotsu.others.LanguageMapper
 import ani.dantotsu.others.Xubtitle
 import ani.dantotsu.others.getSerialized
 import ani.dantotsu.parsers.AnimeSources
@@ -897,9 +898,17 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             else -> androidx.media3.common.MimeTypes.APPLICATION_MP4
         }
 
-        val downloadedMediaItem = offlineManager.getDownloadedMediaItem(
-            ext.server.offline, ext.server.name, subConfigs, episode
-        )
+        val downloadedMediaItem = if (ext.server.offline) {
+            val titleName = ext.server.name.split("/").first()
+            val episodeName = ext.server.name.split("/").last()
+            val directory = ani.dantotsu.download.DownloadsManager.getSubDirectory(this, ani.dantotsu.media.MediaType.ANIME, false, titleName, episodeName)
+            if (directory != null) {
+                val file = directory.listFiles()?.firstOrNull { it.isFile && it.name?.startsWith("default") == true }
+                if (file != null) {
+                    MediaItem.fromUri(file.uri)
+                } else null
+            } else null
+        } else null
 
         val episodeDisplayName = episodeTitleArr.getOrNull(currentEpisodeIndex) ?: episode.number
         val mediaMetadata = MediaMetadata.Builder()
@@ -922,13 +931,13 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         )
 
         val exo = playerManager.buildExoplayer(
-            playbackPosition, PlaybackParameters(1f), playerListener
+            playbackPosition, PlaybackParameters(1f), this
         )
 
         castManager.updateCurrentMedia(playerManager.currentMediaItem, exo, video)
 
         castManager.setupCastButton(
-            exoCast, media, video, subtitle, hasExtSubtitles,
+            customCastButton, media, video, subtitle, hasExtSubtitles,
             episodeTitleArr.getOrNull(currentEpisodeIndex) ?: episode.number
         )
 
@@ -1226,9 +1235,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 if (playerErrorRetryCount < MAX_PLAYER_ERROR_RETRIES) {
                     playerErrorRetryCount++
                     val savedPos = if (playerManager.isInitialized) player?.currentPosition?.takeIf { it > 0 } ?: playbackPosition else playbackPosition
-                    Logger.log("ExoPlayer: Retrying with standard DefaultRenderersFactory fallback for error 1004")
+                    val currentParams = playerManager.exoPlayer?.playbackParameters ?: PlaybackParameters(1f)
                     playerManager.release()
-                    playerManager.buildExoplayer(savedPos, playbackParameters, this, forceDefaultRenderers = true)
+                    playerManager.buildExoplayer(savedPos, currentParams, this, forceDefaultRenderers = true)
                 } else {
                     playerErrorRetryCount = 0
                     toast("Player Error 1004: ${error.message}")
