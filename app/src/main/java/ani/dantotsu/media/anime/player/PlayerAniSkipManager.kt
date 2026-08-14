@@ -60,8 +60,8 @@ class PlayerAniSkipManager(
 
     private fun setupTimeStampsObserver() {
         model.timeStamps.observe(activity) { stamps ->
-            isTimeStampsLoaded = true
             if (stamps != null) {
+                isTimeStampsLoaded = true
                 val adGroups = stamps.flatMap {
                     listOf(
                         it.interval.startTime.toLong() * 1000,
