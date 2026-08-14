@@ -1040,6 +1040,20 @@ class MediaDetailsViewModel : ViewModel() {
         return localSubtitlesMap[id] ?: emptyList()
     }
 
+    fun removeLocalSubtitle(id: String, sub: Any) {
+        val list = localSubtitlesMap[id] ?: return
+        list.removeAll { existing ->
+            if (existing is ani.dantotsu.parsers.Subtitle && sub is ani.dantotsu.parsers.Subtitle) {
+                existing.file.url == sub.file.url
+            } else {
+                existing == sub
+            }
+        }
+        if (list.isEmpty()) {
+            localSubtitlesMap.remove(id)
+        }
+    }
+
     fun clearLocalSubtitles(id: String) {
         localSubtitlesMap.remove(id)
     }
