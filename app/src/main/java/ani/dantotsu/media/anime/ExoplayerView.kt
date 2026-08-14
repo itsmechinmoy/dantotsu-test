@@ -651,6 +651,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     playbackPosition = PrefManager.getCustomVal("${media.id}_${epKey ?: ep.number}", 0L)
                 }
                 initPlayer()
+                changingServer = false
                 progressManager.startTracking()
             }
         }
@@ -1246,7 +1247,6 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     playerErrorRetryCount++
                     val savedPos = if (playerManager.isInitialized) player?.currentPosition?.takeIf { it > 0 } ?: playbackPosition else playbackPosition
                     val currentParams = playerManager.exoPlayer?.playbackParameters ?: PlaybackParameters(1f)
-                    playerManager.release()
                     val fallbackExo = playerManager.buildExoplayer(savedPos, currentParams, this, forceDefaultRenderers = true)
                     playerView.player = fallbackExo
                 } else {
