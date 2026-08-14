@@ -925,6 +925,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             playbackPosition, PlaybackParameters(1f), playerListener
         )
 
+        castManager.updateCurrentMedia(playerManager.currentMediaItem, exo, video)
+
         castManager.setupCastButton(
             exoCast, media, video, subtitle, hasExtSubtitles,
             episodeTitleArr.getOrNull(currentEpisodeIndex) ?: episode.number
@@ -1220,6 +1222,21 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     sourceClick()
                 }
             }
+            PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK -> {
+                if (playerErrorRetryCount < MAX_PLAYER_ERROR_RETRIES) {
+                    playerErrorRetryCount++
+                    val savedPos = if (playerManager.isInitialized) player?.currentPosition?.takeIf { it > 0 } ?: playbackPosition else playbackPosition
+                    Logger.log("ExoPlayer: Retrying with standard DefaultRenderersFactory fallback for error 1004")
+                    playerManager.release()
+                    playerManager.buildExoplayer(savedPos, playbackParameters, this, forceDefaultRenderers = true)
+                } else {
+                    playerErrorRetryCount = 0
+                    toast("Player Error 1004: ${error.message}")
+                    runCatching { Injekt.get<CrashlyticsInterface>().logException(error) }
+                    sourceClick()
+                }
+            }
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
             PlaybackException.ERROR_CODE_DECODING_FAILED,
             PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
@@ -1234,8 +1251,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     }
                 } else {
                     playerErrorRetryCount = 0
-                    toast("Player Error ${error.errorCode} (${error.errorCodeName}) : ${error.message}")
+                    toast("Source Format Error (${error.errorCodeName}) : ${error.message}")
                     runCatching { Injekt.get<CrashlyticsInterface>().logException(error) }
+                    sourceClick()
                 }
             }
             else -> {
