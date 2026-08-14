@@ -652,9 +652,11 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 } else {
                     playbackPosition = PrefManager.getCustomVal("${media.id}_${epKey ?: ep.number}", 0L)
                 }
+                aniSkipManager.resetForNewEpisode()
                 initPlayer()
                 changingServer = false
                 progressManager.startTracking()
+                aniSkipManager.startTracking()
             }
         }
 
@@ -1146,17 +1148,41 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         val player = playerManager.exoPlayer ?: return
         if (playbackState == ExoPlayer.STATE_READY) {
             player.play()
-            if (progressManager.episodeLength == 0f) {
+            if (progressManager.episodeLength <= 0f && player.duration > 0) {
                 progressManager.episodeLength = player.duration.toFloat()
             }
             isBuffering = false
+            checkAndLoadTimestamps()
         } else if (playbackState == ExoPlayer.STATE_BUFFERING) {
             isBuffering = true
         } else if (playbackState == ExoPlayer.STATE_ENDED) {
-            progressManager.updateAniProgress()
+            progressManager.updateAniProgress(forceComplete = true)
             if (PrefManager.getVal<Boolean>(PrefName.AutoPlay) && !interacted) {
                 progressManager.nextEpisode { i ->
                     changeEpisode(currentEpisodeIndex + i)
+                }
+            }
+        }
+    }
+
+    private fun checkAndLoadTimestamps() {
+        val player = playerManager.exoPlayer ?: return
+        if (!aniSkipManager.isTimeStampsLoaded && PrefManager.getVal(PrefName.TimeStampsEnabled)) {
+            val dur = player.duration
+            if (dur > 0) {
+                val extTimestamps = extractor?.server?.video?.timestamps ?: emptyList()
+                val epString = if (this::episode.isInitialized) episode.number else (media.anime?.selectedEpisode ?: "1")
+                val epNum = Regex("""\d+""").find(epString)?.value?.toIntOrNull()
+                    ?: epString.trim().toIntOrNull()
+                    ?: 1
+                lifecycleScope.launch(Dispatchers.IO) {
+                    model.loadTimeStamps(
+                        media.idMAL,
+                        epNum,
+                        dur / 1000,
+                        PrefManager.getVal(PrefName.UseProxyForTimeStamps),
+                        extTimestamps
+                    )
                 }
             }
         }
@@ -1212,19 +1238,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             player.seekTo(0)
         }
 
-        if (!aniSkipManager.isTimeStampsLoaded && PrefManager.getVal(PrefName.TimeStampsEnabled)) {
-            val dur = player.duration
-            val extTimestamps = extractor?.server?.video?.timestamps ?: emptyList()
-            lifecycleScope.launch(Dispatchers.IO) {
-                model.loadTimeStamps(
-                    media.idMAL,
-                    media.anime?.selectedEpisode?.trim()?.toIntOrNull(),
-                    dur / 1000,
-                    PrefManager.getVal(PrefName.UseProxyForTimeStamps),
-                    extTimestamps
-                )
-            }
-        }
+        checkAndLoadTimestamps()
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -1380,6 +1394,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             playerManager.exoPlayer?.let { p ->
                 PrefManager.setCustomVal("${media.id}_${media.anime!!.selectedEpisode}", p.currentPosition)
             }
+            progressManager.updateAniProgress()
         }
     }
 
