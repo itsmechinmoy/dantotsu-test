@@ -424,14 +424,19 @@ class PlayerSubtitleManager(
         }
 
         existingSubtitles.add(subConfig)
-        val newMediaItem = currentMediaItem.buildUpon()
-            .setSubtitleConfigurations(existingSubtitles)
-            .build()
-
         pendingSubtitleLabel = label
         val currentPos = player.currentPosition
-        player.setMediaItem(newMediaItem, currentPos)
-        player.prepare()
+
+        val exoActivity = activity as? ExoplayerView
+        if (exoActivity != null) {
+            exoActivity.playerManager.applyUpdatedSubtitles(existingSubtitles, currentPos)
+        } else {
+            val newMediaItem = currentMediaItem.buildUpon()
+                .setSubtitleConfigurations(existingSubtitles)
+                .build()
+            player.setMediaItem(newMediaItem, currentPos)
+            player.prepare()
+        }
     }
 
     fun applyLocalSubtitle(uri: Uri, media: Media?) {
@@ -511,14 +516,19 @@ class PlayerSubtitleManager(
                 PrefManager.setCustomVal("subLang_$mediaId", newLocalSub.language)
             }
 
-            val newMediaItem = currentMediaItem.buildUpon()
-                .setSubtitleConfigurations(existingSubtitles)
-                .build()
-
             pendingSubtitleLabel = label
             val currentPos = player.currentPosition
-            player.setMediaItem(newMediaItem, currentPos)
-            player.prepare()
+
+            val exoActivity = activity as? ExoplayerView
+            if (exoActivity != null) {
+                exoActivity.playerManager.applyUpdatedSubtitles(existingSubtitles, currentPos)
+            } else {
+                val newMediaItem = currentMediaItem.buildUpon()
+                    .setSubtitleConfigurations(existingSubtitles)
+                    .build()
+                player.setMediaItem(newMediaItem, currentPos)
+                player.prepare()
+            }
         } catch (e: Exception) {
             snackString("Failed to load subtitle: ${e.message}", activity)
         }
