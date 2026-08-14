@@ -22,8 +22,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
+import ani.dantotsu.connections.subtitles.OpenSubRestItem
+import ani.dantotsu.connections.subtitles.OpenSubtitlesRestApi
 import ani.dantotsu.connections.subtitles.StremioSub
 import ani.dantotsu.connections.subtitles.StremioSubtitles
+import ani.dantotsu.connections.subtitles.SubSourceSub
+import ani.dantotsu.connections.subtitles.SubSourceSubtitles
 import ani.dantotsu.connections.subtitles.WyzieSub
 import ani.dantotsu.connections.subtitles.WyzieSubtitles
 import ani.dantotsu.databinding.BottomSheetSubtitlesBinding
@@ -262,28 +266,34 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
 
         // Subtitles Tab
         if (currentTab == 0) {
+            binding.tabSubtitlesBtn.setBackgroundResource(R.drawable.badge_bg_rounded)
             binding.tabSubtitlesBtn.backgroundTintList = ColorStateList.valueOf(selectedBgColor)
             binding.tabSubtitlesBtn.setTextColor(primaryColor)
         } else {
-            binding.tabSubtitlesBtn.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            binding.tabSubtitlesBtn.setBackgroundResource(android.R.color.transparent)
+            binding.tabSubtitlesBtn.backgroundTintList = null
             binding.tabSubtitlesBtn.setTextColor(unselectedTextColor)
         }
 
         // Online Tab
         if (currentTab == 1) {
+            binding.tabOnlineBtn.setBackgroundResource(R.drawable.badge_bg_rounded)
             binding.tabOnlineBtn.backgroundTintList = ColorStateList.valueOf(selectedBgColor)
             binding.tabOnlineBtn.setTextColor(primaryColor)
         } else {
-            binding.tabOnlineBtn.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            binding.tabOnlineBtn.setBackgroundResource(android.R.color.transparent)
+            binding.tabOnlineBtn.backgroundTintList = null
             binding.tabOnlineBtn.setTextColor(unselectedTextColor)
         }
 
         // Local Tab
         if (currentTab == 2) {
+            binding.tabLocalBtn.setBackgroundResource(R.drawable.badge_bg_rounded)
             binding.tabLocalBtn.backgroundTintList = ColorStateList.valueOf(selectedBgColor)
             binding.tabLocalBtn.setTextColor(primaryColor)
         } else {
-            binding.tabLocalBtn.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            binding.tabLocalBtn.setBackgroundResource(android.R.color.transparent)
+            binding.tabLocalBtn.backgroundTintList = null
             binding.tabLocalBtn.setTextColor(unselectedTextColor)
         }
     }
@@ -467,7 +477,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 currentSeasonEpisode = seasonEpisode
 
                 val onlineSubs = mutableListOf<Any>()
-
                 if (imdbId != null) {
                     // 1. Fetch Wyzie Subtitles
                     try {
@@ -477,11 +486,35 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         e.printStackTrace()
                     }
 
-                    // 2. Fetch Stremio / OpenSubtitles
+                    // 2. Fetch SubSource Subtitles (from AnymeX / CloudStream)
+                    try {
+                        val subSourceSubs = SubSourceSubtitles.getSubtitles(imdbId, targetEpisodeNum, seasonEpisode.season)
+                        onlineSubs.addAll(subSourceSubs)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
+                    // 3. Fetch OpenSubtitles REST API (from CloudStream)
+                    try {
+                        val openSubRest = OpenSubtitlesRestApi.search(imdbId, targetEpisodeNum, seasonEpisode.season, queryText)
+                        onlineSubs.addAll(openSubRest)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
+                    // 4. Fetch Stremio / OpenSubtitles (filter out mismatched S1E1 files)
                     try {
                         val fetchedStremio = StremioSubtitles.getSubtitles(media, seasonEpisode.season, seasonEpisode.episode)
-                        val existingUrls = onlineSubs.mapNotNull { (it as? WyzieSub)?.url }.toSet()
-                        val uniqueStremio = fetchedStremio.filter { it.url !in existingUrls }
+                        val existingUrls = onlineSubs.mapNotNull {
+                            when (it) {
+                                is WyzieSub -> it.url
+                                is StremioSub -> it.url
+                                else -> null
+                            }
+                        }.toSet()
+                        val uniqueStremio = fetchedStremio.filter { sub ->
+                            sub.url !in existingUrls && (!sub.id.contains(":1:1") || targetEpisodeNum == 1)
+                        }
                         onlineSubs.addAll(uniqueStremio)
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -511,7 +544,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         if (selectedProviderFilter == "Wyzie") {
             filtered = filtered.filterIsInstance<WyzieSub>()
         } else if (selectedProviderFilter == "Stremio") {
-            filtered = filtered.filterIsInstance<StremioSub>()
+            filtered = filtered.filter { it is StremioSub || it is OpenSubRestItem || it is SubSourceSub }
         }
 
         // Language Filter
@@ -521,6 +554,8 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     is WyzieSub -> matchesLanguage(item.language, selectedLanguageFilter) ||
                             matchesLanguage(item.displayLabel, selectedLanguageFilter)
                     is StremioSub -> matchesLanguage(item.lang, selectedLanguageFilter)
+                    is SubSourceSub -> matchesLanguage(item.lang, selectedLanguageFilter)
+                    is OpenSubRestItem -> matchesLanguage(item.language, selectedLanguageFilter)
                     else -> true
                 }
             }
@@ -536,6 +571,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             item.format.contains(queryText, ignoreCase = true)
                     is StremioSub -> item.lang.contains(queryText, ignoreCase = true) ||
                             mapLanguageCode(item.lang).contains(queryText, ignoreCase = true)
+                    is SubSourceSub -> item.releaseName.contains(queryText, ignoreCase = true) ||
+                            item.lang.contains(queryText, ignoreCase = true)
+                    is OpenSubRestItem -> item.fileName.contains(queryText, ignoreCase = true) ||
+                            item.language.contains(queryText, ignoreCase = true)
                     else -> true
                 }
             }
@@ -544,6 +583,22 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.noOnlineSubsBanner.isVisible = filtered.isEmpty()
         binding.onlineSubtitlesRecycler.isVisible = filtered.isNotEmpty()
         binding.onlineSubtitlesRecycler.adapter = SubtitleAdapter(filtered, TabType.ONLINE)
+    }
+
+    private fun matchesLanguage(codeOrName: String, filterLanguage: String): Boolean {
+        val mapped = mapLanguageCode(codeOrName).lowercase(Locale.ROOT)
+        val filter = filterLanguage.lowercase(Locale.ROOT)
+        return mapped.contains(filter) || codeOrName.lowercase(Locale.ROOT).contains(filter)
+    }
+
+    private fun mapLanguageCode(code: String): String {
+        return try {
+            val locale = Locale.forLanguageTag(code)
+            val display = locale.getDisplayLanguage(Locale.ENGLISH)
+            if (display.isNotBlank() && display != code) display else code
+        } catch (_: Exception) {
+            code
+        }
     }
 
     // ==========================================
@@ -631,7 +686,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             itemBinding.formatBadge.isVisible = true
                         }
 
-                        val isSelected = savedLang == item.language
+                        val isSelected = savedLang == item.language || (savedLang?.startsWith("[Local]") == true && savedLang.contains(fileName))
                         if (isSelected) {
                             itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
                             itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
@@ -786,7 +841,71 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     }
                 }
 
-                // --- 6. ONLINE SUBTITLE (STREMIO / OPEN SUBTITLES) ---
+                // --- 6. ONLINE SUBTITLE (SUBSOURCE) ---
+                is SubSourceSub -> {
+                    val langName = mapLanguageCode(item.lang)
+                    itemBinding.subtitleIcon.setImageResource(R.drawable.ic_globe_24)
+                    itemBinding.subtitleTitle.text = item.releaseName.ifBlank { langName }
+                    itemBinding.subtitleDetails.text = "SubSource • $langName"
+                    itemBinding.formatBadge.text = "SRT"
+                    itemBinding.formatBadge.isVisible = true
+
+                    val isSelected = savedLang?.contains(item.id) == true || savedLang == "Online:${item.id}"
+                    if (isSelected) {
+                        itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
+                        itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
+                        itemBinding.selectedCheckmark.isVisible = true
+                    }
+
+                    itemBinding.subtitleCardRoot.setOnClickListener {
+                        val exoActivity = requireActivity() as? ExoplayerView
+                        if (exoActivity != null) {
+                            episode.selectedSubtitle = -1
+                            model.setEpisode(episode, "Subtitle")
+                            val saveKey = "Online:${item.releaseName} • SubSource • ${item.id}"
+                            PrefManager.setCustomVal("subLang_${mediaId}", saveKey)
+                            exoActivity.applySubSourceSubtitle(item)
+                        }
+                        updateActiveSubtitleBadge()
+                        dismiss()
+                    }
+                }
+
+                // --- 7. ONLINE SUBTITLE (OPEN SUBTITLES REST) ---
+                is OpenSubRestItem -> {
+                    val langName = mapLanguageCode(item.language)
+                    itemBinding.subtitleIcon.setImageResource(R.drawable.ic_globe_24)
+                    itemBinding.subtitleTitle.text = item.fileName.ifBlank { langName }
+                    itemBinding.subtitleDetails.text = "OpenSubtitles • $langName"
+
+                    val ext = item.fileName.substringAfterLast('.', "").uppercase(Locale.ROOT)
+                    if (ext.isNotBlank()) {
+                        itemBinding.formatBadge.text = ext
+                        itemBinding.formatBadge.isVisible = true
+                    }
+
+                    val isSelected = savedLang?.contains(item.fileId.toString()) == true || savedLang == "Online:${item.fileId}"
+                    if (isSelected) {
+                        itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
+                        itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
+                        itemBinding.selectedCheckmark.isVisible = true
+                    }
+
+                    itemBinding.subtitleCardRoot.setOnClickListener {
+                        val exoActivity = requireActivity() as? ExoplayerView
+                        if (exoActivity != null) {
+                            episode.selectedSubtitle = -1
+                            model.setEpisode(episode, "Subtitle")
+                            val saveKey = "Online:${item.fileName} • OpenSubtitles • ${item.fileId}"
+                            PrefManager.setCustomVal("subLang_${mediaId}", saveKey)
+                            exoActivity.applyOpenSubRestSubtitle(item)
+                        }
+                        updateActiveSubtitleBadge()
+                        dismiss()
+                    }
+                }
+
+                // --- 8. ONLINE SUBTITLE (STREMIO / OPEN SUBTITLES) ---
                 is StremioSub -> {
                     val langName = mapLanguageCode(item.lang)
                     itemBinding.subtitleIcon.setImageResource(R.drawable.ic_globe_24)
