@@ -33,6 +33,12 @@ import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 import java.util.concurrent.Executors
 
+import androidx.mediarouter.media.MediaRouter
+import androidx.mediarouter.media.MediaRouterParams
+import ani.dantotsu.media.anime.cast.CastProxyServer
+import ani.dantotsu.media.anime.cast.CastProxyServerService
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
+
 @UnstableApi
 class PlayerCastManager(
     private val activity: AppCompatActivity,
@@ -48,6 +54,8 @@ class PlayerCastManager(
         private set
 
     var currentMediaItem: MediaItem? = null
+        private set
+    var currentVideo: Video? = null
         private set
     private var exoPlayer: Player? = null
 
@@ -78,39 +86,55 @@ class PlayerCastManager(
                     castScreenView?.updateProgress(currentPositionMs, currentDurationMs)
                     castScreenView?.updatePlaybackState(cp.isPlaying, isBuffering)
                 }
-                progressHandler.postDelayed(this, 500)
+                progressHandler.postDelayed(this, 100)
             } else {
                 isTrackingProgress = false
             }
         }
     }
 
+    private val remoteProgressListener = RemoteMediaClient.ProgressListener { progressMs, durationMs ->
+        currentPositionMs = progressMs.coerceAtLeast(0L)
+        currentDurationMs = durationMs.coerceAtLeast(0L)
+        castScreenView?.updateProgress(currentPositionMs, currentDurationMs)
+    }
+
     private val sessionManagerListener = object : SessionManagerListener<CastSession> {
         override fun onSessionStarted(session: CastSession, sessionId: String) {
             activeDeviceName = session.castDevice?.friendlyName
             castScreenView?.updateDeviceName(activeDeviceName)
+            session.remoteMediaClient?.addProgressListener(remoteProgressListener, 100)
             onSessionStartedListener?.invoke(activeDeviceName)
         }
 
         override fun onSessionEnded(session: CastSession, error: Int) {
             val resumePos = currentPositionMs
             activeDeviceName = null
+            session.remoteMediaClient?.removeProgressListener(remoteProgressListener)
             stopProgressTracking()
+            CastProxyServerService.stop(activity)
             onSessionEndedListener?.invoke(resumePos)
         }
 
         override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) {
             activeDeviceName = session.castDevice?.friendlyName
             castScreenView?.updateDeviceName(activeDeviceName)
+            session.remoteMediaClient?.addProgressListener(remoteProgressListener, 100)
             onSessionStartedListener?.invoke(activeDeviceName)
         }
 
         override fun onSessionResumeFailed(session: CastSession, error: Int) {}
-        override fun onSessionStartFailed(session: CastSession, error: Int) {}
-        override fun onSessionStarting(session: CastSession) {}
+        override fun onSessionStartFailed(session: CastSession, error: Int) {
+            CastProxyServerService.stop(activity)
+        }
+        override fun onSessionStarting(session: CastSession) {
+            CastProxyServerService.start(activity)
+        }
         override fun onSessionEnding(session: CastSession) {}
         override fun onSessionResuming(session: CastSession, sessionId: String) {}
-        override fun onSessionSuspended(session: CastSession, reason: Int) {}
+        override fun onSessionSuspended(session: CastSession, reason: Int) {
+            session.remoteMediaClient?.removeProgressListener(remoteProgressListener)
+        }
     }
 
     private var pendingCastButtonSetup: (() -> Unit)? = null
@@ -121,6 +145,11 @@ class PlayerCastManager(
 
     private fun initCastApi() {
         try {
+            MediaRouter.getInstance(activity).routerParams = MediaRouterParams.Builder()
+                .setDialogType(MediaRouterParams.DIALOG_TYPE_DYNAMIC_GROUP)
+                .setOutputSwitcherEnabled(true)
+                .build()
+
             CastContext.getSharedInstance(activity, Executors.newSingleThreadExecutor())
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful && task.result != null) {
@@ -227,9 +256,10 @@ class PlayerCastManager(
         }
     }
 
-    fun updateCurrentMedia(mediaItem: MediaItem?, exoPlayer: Player?) {
+    fun updateCurrentMedia(mediaItem: MediaItem?, exoPlayer: Player?, video: Video? = null) {
         this.currentMediaItem = mediaItem
         this.exoPlayer = exoPlayer
+        this.currentVideo = video
     }
 
     fun isCasting(): Boolean = castPlayer?.isCastSessionAvailable == true && castPlayer?.currentMediaItem != null
@@ -327,13 +357,51 @@ class PlayerCastManager(
             activeDeviceName = castContext?.sessionManager?.currentCastSession?.castDevice?.friendlyName
             castScreenView?.updateDeviceName(activeDeviceName)
 
-            castPlayer?.setMediaItem(item, handoverPosition)
+            val proxiedItem = getProxiedMediaItem(item, currentVideo)
+
+            castPlayer?.setMediaItem(proxiedItem, handoverPosition)
             castPlayer?.prepare()
             castPlayer?.play()
 
             startProgressTracking()
             onSessionStartedListener?.invoke(activeDeviceName)
         }
+    }
+
+    private fun getProxiedMediaItem(item: MediaItem, video: Video?): MediaItem {
+        val originalUri = item.localConfiguration?.uri ?: return item
+        val uriStr = originalUri.toString()
+        val headers = mutableMapOf<String, String>()
+        headers.putAll(defaultHeaders)
+        video?.file?.headers?.let { headers.putAll(it) }
+
+        val proxyServer = CastProxyServerService.currentProxyServer
+            ?: CastProxyServer(contentResolver = activity.contentResolver, ipAddress = CastProxyServer.getLocalIpAddress())
+
+        val proxiedUri = if (uriStr.startsWith("content://")) {
+            proxyServer.getLocalUrl(uriStr).toUri()
+        } else if (uriStr.startsWith("http://") || uriStr.startsWith("https://")) {
+            proxyServer.getProxyUrl(uriStr, headers).toUri()
+        } else {
+            originalUri
+        }
+
+        val proxiedSubs = item.localConfiguration?.subtitleConfigurations?.map { sub ->
+            val subUriStr = sub.uri.toString()
+            val proxiedSubUri = if (subUriStr.startsWith("http://") || subUriStr.startsWith("https://")) {
+                proxyServer.getProxyUrl(subUriStr, headers).toUri()
+            } else if (subUriStr.startsWith("content://") || subUriStr.startsWith("file://")) {
+                proxyServer.getLocalUrl(subUriStr).toUri()
+            } else {
+                sub.uri
+            }
+            sub.buildUpon().setUri(proxiedSubUri).build()
+        } ?: emptyList()
+
+        return item.buildUpon()
+            .setUri(proxiedUri)
+            .setSubtitleConfigurations(proxiedSubs)
+            .build()
     }
 
     override fun onCastSessionUnavailable() {
