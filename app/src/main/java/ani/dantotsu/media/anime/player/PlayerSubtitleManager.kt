@@ -95,7 +95,15 @@ class PlayerSubtitleManager(
         initAssHandler()
         val handler = assHandler!!
         val assSubtitleParserFactory = AssSubtitleParserFactory(handler)
-        return DefaultExtractorsFactory().withAssMkvSupport(assSubtitleParserFactory, handler)
+        val defaultExtractorsFactory = DefaultExtractorsFactory()
+            .setTsExtractorFlags(
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS or
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
+            )
+            .setTsExtractorTimestampSearchBytes(1500 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
+            .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
+            .setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
+        return defaultExtractorsFactory.withAssMkvSupport(assSubtitleParserFactory, handler)
     }
 
     fun createSubtitleParserFactory(): AssSubtitleParserFactory {
