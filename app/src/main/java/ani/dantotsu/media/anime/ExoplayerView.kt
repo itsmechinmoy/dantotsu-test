@@ -308,8 +308,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         animeTitle = playerView.findViewById(R.id.exo_anime_title)
         episodeTitle = playerView.findViewById(R.id.exo_ep_sel)
         customCastButton = playerView.findViewById(R.id.exo_cast)
-
         playerView.controllerShowTimeoutMs = 5000
+        exoSource.setOnClickListener { sourceClick() }
 
         // Initialize Managers
         subtitleManager = PlayerSubtitleManager(this, playerView, customSubtitleView, model) {
@@ -403,6 +403,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
         castManager.onSessionEndedListener = { resumePositionMs ->
             castScreenView.hide(true)
+            playerView.player = playerManager.exoPlayer
             playerManager.exoPlayer?.let { p ->
                 p.seekTo(resumePositionMs)
                 p.play()
@@ -967,6 +968,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             PlaybackParameters(currentSpeed),
             this
         )
+        playerView.player = exo
 
         castManager.updateCurrentMedia(playerManager.currentMediaItem, exo, video)
 
@@ -1012,6 +1014,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             isPlayerPlaying = p.playWhenReady
             playbackPosition = p.currentPosition
         }
+        playerView.player = null
         customSubtitleView.text = ""
         exoSubtitleView.setCues(emptyList())
         progressManager.stopTracking()
@@ -1021,27 +1024,38 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     }
 
     private fun sourceClick() {
-        if (playerManager.isInitialized) {
-            playerManager.exoPlayer?.let { p ->
-                PrefManager.setCustomVal("${media.id}_${media.anime?.selectedEpisode}", p.currentPosition)
-                p.pause()
-            }
-            val currentEpKey = media.anime?.selectedEpisode ?: episodeArr.getOrNull(currentEpisodeIndex)
-            val episodesList = if (currentEpKey != null) arrayListOf(currentEpKey) else arrayListOf()
-            SelectorDialogFragment.newInstance(
-                extractor?.server?.name,
-                false,
-                null,
-                false,
-                episodesList
-            ).show(supportFragmentManager, "dialog")
+        changingServer = true
+
+        media.selected?.server = null
+        playerManager.exoPlayer?.let { p ->
+            PrefManager.setCustomVal(
+                "${media.id}_${media.anime?.selectedEpisode}",
+                p.currentPosition,
+            )
+            p.pause()
         }
+        media.selected?.let { model.saveSelected(media.id, it) }
+        val epNum = if (this::episode.isInitialized) episode.number else (media.anime?.selectedEpisode ?: "1")
+        model.onEpisodeClick(
+            media,
+            epNum,
+            this.supportFragmentManager,
+            launch = false,
+        )
     }
 
     private fun subClick() {
-        if (playerManager.isInitialized) {
-            SubtitleDialogFragment().show(supportFragmentManager, "sub_dialog")
+        Logger.log("subClick: Opening subtitle dialog")
+        playerManager.exoPlayer?.let { p ->
+            PrefManager.setCustomVal(
+                "${media.id}_${media.anime?.selectedEpisode}",
+                p.currentPosition,
+            )
         }
+        media.selected?.let { model.saveSelected(media.id, it) }
+        val dialog = SubtitleDialogFragment()
+        Logger.log("subClick: Showing dialog")
+        dialog.show(supportFragmentManager, "dialog")
     }
 
     // Public contract methods
@@ -1233,7 +1247,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     val savedPos = if (playerManager.isInitialized) player?.currentPosition?.takeIf { it > 0 } ?: playbackPosition else playbackPosition
                     val currentParams = playerManager.exoPlayer?.playbackParameters ?: PlaybackParameters(1f)
                     playerManager.release()
-                    playerManager.buildExoplayer(savedPos, currentParams, this, forceDefaultRenderers = true)
+                    val fallbackExo = playerManager.buildExoplayer(savedPos, currentParams, this, forceDefaultRenderers = true)
+                    playerView.player = fallbackExo
                 } else {
                     playerErrorRetryCount = 0
                     toast("Player Error 1004: ${error.message}")
