@@ -32,7 +32,11 @@ import androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_NONE
 import androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE
 import androidx.media3.ui.PlayerView
 import ani.dantotsu.R
+import ani.dantotsu.connections.subtitles.OpenSubRestItem
+import ani.dantotsu.connections.subtitles.OpenSubtitlesRestApi
 import ani.dantotsu.connections.subtitles.StremioSub
+import ani.dantotsu.connections.subtitles.SubSourceSub
+import ani.dantotsu.connections.subtitles.SubSourceSubtitles
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaDetailsViewModel
 import ani.dantotsu.media.anime.ExoplayerView
