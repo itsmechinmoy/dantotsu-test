@@ -397,8 +397,11 @@ class MangaReaderActivity : AppCompatActivity() {
             if (chap != null) {
                 chapter = chap
                 media.manga!!.selectedChapter = chapter
-                media.selected = model.loadSelected(media)
                 PrefManager.setCustomVal("${media.id}_current_chp", chap.number)
+                val cleanChapNum = MediaNameAdapter.findChapterNumber(chap.number)?.let {
+                    if (it % 1 == 0f) it.toInt().toString() else it.toString()
+                }
+                cleanChapNum?.let { PrefManager.setCustomVal("${media.id}_current_chp_num", it) }
                 currentChapterIndex = chaptersArr.indexOf(chap.uniqueNumber())
                 binding.mangaReaderChapterSelect.setSelection(currentChapterIndex)
                 if (directionRLBT) {
@@ -500,6 +503,10 @@ class MangaReaderActivity : AppCompatActivity() {
         if (chapImages.isNotEmpty()) {
             maxChapterPage = chapImages.size.toLong()
             PrefManager.setCustomVal("${media.id}_${chapter.number}_max", maxChapterPage)
+            val cleanChapNum = MediaNameAdapter.findChapterNumber(chapter.number)?.let {
+                if (it % 1 == 0f) it.toInt().toString() else it.toString()
+            }
+            cleanChapNum?.let { PrefManager.setCustomVal("${media.id}_${it}_max", maxChapterPage) }
 
             imageAdapter =
                 dualPage { DualPageAdapter(this, chapter) } ?: ImageAdapter(this, chapter)
@@ -1065,6 +1072,10 @@ class MangaReaderActivity : AppCompatActivity() {
         if (currentChapterPage != page) {
             currentChapterPage = page
             PrefManager.setCustomVal("${media.id}_${chapter.number}", page)
+            val cleanChapNum = MediaNameAdapter.findChapterNumber(chapter.number)?.let {
+                if (it % 1 == 0f) it.toInt().toString() else it.toString()
+            }
+            cleanChapNum?.let { PrefManager.setCustomVal("${media.id}_$it", page) }
             binding.mangaReaderPageNumber.text =
                 if (defaultSettings.hidePageNumbers) "" else "${currentChapterPage}/$maxChapterPage"
             if (!sliding) binding.mangaReaderSlider.apply {
