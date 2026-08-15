@@ -87,7 +87,7 @@ object OpenSubtitlesRestApi {
                 if (resp.isSuccessful && resp.body != null) {
                     val json = resp.body!!.string()
                     val parsed = Mapper.json.decodeFromString<OpenSubDownloadResponse>(json)
-                    parsed.link
+                    parsed.link ?: parsed.url ?: parsed.downloadUrl
                 } else null
             } catch (e: Exception) {
                 Logger.log("OpenSubtitles download error: ${e.message}")
@@ -133,5 +133,7 @@ data class OpenSubFile(
 @Serializable
 data class OpenSubDownloadResponse(
     val link: String? = null,
+    val url: String? = null,
+    @SerialName("download_url") val downloadUrl: String? = null,
     @SerialName("file_name") val fileName: String? = null
 )
