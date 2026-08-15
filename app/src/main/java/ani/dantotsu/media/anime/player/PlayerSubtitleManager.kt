@@ -85,11 +85,6 @@ class PlayerSubtitleManager(
     fun setSubtitleDelay(delayMs: Long) {
         subtitleDelayMs = delayMs
         Logger.log("PlayerSubtitleManager: Subtitle delay set to ${delayMs}ms")
-        val player = getPlayer() ?: return
-        if (player.isPlaying) {
-            val curPos = player.currentPosition
-            player.seekTo(curPos)
-        }
     }
 
     fun setAudioDelay(delayMs: Long) {
@@ -101,7 +96,6 @@ class PlayerSubtitleManager(
     private var lastSubtitle: String? = null
     private var lastPosition: Long = 0
 
-    @Volatile var pendingSubtitleId: String? = null
     @Volatile var pendingSubtitleLabel: String? = null
     @Volatile var initialSubtitleLabel: String? = null
 
@@ -156,34 +150,12 @@ class PlayerSubtitleManager(
             }
 
             override fun create(format: Format): SubtitleParser {
-                val baseParser = if (assFactory.supportsFormat(format)) {
+                return if (assFactory.supportsFormat(format)) {
                     assFactory.create(format)
                 } else {
                     defaultFactory.create(format)
                 }
-                return DelayedSubtitleParser(baseParser) { subtitleDelayMs }
             }
-        }
-    }
-
-    private class DelayedSubtitleParser(
-        private val delegate: SubtitleParser,
-        private val getDelayMs: () -> Long
-    ) : SubtitleParser by delegate {
-        override fun parse(
-            data: ByteArray,
-            offset: Int,
-            length: Int,
-            outputOptions: SubtitleParser.OutputOptions,
-            output: androidx.media3.common.util.Consumer<androidx.media3.extractor.text.CuesWithTiming>
-        ) {
-            val delayUs = getDelayMs() * 1000L
-            val customOutput = androidx.media3.common.util.Consumer<androidx.media3.extractor.text.CuesWithTiming> { cue ->
-                val shiftedStartUs = cue.startTimeUs + delayUs
-                val shifted = androidx.media3.extractor.text.CuesWithTiming(cue.cues, shiftedStartUs, cue.durationUs)
-                output.accept(shifted)
-            }
-            delegate.parse(data, offset, length, outputOptions, customOutput)
         }
     }
 
@@ -392,11 +364,8 @@ class PlayerSubtitleManager(
     fun applyOnlineSubtitleUrl(url: String, id: String, lang: String) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val client = ani.dantotsu.okHttpClient
-                val request = Request.Builder()
-                    .url(url)
-                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                    .build()
+                val client = OkHttpClient()
+                val request = Request.Builder().url(url).build()
                 val response = client.newCall(request).execute()
                 if (!response.isSuccessful) {
                     withContext(Dispatchers.Main) {
@@ -405,8 +374,7 @@ class PlayerSubtitleManager(
                     return@launch
                 }
 
-                val rawContent = response.body?.string()
-                val subtitleContent = rawContent?.trim()?.removePrefix("\uFEFF")
+                val subtitleContent = response.body?.string()
                 if (subtitleContent.isNullOrEmpty()) {
                     withContext(Dispatchers.Main) {
                         snackString("Subtitle file is empty", activity)
@@ -416,7 +384,7 @@ class PlayerSubtitleManager(
 
                 val detectedFormat = when {
                     subtitleContent.trimStart().startsWith("WEBVTT") -> "VTT"
-                    subtitleContent.contains("[Script Info]") || subtitleContent.contains("[Events]") -> "ASS"
+                    subtitleContent.contains("[Script Info]") || subtitleContent.contains("\\[Events\\]") -> "ASS"
                     subtitleContent.contains("<tt ") || subtitleContent.contains("<tt>") -> "TTML"
                     else -> "SRT"
                 }
@@ -488,28 +456,24 @@ class PlayerSubtitleManager(
     private fun applySubtitleFromFile(file: File, lang: String, mimeType: String) {
         val player = getPlayer() ?: return
         val label = "Online: $lang"
-        val trackId = file.name
         val subUri = Uri.fromFile(file)
         val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
             .setMimeType(mimeType)
             .setLanguage(lang)
             .setLabel(label)
-            .setId(trackId)
-            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT or C.SELECTION_FLAG_FORCED)
+            .setId(file.name)
             .build()
 
         val currentMediaItem = player.currentMediaItem ?: return
         val existingSubtitles = currentMediaItem.localConfiguration?.subtitleConfigurations?.toMutableList() ?: mutableListOf()
-        val alreadyExists = existingSubtitles.any { it.id == trackId }
+        val alreadyExists = existingSubtitles.any { it.id == file.name }
         if (alreadyExists) {
-            pendingSubtitleId = trackId
             pendingSubtitleLabel = label
             selectSubtitleTrack(lang, label)
             return
         }
 
         existingSubtitles.add(subConfig)
-        pendingSubtitleId = trackId
         pendingSubtitleLabel = label
         val currentPos = player.currentPosition
 
@@ -557,31 +521,51 @@ class PlayerSubtitleManager(
                 return
             }
 
-            val rawContent = String(subtitleBytes, Charsets.UTF_8).trim().removePrefix("\uFEFF")
-            val isAss = finalMimeType == MimeTypes.TEXT_SSA || rawContent.contains("[Script Info]")
-            val cleanedContent = if (isAss) {
-                stripAssPositioning(rawContent)
+            val ext = when (finalMimeType) {
+                MimeTypes.TEXT_VTT -> "vtt"
+                MimeTypes.TEXT_SSA -> "ass"
+                MimeTypes.APPLICATION_TTML -> "ttml"
+                else -> "srt"
+            }
+            val cacheFile = File(activity.cacheDir, "local_sub_${uri.toString().hashCode()}.$ext")
+            if (finalMimeType == MimeTypes.TEXT_SSA) {
+                cacheFile.writeText(stripAssPositioning(subtitleBytes.toString(Charsets.UTF_8)))
             } else {
-                rawContent
+                cacheFile.writeBytes(subtitleBytes)
             }
 
-            val extension = if (isAss) "ass" else "srt"
-            val localFile = File(activity.cacheDir, "local_sub_${System.currentTimeMillis()}.$extension")
-            localFile.writeText(cleanedContent)
-
-            val subUri = Uri.fromFile(localFile)
-            val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
-                .setMimeType(if (isAss) MimeTypes.TEXT_SSA else finalMimeType)
-                .setLanguage("und")
-                .setLabel(label)
-                .setId(localFile.name)
-                .setSelectionFlags(C.SELECTION_FLAG_DEFAULT or C.SELECTION_FLAG_FORCED)
-                .build()
+            val finalSubUri = Uri.fromFile(cacheFile)
+            val stableId = "local_sub_${uri.toString().hashCode()}"
 
             val currentMediaItem = player.currentMediaItem ?: return
             val existingSubtitles = currentMediaItem.localConfiguration?.subtitleConfigurations?.toMutableList() ?: mutableListOf()
+            val alreadyAdded = existingSubtitles.any { it.id == stableId }
+            if (alreadyAdded) {
+                pendingSubtitleLabel = label
+                selectSubtitleTrack("", label)
+                return
+            }
+
+            val subConfig = MediaItem.SubtitleConfiguration.Builder(finalSubUri)
+                .setMimeType(finalMimeType)
+                .setLanguage("und")
+                .setLabel(label)
+                .setId(stableId)
+                .build()
+
             existingSubtitles.add(subConfig)
-            pendingSubtitleId = localFile.name
+
+            if (media != null) {
+                val mediaId = media.id
+                val episodeId = media.anime?.selectedEpisode ?: "1"
+                val newLocalSub = Subtitle(
+                    language = "[Local] ${uri.lastPathSegment ?: "Custom"}",
+                    url = uri.toString()
+                )
+                model.saveLocalSubtitle("$mediaId-$episodeId", newLocalSub)
+                PrefManager.setCustomVal("subLang_$mediaId", newLocalSub.language)
+            }
+
             pendingSubtitleLabel = label
             val currentPos = player.currentPosition
 
@@ -650,47 +634,30 @@ class PlayerSubtitleManager(
 
     fun checkTracksForPendingSubtitles(tracks: Tracks) {
         val userLabel = pendingSubtitleLabel
-        val targetId = pendingSubtitleId
-        if (userLabel != null || targetId != null) {
+        val pendingLabel = userLabel ?: initialSubtitleLabel
+        if (pendingLabel != null) {
             var matched = false
             tracks.groups.forEachIndexed { groupIndex, group ->
                 if (group.type == TRACK_TYPE_TEXT) {
                     for (trackIndex in 0 until group.length) {
                         val format = group.getTrackFormat(trackIndex)
                         val trackLabel = format.label ?: ""
-                        val trackId = format.id ?: ""
-                        if ((targetId != null && trackId == targetId) ||
-                            (userLabel != null && trackLabel.equals(userLabel, ignoreCase = true))
+                        val trackLang = format.language ?: ""
+                        if (trackLabel.equals(pendingLabel, ignoreCase = true) ||
+                            trackLang.equals(pendingLabel, ignoreCase = true) ||
+                            (trackLabel.isNotBlank() && trackLabel.contains(pendingLabel, ignoreCase = true)) ||
+                            (pendingLabel.isNotBlank() && pendingLabel.contains(trackLabel, ignoreCase = true))
                         ) {
                             pendingSubtitleLabel = null
-                            pendingSubtitleId = null
+                            initialSubtitleLabel = null
                             matched = true
                             onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
-                            snackString("Subtitle loaded: $trackLabel", activity)
-                            return@forEachIndexed
+                            if (userLabel != null) snackString("Subtitle loaded: $pendingLabel", activity)
+                            break
                         }
                     }
                 }
-            }
-        }
-
-        val initLabel = initialSubtitleLabel
-        if (initLabel != null) {
-            tracks.groups.forEachIndexed { groupIndex, group ->
-                if (group.type == TRACK_TYPE_TEXT) {
-                    for (trackIndex in 0 until group.length) {
-                        val format = group.getTrackFormat(trackIndex)
-                        val trackLabel = format.label ?: ""
-                        val trackLang = format.language ?: ""
-                        if (trackLabel.equals(initLabel, ignoreCase = true) ||
-                            trackLang.equals(initLabel, ignoreCase = true)
-                        ) {
-                            initialSubtitleLabel = null
-                            onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
-                            return@forEachIndexed
-                        }
-                    }
-                }
+                if (matched) return@forEachIndexed
             }
         }
     }
