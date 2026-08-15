@@ -879,6 +879,12 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             }
         }
         subtitleManager.initialSubtitleLabel = subtitle?.language
+        if (subtitle != null) {
+            PrefManager.setCustomVal("subLang_${media.id}", subtitle!!.language)
+            subtitleManager.setActiveServerSubtitle(subtitle)
+        } else if (PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)?.startsWith("Online:") != true) {
+            PrefManager.setCustomVal("subLang_${media.id}", "None")
+        }
 
         exoSource.setOnClickListener { sourceClick() }
 
@@ -887,9 +893,12 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 try {
                     if (media.idIMDB == null) media.idIMDB = IdMappers.getImdbId(media.id)
                     val selectedEpisodeStr = media.anime?.selectedEpisode ?: "1"
-                    val episodeNum = selectedEpisodeStr.toIntOrNull() ?: 1
-                    val currentEp = media.anime?.episodes?.getEpisode(selectedEpisodeStr)
-                    EpisodeMapper.mapEpisode(media, episodeNum, currentEp)
+                    val epObj = if (this@ExoplayerView::episode.isInitialized) episode else media.anime?.episodes?.getEpisode(selectedEpisodeStr)
+                    val episodeNum = MediaNameAdapter.findEpisodeNumber(epObj?.number ?: selectedEpisodeStr)?.toInt()
+                        ?: epObj?.number?.filter { it.isDigit() }?.toIntOrNull()
+                        ?: selectedEpisodeStr.toIntOrNull()
+                        ?: 1
+                    EpisodeMapper.mapEpisode(media, episodeNum, epObj)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
