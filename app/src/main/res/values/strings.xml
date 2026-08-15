@@ -1264,6 +1264,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="sync_reset">Reset</string>
     <string name="sync_audio_captured">Audio timestamp captured: %s</string>
     <string name="sync_sub_captured">Subtitle timestamp captured: %s</string>
+    <string name="all_providers">All</string>
+    <string name="time">Time</string>
     <string name="cloudflare_protection_toast">Cloudflare protection detected. Please bypass Cloudflare via WebView.</string>
 
 </resources>
