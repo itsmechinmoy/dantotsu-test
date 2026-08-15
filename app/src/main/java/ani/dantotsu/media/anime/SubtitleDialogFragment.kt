@@ -185,13 +185,16 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             val ep = eps.getEpisode(selectedEpisode) ?: return@observe
             episode = ep
 
-            val episodeNum = selectedEpisode.toIntOrNull() ?: 1
+            val actualEpisodeNum = MediaNameAdapter.findEpisodeNumber(ep.number)?.toInt()
+                ?: ep.number.filter { it.isDigit() }.toIntOrNull()
+                ?: selectedEpisode.toIntOrNull()
+                ?: 1
             val episodeId = "${media.id}-${episode.number}"
 
             // Pre-fill search input
             val animeTitleText = media.userPreferredName
             if (binding.onlineSearchEditText.text.isNullOrBlank()) {
-                binding.onlineSearchEditText.setText("$animeTitleText Episode $episodeNum")
+                binding.onlineSearchEditText.setText("$animeTitleText Episode $actualEpisodeNum")
             }
 
             updateActiveSubtitleBadge()
@@ -217,13 +220,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         e.printStackTrace()
                     }
                 }
-                if (currentSeasonEpisode == null) {
-                    try {
-                        val currentEp = eps[selectedEpisode]
-                        currentSeasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, currentEp)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                try {
+                    currentSeasonEpisode = EpisodeMapper.mapEpisode(media, actualEpisodeNum, ep)
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -497,16 +497,22 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     media.idIMDB = imdbId
                 }
 
-                val selectedEpisode = media.anime?.selectedEpisode ?: "1"
-                val defaultEpNum = MediaNameAdapter.findEpisodeNumber(selectedEpisode)?.toInt() ?: selectedEpisode.toIntOrNull() ?: 1
+                val actualEpNum = if (this@SubtitleDialogFragment::episode.isInitialized) {
+                    MediaNameAdapter.findEpisodeNumber(episode.number)?.toInt()
+                        ?: episode.number.filter { it.isDigit() }.toIntOrNull()
+                        ?: 1
+                } else 1
 
                 val parsedEpFromQuery = if (queryText.isNotBlank()) {
                     MediaNameAdapter.findEpisodeNumber(queryText)?.toInt()
                 } else null
-                val targetEpisodeNum = parsedEpFromQuery ?: defaultEpNum
+                val targetEpisodeNum = parsedEpFromQuery ?: actualEpNum
 
-                val currentEp = media.anime?.episodes?.get(selectedEpisode)
-                val seasonEpisode = currentSeasonEpisode ?: EpisodeMapper.mapEpisode(media, targetEpisodeNum, currentEp)
+                val seasonEpisode = EpisodeMapper.mapEpisode(
+                    media,
+                    targetEpisodeNum,
+                    if (this@SubtitleDialogFragment::episode.isInitialized) episode else null
+                )
                 currentSeasonEpisode = seasonEpisode
 
                 val onlineSubs = mutableListOf<Any>()
