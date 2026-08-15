@@ -349,8 +349,13 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             filterAndDisplayOnlineResults()
         }
         binding.chipProviderStremio.setOnClickListener {
-            selectedProviderFilter = "Stremio"
+            selectedProviderFilter = "OpenSubtitles"
             uncheckOtherProviderChips(binding.chipProviderStremio.id)
+            filterAndDisplayOnlineResults()
+        }
+        binding.chipProviderSubSource.setOnClickListener {
+            selectedProviderFilter = "SubSource"
+            uncheckOtherProviderChips(binding.chipProviderSubSource.id)
             filterAndDisplayOnlineResults()
         }
 
@@ -362,6 +367,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.chipProviderAll.isChecked = selectedId == binding.chipProviderAll.id
         binding.chipProviderWyzie.isChecked = selectedId == binding.chipProviderWyzie.id
         binding.chipProviderStremio.isChecked = selectedId == binding.chipProviderStremio.id
+        binding.chipProviderSubSource.isChecked = selectedId == binding.chipProviderSubSource.id
     }
 
     private fun setupLanguageChips() {
@@ -570,8 +576,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         // Provider Filter
         if (selectedProviderFilter == "Wyzie") {
             filtered = filtered.filterIsInstance<WyzieSub>()
-        } else if (selectedProviderFilter == "Stremio") {
-            filtered = filtered.filter { it is StremioSub || it is OpenSubRestItem || it is SubSourceSub }
+        } else if (selectedProviderFilter == "OpenSubtitles" || selectedProviderFilter == "Stremio") {
+            filtered = filtered.filter { it is StremioSub || it is OpenSubRestItem }
+        } else if (selectedProviderFilter == "SubSource") {
+            filtered = filtered.filterIsInstance<SubSourceSub>()
         }
 
         // Language Filter
