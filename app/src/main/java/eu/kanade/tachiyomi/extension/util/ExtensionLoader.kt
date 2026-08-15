@@ -531,6 +531,19 @@ internal object ExtensionLoader {
                         is AnimeSourceFactory -> obj.createSources()
                         else -> throw Exception("Unknown source class type! ${obj.javaClass}")
                     }
+                } catch (e: LinkageError) {
+                    try {
+                        val fallbackClassLoader = dalvik.system.PathClassLoader(appInfo.sourceDir, null, context.classLoader)
+                        when (val obj = Class.forName(it, false, fallbackClassLoader).getDeclaredConstructor()
+                            .newInstance()) {
+                            is AnimeSource -> listOf(obj)
+                            is AnimeSourceFactory -> obj.createSources()
+                            else -> throw Exception("Unknown source class type! ${obj.javaClass}")
+                        }
+                    } catch (e: Throwable) {
+                        Logger.log("Extension load error (fallback): $extName ($it)")
+                        return AnimeLoadResult.Error
+                    }
                 } catch (e: Throwable) {
                     Logger.log("Extension load error: $extName ($it)")
                     return AnimeLoadResult.Error
@@ -650,6 +663,19 @@ internal object ExtensionLoader {
                         is MangaSource -> listOf(obj)
                         is SourceFactory -> obj.createSources()
                         else -> throw Exception("Unknown source class type! ${obj.javaClass}")
+                    }
+                } catch (e: LinkageError) {
+                    try {
+                        val fallbackClassLoader = dalvik.system.PathClassLoader(appInfo.sourceDir, null, context.classLoader)
+                        when (val obj = Class.forName(it, false, fallbackClassLoader)
+                            .getDeclaredConstructor().newInstance()) {
+                            is MangaSource -> listOf(obj)
+                            is SourceFactory -> obj.createSources()
+                            else -> throw Exception("Unknown source class type! ${obj.javaClass}")
+                        }
+                    } catch (e: Throwable) {
+                        Logger.log("Extension load error (fallback): $extName ($it)")
+                        return MangaLoadResult.Error
                     }
                 } catch (e: Throwable) {
                     Logger.log("Extension load error: $extName ($it)")
