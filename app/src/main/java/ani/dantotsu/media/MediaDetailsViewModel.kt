@@ -36,6 +36,8 @@ import ani.dantotsu.snackString
 import ani.dantotsu.tryWithSuspend
 import ani.dantotsu.util.Logger
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
+import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
@@ -701,6 +703,13 @@ class MediaDetailsViewModel : ViewModel() {
     }
 
     suspend fun overrideEpisodes(i: Int, source: ShowResponse, id: Int) {
+        if (source.sAnime == null) {
+            source.sAnime = SAnime.create().apply {
+                url = source.link
+                title = source.name
+                thumbnail_url = source.coverUrl.url
+            }
+        }
         watchSources?.saveResponse(i, id, source)
         epsLoaded[i] =
             watchSources?.loadEpisodes(i, source.link, source.extra, source.sAnime) ?: return
@@ -901,6 +910,13 @@ class MediaDetailsViewModel : ViewModel() {
     }
 
     suspend fun overrideMangaChapters(i: Int, source: ShowResponse, id: Int) {
+        if (source.sManga == null) {
+            source.sManga = SManga.create().apply {
+                url = source.link
+                title = source.name
+                thumbnail_url = source.coverUrl.url
+            }
+        }
         mangaReadSources?.saveResponse(i, id, source)
         tryWithSuspend {
             mangaLoaded[i] = mangaReadSources?.loadChapters(i, source) ?: return@tryWithSuspend
