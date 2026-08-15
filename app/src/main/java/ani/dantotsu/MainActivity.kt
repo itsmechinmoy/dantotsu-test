@@ -305,7 +305,9 @@ class MainActivity : AppCompatActivity() {
                     }
             }
             window.navigationBarColor = ContextCompat.getColor(this, android.R.color.transparent)
-            selectedOption = if (fragment != null) {
+            selectedOption = if (intent.getBooleanExtra("goToHome", false)) {
+                1
+            } else if (fragment != null) {
                 when (fragment) {
                     AnimeFragment::class.java.name -> 0
                     HomeFragment::class.java.name -> 1
@@ -618,4 +620,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("goToHome", false)) {
+            selectedOption = 1
+            binding.includedNavbar.navbar.selectTabAt(1)
+            binding.viewpager.setCurrentItem(1, false)
+        }
+    }
 }
