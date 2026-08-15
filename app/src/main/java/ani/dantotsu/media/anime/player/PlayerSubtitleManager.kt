@@ -77,6 +77,21 @@ class PlayerSubtitleManager(
     var assSubtitleView: AssSubtitleView? = null
         private set
 
+    var subtitleDelayMs: Long = 0L
+        private set
+    var audioDelayMs: Long = 0L
+        private set
+
+    fun setSubtitleDelay(delayMs: Long) {
+        subtitleDelayMs = delayMs
+        Logger.log("PlayerSubtitleManager: Subtitle delay set to ${delayMs}ms")
+    }
+
+    fun setAudioDelay(delayMs: Long) {
+        audioDelayMs = delayMs
+        Logger.log("PlayerSubtitleManager: Audio delay set to ${delayMs}ms")
+    }
+
     private var activeSubtitles = ArrayDeque<String>(3)
     private var lastSubtitle: String? = null
     private var lastPosition: Long = 0
@@ -309,7 +324,7 @@ class PlayerSubtitleManager(
                 return
             }
 
-            val currentPosition = player.currentPosition
+            val currentPosition = player.currentPosition - subtitleDelayMs
             if ((lastSubtitle?.length ?: 0) < 20 || (lastPosition != 0L && currentPosition - lastPosition > 1500)) {
                 activeSubtitles.clear()
             }
