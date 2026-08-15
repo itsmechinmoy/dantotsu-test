@@ -88,6 +88,58 @@ class PlayerSubtitleManager(
     private var currentActiveSubLang: String = ""
     private var currentActiveSubMimeType: String = MimeTypes.APPLICATION_SUBRIP
 
+    fun setActiveServerSubtitle(sub: Subtitle?) {
+        if (sub == null) {
+            currentActiveSubFile = null
+            currentActiveSubRawContent = null
+            return
+        }
+        val formatStr = when (sub.type) {
+            SubtitleType.ASS -> "ASS"
+            SubtitleType.VTT -> "VTT"
+            SubtitleType.SRT -> "SRT"
+            else -> "SRT"
+        }
+        val mimeType = when (sub.type) {
+            SubtitleType.ASS -> MimeTypes.TEXT_SSA
+            SubtitleType.VTT -> MimeTypes.TEXT_VTT
+            SubtitleType.SRT -> MimeTypes.APPLICATION_SUBRIP
+            else -> MimeTypes.APPLICATION_SUBRIP
+        }
+        currentActiveSubFormat = formatStr
+        currentActiveSubLang = sub.language
+        currentActiveSubMimeType = mimeType
+
+        // Fetch and cache server subtitle text in the background so subtitle delay works for server subtitles
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val url = sub.file.url
+                if (url.startsWith("http")) {
+                    val client = OkHttpClient()
+                    val request = Request.Builder().url(url).build()
+                    val response = client.newCall(request).execute()
+                    if (response.isSuccessful) {
+                        val content = response.body?.string()
+                        if (!content.isNullOrBlank()) {
+                            val ext = when (formatStr) {
+                                "ASS" -> "ass"
+                                "VTT" -> "vtt"
+                                else -> "srt"
+                            }
+                            val langName = sub.language.toString()
+                            val file = File(activity.cacheDir, "server_sub_${langName.hashCode()}.$ext")
+                            file.writeText(content)
+                            currentActiveSubFile = file
+                            currentActiveSubRawContent = content
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.log("PlayerSubtitleManager: Failed to cache server subtitle for delay: ${e.message}")
+            }
+        }
+    }
+
     fun setSubtitleDelay(delayMs: Long) {
         subtitleDelayMs = delayMs
         Logger.log("PlayerSubtitleManager: Subtitle delay set to ${delayMs}ms")
@@ -96,6 +148,10 @@ class PlayerSubtitleManager(
         val file = currentActiveSubFile
         if (rawContent != null && file != null) {
             try {
+                if (delayMs == 0L) {
+                    applyShiftedSubtitle(file, currentActiveSubLang, currentActiveSubMimeType)
+                    return
+                }
                 val shiftedContent = shiftSubtitleTimestamps(rawContent, currentActiveSubFormat, delayMs)
                 val ext = file.extension
                 val shiftedFile = File(activity.cacheDir, "shifted_${file.nameWithoutExtension}_${delayMs}.$ext")
@@ -110,7 +166,8 @@ class PlayerSubtitleManager(
     fun setAudioDelay(delayMs: Long) {
         audioDelayMs = delayMs
         Logger.log("PlayerSubtitleManager: Audio delay set to ${delayMs}ms")
-        setSubtitleDelay(subtitleDelayMs)
+        // Audio delay offsets the relative timing against subtitles
+        setSubtitleDelay(subtitleDelayMs + delayMs)
     }
 
     fun shiftSubtitleTimestamps(content: String, format: String, delayMs: Long): String {
@@ -203,7 +260,14 @@ class PlayerSubtitleManager(
     private fun applyShiftedSubtitle(file: File, lang: String, mimeType: String) {
         val player = getPlayer() ?: return
         val currentMediaItem = player.currentMediaItem ?: return
-        val label = if (lang.isNotBlank() && lang != "und") "Online: $lang" else "Local Subtitle"
+        val isShifted = file.name.startsWith("shifted_")
+        val label = if (isShifted) {
+            "Sync ($lang): ${subtitleDelayMs}ms"
+        } else if (lang.isNotBlank() && lang != "und") {
+            lang
+        } else {
+            "Subtitle"
+        }
         val subUri = Uri.fromFile(file)
         val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
             .setMimeType(mimeType)
@@ -213,10 +277,12 @@ class PlayerSubtitleManager(
             .build()
 
         val existingSubtitles = currentMediaItem.localConfiguration?.subtitleConfigurations
-            ?.filter { !it.id.orEmpty().startsWith("shifted_") && it.id != currentActiveSubFile?.name }
+            ?.filter { !it.id.orEmpty().startsWith("shifted_") }
             ?.toMutableList() ?: mutableListOf()
 
-        existingSubtitles.add(subConfig)
+        if (isShifted) {
+            existingSubtitles.add(subConfig)
+        }
         pendingSubtitleLabel = label
         val currentPos = player.currentPosition
 
@@ -230,6 +296,7 @@ class PlayerSubtitleManager(
             player.setMediaItem(newMediaItem, currentPos)
             player.prepare()
         }
+        selectSubtitleTrack(lang, label)
     }
 
     private var activeSubtitles = ArrayDeque<String>(3)
