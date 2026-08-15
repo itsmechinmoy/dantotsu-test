@@ -285,7 +285,7 @@
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/onlineSearchEditText"
                             android:layout_width="match_parent"
-                            android:layout_height="46dp"
+                            android:layout_height="48dp"
                             android:fontFamily="@font/poppins"
                             android:hint="@string/search_online_hint"
                             android:imeOptions="actionSearch"
@@ -320,8 +320,8 @@
                         android:padding="0dp"
                         android:contentDescription="@string/refresh"
                         app:icon="@drawable/ic_round_refresh_24"
-                        app:iconGravity="textStart"
-                        app:iconSize="20dp"
+                        app:iconPadding="0dp"
+                        app:iconSize="22dp"
                         app:cornerRadius="14dp" />
                 </LinearLayout>
 
