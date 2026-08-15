@@ -155,6 +155,28 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
 
         binding.mediaSourceRecycler.layoutManager = gridLayoutManager
 
+        binding.mediaSourceSwipeRefresh.apply {
+            val primaryColor = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+            setColorSchemeColors(primaryColor)
+            setProgressBackgroundColorSchemeResource(R.color.nav_bg)
+            setOnRefreshListener {
+                if (!this@MangaReadFragment::media.isInitialized) {
+                    isRefreshing = false
+                    return@setOnRefreshListener
+                }
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val offline = !isOnline(binding.root.context) || PrefManager.getVal(PrefName.OfflineMode)
+                    if (offline && media.format != "LOCAL") {
+                        media.selected!!.sourceIndex = model.mangaReadSources!!.list.lastIndex
+                    }
+                    model.loadMangaChapters(media, media.selected!!.sourceIndex, invalidate = true)
+                    withContext(Dispatchers.Main) {
+                        binding.mediaSourceSwipeRefresh.isRefreshing = false
+                    }
+                }
+            }
+        }
+
         binding.ScrollTop.setOnClickListener {
             binding.mediaSourceRecycler.scrollToPosition(10)
             binding.mediaSourceRecycler.smoothScrollToPosition(0)
