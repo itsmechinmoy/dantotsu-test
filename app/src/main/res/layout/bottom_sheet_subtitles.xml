@@ -300,8 +300,12 @@
                         android:id="@+id/onlineSearchActionBtn"
                         style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_width="wrap_content"
-                        android:layout_height="48dp"
+                        android:layout_height="46dp"
                         android:layout_marginStart="8dp"
+                        android:insetLeft="0dp"
+                        android:insetTop="0dp"
+                        android:insetRight="0dp"
+                        android:insetBottom="0dp"
                         android:fontFamily="@font/poppins_semi_bold"
                         android:text="@string/search"
                         android:textSize="13sp"
@@ -310,8 +314,8 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/onlineRefreshBtn"
                         style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
+                        android:layout_width="46dp"
+                        android:layout_height="46dp"
                         android:layout_marginStart="6dp"
                         android:insetLeft="0dp"
                         android:insetTop="0dp"
@@ -321,6 +325,7 @@
                         android:contentDescription="@string/refresh"
                         app:icon="@drawable/ic_round_refresh_24"
                         app:iconGravity="textStart"
+                        app:iconPadding="0dp"
                         app:iconSize="20dp"
                         app:cornerRadius="14dp" />
                 </LinearLayout>
@@ -367,6 +372,15 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/poppins"
                             android:text="OpenSubtitles"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipProviderSubSource"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins"
+                            android:text="SubSource"
                             android:textSize="12sp" />
 
                         <com.google.android.material.chip.Chip
