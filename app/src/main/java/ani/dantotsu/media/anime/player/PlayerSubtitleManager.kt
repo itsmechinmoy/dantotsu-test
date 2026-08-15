@@ -82,14 +82,154 @@ class PlayerSubtitleManager(
     var audioDelayMs: Long = 0L
         private set
 
+    private var currentActiveSubFile: File? = null
+    private var currentActiveSubRawContent: String? = null
+    private var currentActiveSubFormat: String = "SRT"
+    private var currentActiveSubLang: String = ""
+    private var currentActiveSubMimeType: String = MimeTypes.APPLICATION_SUBRIP
+
     fun setSubtitleDelay(delayMs: Long) {
         subtitleDelayMs = delayMs
         Logger.log("PlayerSubtitleManager: Subtitle delay set to ${delayMs}ms")
+
+        val rawContent = currentActiveSubRawContent
+        val file = currentActiveSubFile
+        if (rawContent != null && file != null) {
+            try {
+                val shiftedContent = shiftSubtitleTimestamps(rawContent, currentActiveSubFormat, delayMs)
+                val ext = file.extension
+                val shiftedFile = File(activity.cacheDir, "shifted_${file.nameWithoutExtension}_${delayMs}.$ext")
+                shiftedFile.writeText(shiftedContent)
+                applyShiftedSubtitle(shiftedFile, currentActiveSubLang, currentActiveSubMimeType)
+            } catch (e: Exception) {
+                Logger.log("PlayerSubtitleManager: Failed to shift subtitle: ${e.message}")
+            }
+        }
     }
 
     fun setAudioDelay(delayMs: Long) {
         audioDelayMs = delayMs
         Logger.log("PlayerSubtitleManager: Audio delay set to ${delayMs}ms")
+        setSubtitleDelay(subtitleDelayMs)
+    }
+
+    fun shiftSubtitleTimestamps(content: String, format: String, delayMs: Long): String {
+        if (delayMs == 0L) return content
+
+        fun shiftSrtVttTime(timeStr: String): String {
+            val isComma = timeStr.contains(",")
+            val delimiter = if (isComma) "," else "."
+            val cleanStr = timeStr.trim().replace(",", ".")
+            val parts = cleanStr.split(":", ".")
+            val hours: Long
+            val mins: Long
+            val secs: Long
+            val millis: Long
+            if (parts.size == 4) {
+                hours = parts[0].toLongOrNull() ?: 0L
+                mins = parts[1].toLongOrNull() ?: 0L
+                secs = parts[2].toLongOrNull() ?: 0L
+                millis = parts[3].padEnd(3, '0').take(3).toLongOrNull() ?: 0L
+            } else if (parts.size == 3) {
+                hours = 0L
+                mins = parts[0].toLongOrNull() ?: 0L
+                secs = parts[1].toLongOrNull() ?: 0L
+                millis = parts[2].padEnd(3, '0').take(3).toLongOrNull() ?: 0L
+            } else return timeStr
+
+            val totalMs = (hours * 3600000L) + (mins * 60000L) + (secs * 1000L) + millis
+            val newTotalMs = (totalMs + delayMs).coerceAtLeast(0L)
+
+            val newHours = newTotalMs / 3600000L
+            val newMins = (newTotalMs % 3600000L) / 60000L
+            val newSecs = (newTotalMs % 60000L) / 1000L
+            val newMillis = newTotalMs % 1000L
+
+            return "%02d:%02d:%02d%s%03d".format(newHours, newMins, newSecs, delimiter, newMillis)
+        }
+
+        fun shiftAssTime(timeStr: String): String {
+            val parts = timeStr.trim().split(":", ".")
+            if (parts.size != 4) return timeStr
+            val hours = parts[0].toLongOrNull() ?: 0L
+            val mins = parts[1].toLongOrNull() ?: 0L
+            val secs = parts[2].toLongOrNull() ?: 0L
+            val centis = parts[3].padEnd(2, '0').take(2).toLongOrNull() ?: 0L
+
+            val totalMs = (hours * 3600000L) + (mins * 60000L) + (secs * 1000L) + (centis * 10L)
+            val newTotalMs = (totalMs + delayMs).coerceAtLeast(0L)
+
+            val newHours = newTotalMs / 3600000L
+            val newMins = (newTotalMs % 3600000L) / 60000L
+            val newSecs = (newTotalMs % 60000L) / 1000L
+            val newCentis = (newTotalMs % 1000L) / 10L
+
+            return "%d:%02d:%02d.%02d".format(newHours, newMins, newSecs, newCentis)
+        }
+
+        val srtVttRegex = Regex("""(\d{1,2}:\d{2}:\d{2}[,\.]\d{3}|\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,\.]\d{3}|\d{2}:\d{2}[,\.]\d{3})""")
+        val assDialogueRegex = Regex("""^(Dialogue:\s*[^,]+,)(\d+:\d{2}:\d{2}\.\d{2}),(\d+:\d{2}:\d{2}\.\d{2})(,.*)$""")
+
+        return when (format.uppercase(Locale.ROOT)) {
+            "ASS", "SSA" -> {
+                content.lines().joinToString("\n") { line ->
+                    val match = assDialogueRegex.find(line.trim())
+                    if (match != null) {
+                        val prefix = match.groupValues[1]
+                        val start = shiftAssTime(match.groupValues[2])
+                        val end = shiftAssTime(match.groupValues[3])
+                        val suffix = match.groupValues[4]
+                        "$prefix$start,$end$suffix"
+                    } else {
+                        line
+                    }
+                }
+            }
+            else -> {
+                content.lines().joinToString("\n") { line ->
+                    val match = srtVttRegex.find(line)
+                    if (match != null) {
+                        val start = shiftSrtVttTime(match.groupValues[1])
+                        val end = shiftSrtVttTime(match.groupValues[2])
+                        "$start --> $end"
+                    } else {
+                        line
+                    }
+                }
+            }
+        }
+    }
+
+    private fun applyShiftedSubtitle(file: File, lang: String, mimeType: String) {
+        val player = getPlayer() ?: return
+        val currentMediaItem = player.currentMediaItem ?: return
+        val label = if (lang.isNotBlank() && lang != "und") "Online: $lang" else "Local Subtitle"
+        val subUri = Uri.fromFile(file)
+        val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
+            .setMimeType(mimeType)
+            .setLanguage(lang)
+            .setLabel(label)
+            .setId(file.name)
+            .build()
+
+        val existingSubtitles = currentMediaItem.localConfiguration?.subtitleConfigurations
+            ?.filter { !it.id.orEmpty().startsWith("shifted_") && it.id != currentActiveSubFile?.name }
+            ?.toMutableList() ?: mutableListOf()
+
+        existingSubtitles.add(subConfig)
+        pendingSubtitleLabel = label
+        val currentPos = player.currentPosition
+
+        val exoActivity = activity as? ExoplayerView
+        if (exoActivity != null) {
+            exoActivity.playerManager.applyUpdatedSubtitles(existingSubtitles, currentPos)
+        } else {
+            val newMediaItem = currentMediaItem.buildUpon()
+                .setSubtitleConfigurations(existingSubtitles)
+                .build()
+            player.setMediaItem(newMediaItem, currentPos)
+            player.prepare()
+        }
     }
 
     private var activeSubtitles = ArrayDeque<String>(3)
@@ -429,12 +569,36 @@ class PlayerSubtitleManager(
 
     fun applySubSourceSubtitle(sub: SubSourceSub) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
-            val downloadUrl = SubSourceSubtitles.getDownloadUrl(sub)
-            if (downloadUrl != null) {
-                applyOnlineSubtitleUrl(downloadUrl, sub.id, sub.lang)
+            val result = SubSourceSubtitles.downloadSubtitleContent(sub.id)
+            if (result != null) {
+                val (filename, content) = result
+                val detectedFormat = when {
+                    filename.endsWith(".vtt", ignoreCase = true) || content.trimStart().startsWith("WEBVTT") -> "VTT"
+                    filename.endsWith(".ass", ignoreCase = true) || filename.endsWith(".ssa", ignoreCase = true) || content.contains("[Script Info]") -> "ASS"
+                    filename.endsWith(".ttml", ignoreCase = true) || content.contains("<tt>") -> "TTML"
+                    else -> "SRT"
+                }
+                val cleaned = if (detectedFormat == "ASS") stripAssPositioning(content) else content
+                val mimeType = when (detectedFormat) {
+                    "VTT" -> MimeTypes.TEXT_VTT
+                    "ASS" -> MimeTypes.TEXT_SSA
+                    "TTML" -> MimeTypes.APPLICATION_TTML
+                    else -> MimeTypes.APPLICATION_SUBRIP
+                }
+                val ext = when (detectedFormat) {
+                    "VTT" -> "vtt"
+                    "ASS" -> "ass"
+                    "TTML" -> "ttml"
+                    else -> "srt"
+                }
+                val cacheFile = File(activity.cacheDir, "online_subtitle_${sub.id.hashCode()}.$ext")
+                cacheFile.writeText(cleaned)
+                withContext(Dispatchers.Main) {
+                    applySubtitleFromFile(cacheFile, sub.lang, mimeType)
+                }
             } else {
                 withContext(Dispatchers.Main) {
-                    snackString("Failed to get SubSource download link", activity)
+                    snackString("Failed to download SubSource subtitle", activity)
                 }
             }
         }
@@ -455,6 +619,17 @@ class PlayerSubtitleManager(
 
     private fun applySubtitleFromFile(file: File, lang: String, mimeType: String) {
         val player = getPlayer() ?: return
+        currentActiveSubFile = file
+        currentActiveSubRawContent = runCatching { file.readText() }.getOrNull()
+        currentActiveSubFormat = when (mimeType) {
+            MimeTypes.TEXT_VTT -> "VTT"
+            MimeTypes.TEXT_SSA -> "ASS"
+            MimeTypes.APPLICATION_TTML -> "TTML"
+            else -> "SRT"
+        }
+        currentActiveSubLang = lang
+        currentActiveSubMimeType = mimeType
+
         val label = "Online: $lang"
         val subUri = Uri.fromFile(file)
         val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
@@ -536,6 +711,12 @@ class PlayerSubtitleManager(
 
             val finalSubUri = Uri.fromFile(cacheFile)
             val stableId = "local_sub_${uri.toString().hashCode()}"
+
+            currentActiveSubFile = cacheFile
+            currentActiveSubRawContent = if (finalMimeType == MimeTypes.TEXT_SSA) stripAssPositioning(subtitleBytes.toString(Charsets.UTF_8)) else subtitleBytes.toString(Charsets.UTF_8)
+            currentActiveSubFormat = ext.uppercase(Locale.ROOT)
+            currentActiveSubLang = "und"
+            currentActiveSubMimeType = finalMimeType
 
             val currentMediaItem = player.currentMediaItem ?: return
             val existingSubtitles = currentMediaItem.localConfiguration?.subtitleConfigurations?.toMutableList() ?: mutableListOf()
