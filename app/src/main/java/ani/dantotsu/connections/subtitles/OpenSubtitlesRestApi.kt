@@ -23,12 +23,40 @@ object OpenSubtitlesRestApi {
                 val cleanImdb = imdbId.removePrefix("tt")
                 val urls = mutableListOf<String>()
 
-                urls.add("$HOST/subtitles?imdb_id=$cleanImdb&episode_number=$episode&languages=en")
+                val langCodes = try {
+                    ani.dantotsu.settings.saving.PrefManager.getVal<Set<String>>(ani.dantotsu.settings.saving.PrefName.OnlineSubtitleLanguages).mapNotNull {
+                        when (it.lowercase(java.util.Locale.ROOT)) {
+                            "english", "en" -> "en"
+                            "spanish", "es" -> "es"
+                            "french", "fr" -> "fr"
+                            "german", "de" -> "de"
+                            "portuguese", "pt" -> "pt"
+                            "arabic", "ar" -> "ar"
+                            "indonesian", "id" -> "id"
+                            "japanese", "ja" -> "ja"
+                            "italian", "it" -> "it"
+                            "russian", "ru" -> "ru"
+                            "turkish", "tr" -> "tr"
+                            "vietnamese", "vi" -> "vi"
+                            "thai", "th" -> "th"
+                            "polish", "pl" -> "pl"
+                            "dutch", "nl" -> "nl"
+                            "greek", "el" -> "el"
+                            "korean", "ko" -> "ko"
+                            "chinese", "zh" -> "zh"
+                            else -> null
+                        }
+                    }.joinToString(",").ifBlank { "en,es,fr,de,pt,ar,id" }
+                } catch (_: Exception) {
+                    "en,es,fr,de,pt,ar,id"
+                }
+
+                urls.add("$HOST/subtitles?imdb_id=$cleanImdb&episode_number=$episode&languages=$langCodes")
                 if (season != null && season > 1) {
-                    urls.add("$HOST/subtitles?imdb_id=$cleanImdb&season_number=$season&episode_number=$episode&languages=en")
+                    urls.add("$HOST/subtitles?imdb_id=$cleanImdb&season_number=$season&episode_number=$episode&languages=$langCodes")
                 }
                 if (!queryText.isNullOrBlank()) {
-                    urls.add("$HOST/subtitles?query=${java.net.URLEncoder.encode(queryText, "UTF-8")}&episode_number=$episode&languages=en")
+                    urls.add("$HOST/subtitles?query=${java.net.URLEncoder.encode(queryText, "UTF-8")}&episode_number=$episode&languages=$langCodes")
                 }
 
                 val results = mutableListOf<OpenSubRestItem>()
