@@ -87,11 +87,13 @@ class PlayerSubtitleManager(
     private var currentActiveSubFormat: String = "SRT"
     private var currentActiveSubLang: String = ""
     private var currentActiveSubMimeType: String = MimeTypes.APPLICATION_SUBRIP
+    private var serverSubJob: kotlinx.coroutines.Job? = null
 
     fun setActiveServerSubtitle(sub: Subtitle?) {
         if (sub == null) {
             currentActiveSubFile = null
             currentActiveSubRawContent = null
+            serverSubJob?.cancel()
             return
         }
         val formatStr = when (sub.type) {
@@ -111,10 +113,11 @@ class PlayerSubtitleManager(
         currentActiveSubMimeType = mimeType
 
         // Fetch and cache server subtitle text in the background so subtitle delay works for server subtitles
-        activity.lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val url = sub.file.url
-                if (url.startsWith("http")) {
+        serverSubJob?.cancel()
+        val url = sub.file.url
+        if (url.startsWith("http")) {
+            serverSubJob = activity.lifecycleScope.launch(Dispatchers.IO) {
+                try {
                     val client = OkHttpClient()
                     val request = Request.Builder().url(url).build()
                     val response = client.newCall(request).execute()
@@ -131,11 +134,17 @@ class PlayerSubtitleManager(
                             file.writeText(content)
                             currentActiveSubFile = file
                             currentActiveSubRawContent = content
+
+                            if (subtitleDelayMs != 0L) {
+                                withContext(Dispatchers.Main) {
+                                    setSubtitleDelay(subtitleDelayMs)
+                                }
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Logger.log("PlayerSubtitleManager: Failed to cache server subtitle for delay: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Logger.log("PlayerSubtitleManager: Failed to cache server subtitle for delay: ${e.message}")
             }
         }
     }
@@ -160,6 +169,8 @@ class PlayerSubtitleManager(
             } catch (e: Exception) {
                 Logger.log("PlayerSubtitleManager: Failed to shift subtitle: ${e.message}")
             }
+        } else if (serverSubJob?.isActive == true) {
+            Logger.log("PlayerSubtitleManager: Subtitle caching in progress; will apply ${delayMs}ms once cached")
         }
     }
 
@@ -269,15 +280,17 @@ class PlayerSubtitleManager(
             "Subtitle"
         }
         val subUri = Uri.fromFile(file)
+        val shiftedTrackId = if (isShifted) "shifted_active_sub" else file.name
         val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
             .setMimeType(mimeType)
             .setLanguage(lang)
             .setLabel(label)
-            .setId(file.name)
+            .setId(shiftedTrackId)
+            .setSelectionFlags(C.SELECTION_FLAG_FORCED)
             .build()
 
         val existingSubtitles = currentMediaItem.localConfiguration?.subtitleConfigurations
-            ?.filter { !it.id.orEmpty().startsWith("shifted_") }
+            ?.filter { it.id != "shifted_active_sub" && !it.id.orEmpty().startsWith("shifted_") }
             ?.toMutableList() ?: mutableListOf()
 
         if (isShifted) {
@@ -889,9 +902,11 @@ class PlayerSubtitleManager(
                 if (group.type == TRACK_TYPE_TEXT) {
                     for (trackIndex in 0 until group.length) {
                         val format = group.getTrackFormat(trackIndex)
+                        val trackId = format.id ?: ""
                         val trackLabel = format.label ?: ""
                         val trackLang = format.language ?: ""
-                        if (trackLabel.equals(pendingLabel, ignoreCase = true) ||
+                        if (trackId == "shifted_active_sub" ||
+                            trackLabel.equals(pendingLabel, ignoreCase = true) ||
                             trackLang.equals(pendingLabel, ignoreCase = true) ||
                             (trackLabel.isNotBlank() && trackLabel.contains(pendingLabel, ignoreCase = true)) ||
                             (pendingLabel.isNotBlank() && pendingLabel.contains(trackLabel, ignoreCase = true))
@@ -900,7 +915,7 @@ class PlayerSubtitleManager(
                             initialSubtitleLabel = null
                             matched = true
                             onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
-                            if (userLabel != null) snackString("Subtitle loaded: $pendingLabel", activity)
+                            if (userLabel != null) snackString("Subtitle synced: $pendingLabel", activity)
                             break
                         }
                     }
