@@ -633,11 +633,11 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 }
                 delay > 0 -> {
                     binding.subDelayStatusBadge.text = getString(R.string.sync_delayed)
-                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.youtube_orange))
+                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(requireContext().getThemeColor(com.google.android.material.R.attr.colorTertiary))
                 }
                 else -> {
                     binding.subDelayStatusBadge.text = getString(R.string.sync_earlier)
-                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.blue_80))
+                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(requireContext().getThemeColor(com.google.android.material.R.attr.colorSecondary))
                 }
             }
         }
@@ -654,11 +654,11 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 }
                 delay > 0 -> {
                     binding.audioDelayStatusBadge.text = getString(R.string.sync_delayed)
-                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.youtube_orange))
+                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(requireContext().getThemeColor(com.google.android.material.R.attr.colorTertiary))
                 }
                 else -> {
                     binding.audioDelayStatusBadge.text = getString(R.string.sync_earlier)
-                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.blue_80))
+                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(requireContext().getThemeColor(com.google.android.material.R.attr.colorSecondary))
                 }
             }
         }
