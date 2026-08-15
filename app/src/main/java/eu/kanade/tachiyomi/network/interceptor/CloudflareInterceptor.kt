@@ -136,12 +136,18 @@ class CloudflareInterceptor(
 
         // Throw exception if we failed to bypass Cloudflare
         if (!cloudflareBypassed) {
-            // Prompt user to update WebView if it seems too outdated
-            if (isWebViewOutdated) {
-                context.toast(
-                    "Please update the webview app for better compatibility",
-                    Toast.LENGTH_LONG
-                )
+            executor.execute {
+                if (isWebViewOutdated) {
+                    context.toast(
+                        "Please update the webview app for better compatibility",
+                        Toast.LENGTH_LONG
+                    )
+                } else {
+                    context.toast(
+                        "Cloudflare protection detected. Please open WebView to bypass.",
+                        Toast.LENGTH_LONG
+                    )
+                }
             }
 
             throw CloudflareBypassException()
