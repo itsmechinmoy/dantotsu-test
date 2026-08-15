@@ -27,16 +27,26 @@ class CloudflareInterceptor(
 
     override fun shouldIntercept(response: Response): Boolean {
         if (response.request.url.host.contains("anilist.co")) return false
-        return if (response.code in ERROR_CODES && response.header("Server") in SERVER_CHECK) {
-            val bodyString = runCatching { response.peekBody(Long.MAX_VALUE).string() }.getOrNull() ?: return false
-            val document = org.jsoup.Jsoup.parse(bodyString, response.request.url.toString())
-            document.getElementById("challenge-error-title") != null ||
-                document.getElementById("challenge-error-text") != null ||
-                document.getElementById("challenge-running") != null ||
-                document.getElementById("turnstile-wrapper") != null
-        } else {
-            false
-        }
+        if (response.code !in ERROR_CODES) return false
+
+        val isCloudflareServer = response.header("Server") in SERVER_CHECK ||
+                response.header("cf-ray") != null ||
+                response.header("cf-mitigated") != null
+
+        if (!isCloudflareServer) return false
+
+        val bodyString = runCatching { response.peekBody(Long.MAX_VALUE).string() }.getOrNull().orEmpty()
+        val isCloudflareContent = bodyString.contains("challenge-error-title") ||
+                bodyString.contains("challenge-error-text") ||
+                bodyString.contains("challenge-running") ||
+                bodyString.contains("turnstile-wrapper") ||
+                bodyString.contains("window._cf_chl_opt") ||
+                bodyString.contains("Just a moment...") ||
+                bodyString.contains("Attention Required! | Cloudflare") ||
+                bodyString.contains("cf-turnstile") ||
+                bodyString.contains("cf-browser-verification")
+
+        return isCloudflareContent
     }
 
     override fun intercept(
