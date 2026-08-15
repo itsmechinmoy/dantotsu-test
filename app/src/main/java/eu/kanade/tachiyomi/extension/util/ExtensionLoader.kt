@@ -457,7 +457,14 @@ internal object ExtensionLoader {
             else -> null
         } ?: run {
             val parts = versionName.split('.')
-            if (parts.size >= 2) "${parts[0]}.${parts[1]}".toDoubleOrNull() else versionName.toDoubleOrNull()
+            val major = parts[0].toDoubleOrNull()
+            if (major != null && major >= 10.0) {
+                major
+            } else if (parts.size >= 2) {
+                "${parts[0]}.${parts[1]}".toDoubleOrNull()
+            } else {
+                versionName.toDoubleOrNull()
+            }
         }
         val majorLibVersion = libVersion?.toInt()
         if (libVersion == null || majorLibVersion == null || majorLibVersion < ANIME_LIB_VERSION_MIN || majorLibVersion > ANIME_LIB_VERSION_MAX) {
