@@ -16,13 +16,14 @@ import java.util.zip.ZipInputStream
 
 object SubSourceSubtitles {
     private const val BASE_URL = "https://api.subsource.net/api/v1"
+    private const val DEFAULT_API_KEY = "sk_559a7155a0ffa592d732eb89dc0307e967934cfb92ecb6e097a2f2d850d00490"
 
     suspend fun getSubtitles(imdbId: String, episode: Int, season: Int? = null): List<SubSourceSub> {
         return withContext(Dispatchers.IO) {
             try {
                 val apiKey = try {
-                    PrefManager.getNullableCustomVal("pref_subsource_api_key", "", String::class.java).orEmpty()
-                } catch (_: Exception) { "" }
+                    PrefManager.getNullableCustomVal("pref_subsource_api_key", "", String::class.java).orEmpty().ifBlank { DEFAULT_API_KEY }
+                } catch (_: Exception) { DEFAULT_API_KEY }
 
                 val searchUrl = if (season != null && season > 0) {
                     "$BASE_URL/movies/search?searchType=imdb&imdb=$imdbId&season=$season"
@@ -104,8 +105,8 @@ object SubSourceSubtitles {
         return withContext(Dispatchers.IO) {
             try {
                 val apiKey = try {
-                    PrefManager.getNullableCustomVal("pref_subsource_api_key", "", String::class.java).orEmpty()
-                } catch (_: Exception) { "" }
+                    PrefManager.getNullableCustomVal("pref_subsource_api_key", "", String::class.java).orEmpty().ifBlank { DEFAULT_API_KEY }
+                } catch (_: Exception) { DEFAULT_API_KEY }
 
                 val url = "$BASE_URL/subtitles/$subtitleId/download"
                 val reqBuilder = Request.Builder().url(url)
