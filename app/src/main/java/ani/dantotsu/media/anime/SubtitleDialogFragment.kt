@@ -168,6 +168,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         setupTabNavigation()
         setupOnlineSearchControls()
         setupLocalControls()
+        setupSyncControls()
 
         binding.closeSubtitlesSheet.setOnClickListener {
             dismiss()
@@ -238,6 +239,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.tabSubtitlesBtn.setOnClickListener { switchTab(0) }
         binding.tabOnlineBtn.setOnClickListener { switchTab(1) }
         binding.tabLocalBtn.setOnClickListener { switchTab(2) }
+        binding.tabSyncBtn.setOnClickListener { switchTab(3) }
         updateTabStyles()
     }
 
@@ -248,6 +250,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.tabSubtitlesLayout.isVisible = currentTab == 0
         binding.tabOnlineLayout.isVisible = currentTab == 1
         binding.tabLocalLayout.isVisible = currentTab == 2
+        binding.tabSyncLayout.isVisible = currentTab == 3
 
         if (currentTab == 1 && currentOnlineResults.isEmpty()) {
             performOnlineSearch()
@@ -296,11 +299,35 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             binding.tabLocalBtn.backgroundTintList = null
             binding.tabLocalBtn.setTextColor(unselectedTextColor)
         }
+
+        // Sync Tab
+        if (currentTab == 3) {
+            binding.tabSyncBtn.setBackgroundResource(R.drawable.badge_bg_rounded)
+            binding.tabSyncBtn.backgroundTintList = ColorStateList.valueOf(selectedBgColor)
+            binding.tabSyncBtn.setTextColor(primaryColor)
+        } else {
+            binding.tabSyncBtn.setBackgroundResource(android.R.color.transparent)
+            binding.tabSyncBtn.backgroundTintList = null
+            binding.tabSyncBtn.setTextColor(unselectedTextColor)
+        }
     }
 
     private fun setupOnlineSearchControls() {
         binding.onlineSearchActionBtn.setOnClickListener {
             performOnlineSearch()
+        }
+
+        binding.onlineRefreshBtn.setOnClickListener {
+            val media = model.getMedia().value
+            if (media != null && ::episode.isInitialized) {
+                val episodeId = "${media.id}-${episode.number}"
+                model.clearFetchedSubtitles(episodeId)
+                val selectedEpisode = media.anime?.selectedEpisode ?: "1"
+                val episodeNum = selectedEpisode.toIntOrNull() ?: 1
+                model.clearFetchedSubtitles("${media.id}-$episodeNum")
+                currentOnlineResults = emptyList()
+                performOnlineSearch()
+            }
         }
 
         binding.onlineSearchEditText.setOnEditorActionListener { _, actionId, _ ->
@@ -583,6 +610,151 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         binding.noOnlineSubsBanner.isVisible = filtered.isEmpty()
         binding.onlineSubtitlesRecycler.isVisible = filtered.isNotEmpty()
         binding.onlineSubtitlesRecycler.adapter = SubtitleAdapter(filtered, TabType.ONLINE)
+    }
+
+    // ==========================================
+    // TAB 4: SYNC CONTROLS
+    // ==========================================
+    private var audioCapturedTime: Long? = null
+    private var subCapturedTime: Long? = null
+
+    private fun setupSyncControls() {
+        val subtitleManager = (activity as? ExoplayerView)?.subtitleManager
+
+        fun updateSubDelayDisplay() {
+            val delay = subtitleManager?.subtitleDelayMs ?: 0L
+            val seconds = delay / 1000.0
+            val formatted = if (delay >= 0) String.format(Locale.ROOT, "+%.1fs", seconds) else String.format(Locale.ROOT, "%.1fs", seconds)
+            binding.subDelayValueText.text = formatted
+            when {
+                delay == 0L -> {
+                    binding.subDelayStatusBadge.text = getString(R.string.sync_in_sync)
+                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary))
+                }
+                delay > 0 -> {
+                    binding.subDelayStatusBadge.text = getString(R.string.sync_delayed)
+                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.youtube_orange))
+                }
+                else -> {
+                    binding.subDelayStatusBadge.text = getString(R.string.sync_earlier)
+                    binding.subDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.blue_80))
+                }
+            }
+        }
+
+        fun updateAudioDelayDisplay() {
+            val delay = subtitleManager?.audioDelayMs ?: 0L
+            val seconds = delay / 1000.0
+            val formatted = if (delay >= 0) String.format(Locale.ROOT, "+%.1fs", seconds) else String.format(Locale.ROOT, "%.1fs", seconds)
+            binding.audioDelayValueText.text = formatted
+            when {
+                delay == 0L -> {
+                    binding.audioDelayStatusBadge.text = getString(R.string.sync_in_sync)
+                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary))
+                }
+                delay > 0 -> {
+                    binding.audioDelayStatusBadge.text = getString(R.string.sync_delayed)
+                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.youtube_orange))
+                }
+                else -> {
+                    binding.audioDelayStatusBadge.text = getString(R.string.sync_earlier)
+                    binding.audioDelayStatusBadge.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.blue_80))
+                }
+            }
+        }
+
+        // Subtitle Delay chips
+        binding.subDelayMinus500.setOnClickListener {
+            val current = subtitleManager?.subtitleDelayMs ?: 0L
+            subtitleManager?.setSubtitleDelay(current - 500L)
+            updateSubDelayDisplay()
+        }
+        binding.subDelayMinus100.setOnClickListener {
+            val current = subtitleManager?.subtitleDelayMs ?: 0L
+            subtitleManager?.setSubtitleDelay(current - 100L)
+            updateSubDelayDisplay()
+        }
+        binding.subDelayReset.setOnClickListener {
+            subtitleManager?.setSubtitleDelay(0L)
+            updateSubDelayDisplay()
+        }
+        binding.subDelayPlus100.setOnClickListener {
+            val current = subtitleManager?.subtitleDelayMs ?: 0L
+            subtitleManager?.setSubtitleDelay(current + 100L)
+            updateSubDelayDisplay()
+        }
+        binding.subDelayPlus500.setOnClickListener {
+            val current = subtitleManager?.subtitleDelayMs ?: 0L
+            subtitleManager?.setSubtitleDelay(current + 500L)
+            updateSubDelayDisplay()
+        }
+
+        // Audio Delay chips
+        binding.audioDelayMinus500.setOnClickListener {
+            val current = subtitleManager?.audioDelayMs ?: 0L
+            subtitleManager?.setAudioDelay(current - 500L)
+            updateAudioDelayDisplay()
+        }
+        binding.audioDelayMinus100.setOnClickListener {
+            val current = subtitleManager?.audioDelayMs ?: 0L
+            subtitleManager?.setAudioDelay(current - 100L)
+            updateAudioDelayDisplay()
+        }
+        binding.audioDelayReset.setOnClickListener {
+            subtitleManager?.setAudioDelay(0L)
+            updateAudioDelayDisplay()
+        }
+        binding.audioDelayPlus100.setOnClickListener {
+            val current = subtitleManager?.audioDelayMs ?: 0L
+            subtitleManager?.setAudioDelay(current + 100L)
+            updateAudioDelayDisplay()
+        }
+        binding.audioDelayPlus500.setOnClickListener {
+            val current = subtitleManager?.audioDelayMs ?: 0L
+            subtitleManager?.setAudioDelay(current + 500L)
+            updateAudioDelayDisplay()
+        }
+
+        // Live Sync Helper
+        fun formatTime(ms: Long): String {
+            val totalSec = ms / 1000
+            val m = totalSec / 60
+            val s = totalSec % 60
+            val millis = (ms % 1000) / 100
+            return String.format(Locale.ROOT, "%02d:%02d.%d", m, s, millis)
+        }
+
+        fun checkAndCalculateSync() {
+            val a = audioCapturedTime
+            val s = subCapturedTime
+            if (a != null && s != null) {
+                val offset = a - s
+                subtitleManager?.setSubtitleDelay(offset)
+                updateSubDelayDisplay()
+                val offsetStr = if (offset >= 0) "+${offset}ms" else "${offset}ms"
+                binding.syncHelperStatusText.text = "Audio: ${formatTime(a)} | Sub: ${formatTime(s)}\nCalculated offset: $offsetStr (Applied!)"
+                toast(getString(R.string.sync_applied_toast, offsetStr))
+                audioCapturedTime = null
+                subCapturedTime = null
+            }
+        }
+
+        binding.syncHearingAudioBtn.setOnClickListener {
+            val currentPos = (activity as? ExoplayerView)?.playerManager?.exoPlayer?.currentPosition ?: 0L
+            audioCapturedTime = currentPos
+            binding.syncHelperStatusText.text = getString(R.string.sync_audio_captured, formatTime(currentPos))
+            checkAndCalculateSync()
+        }
+
+        binding.syncSeenSubtitleBtn.setOnClickListener {
+            val currentPos = (activity as? ExoplayerView)?.playerManager?.exoPlayer?.currentPosition ?: 0L
+            subCapturedTime = currentPos
+            binding.syncHelperStatusText.text = getString(R.string.sync_sub_captured, formatTime(currentPos))
+            checkAndCalculateSync()
+        }
+
+        updateSubDelayDisplay()
+        updateAudioDelayDisplay()
     }
 
     // ==========================================
