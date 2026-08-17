@@ -173,9 +173,6 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        if (::media.isInitialized) {
-            model.setMedia(emptyMedia())
-        }
         super.onSaveInstanceState(outState)
     }
 
@@ -193,13 +190,13 @@ class MangaReaderActivity : AppCompatActivity() {
         defaultSettings = loadReaderSettings("reader_settings") ?: defaultSettings
 
         onBackPressedDispatcher.addCallback(this) {
-            if (!::media.isInitialized) {
+            if (!::media.isInitialized || media.manga == null) {
                 finish()
                 return@addCallback
             }
-            val chapter =
-                (MediaNameAdapter.findChapterNumber(media.manga!!.selectedChapter!!.number)
-                    ?.minus(1L) ?: 0).toString()
+            val selectedChapter = media.manga?.selectedChapter
+            val chapterNum = selectedChapter?.number?.let { MediaNameAdapter.findChapterNumber(it) }
+            val chapter = (chapterNum?.minus(1L) ?: 0).toString()
             if (chapter == "0.0" && PrefManager.getVal(PrefName.ChapterZeroReader)
                 // Not asking individually or incognito
                 && !showProgressDialog && !PrefManager.getVal<Boolean>(PrefName.Incognito)
@@ -253,7 +250,8 @@ class MangaReaderActivity : AppCompatActivity() {
             }
         }
 
-        media = if (model.getMedia().value == null)
+        val currentMedia = model.getMedia().value
+        media = if (currentMedia == null || currentMedia.manga == null)
             try {
                 //(intent.getSerialized("media")) ?: return
                 MediaSingleton.media ?: return
@@ -263,7 +261,7 @@ class MangaReaderActivity : AppCompatActivity() {
             } finally {
                 MediaSingleton.media = null
             }
-        else model.getMedia().value ?: return
+        else currentMedia
         model.setMedia(media)
         @Suppress("UNCHECKED_CAST")
         val list = (PrefManager.getNullableCustomVal(
@@ -1121,11 +1119,11 @@ class MangaReaderActivity : AppCompatActivity() {
                     setCancelable(false)
                     setPosButton(R.string.yes) {
                         PrefManager.setCustomVal("${media.id}_save_progress", true)
-                        updateProgress(
-                            media,
-                            MediaNameAdapter.findChapterNumber(media.manga!!.selectedChapter!!.number)
-                                .toString()
-                        )
+                        val selectedChap = media.manga?.selectedChapter?.number ?: if (this@MangaReaderActivity::chapter.isInitialized) chapter.number else null
+                        val chapNumStr = selectedChap?.let { MediaNameAdapter.findChapterNumber(it)?.toString() } ?: selectedChap ?: ""
+                        if (chapNumStr.isNotEmpty()) {
+                            updateProgress(media, chapNumStr)
+                        }
                         runnable.run()
                     }
                     setNegButton(R.string.no) {
@@ -1141,12 +1139,13 @@ class MangaReaderActivity : AppCompatActivity() {
                         "${media.id}_save_progress",
                         true
                     ) && if (media.isAdult) PrefManager.getVal(PrefName.UpdateForHReader) else true
-                )
-                    updateProgress(
-                        media,
-                        MediaNameAdapter.findChapterNumber(media.manga!!.selectedChapter!!.number)
-                            .toString()
-                    )
+                ) {
+                    val selectedChap = media.manga?.selectedChapter?.number ?: if (this@MangaReaderActivity::chapter.isInitialized) chapter.number else null
+                    val chapNumStr = selectedChap?.let { MediaNameAdapter.findChapterNumber(it)?.toString() } ?: selectedChap ?: ""
+                    if (chapNumStr.isNotEmpty()) {
+                        updateProgress(media, chapNumStr)
+                    }
+                }
                 runnable.run()
             }
         } else {
