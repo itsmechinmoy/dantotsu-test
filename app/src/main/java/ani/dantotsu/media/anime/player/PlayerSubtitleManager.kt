@@ -56,6 +56,10 @@ import io.github.peerless2012.ass.media.widget.AssSubtitleView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ani.dantotsu.defaultHeaders
+import ani.dantotsu.connections.anilist.api.NetworkHelper
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -114,30 +118,35 @@ class PlayerSubtitleManager(
 
         // Fetch and cache server subtitle text in the background so subtitle delay works for server subtitles
         serverSubJob?.cancel()
-        val url = sub.file.url
-        if (url.startsWith("http")) {
+        val rawUrl = sub.file.url
+        val resolvedUrl = resolveSubtitleUrl(rawUrl, "", "")
+        if (resolvedUrl.isNotBlank()) {
             serverSubJob = activity.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val client = OkHttpClient()
-                    val request = Request.Builder().url(url).build()
-                    val response = client.newCall(request).execute()
-                    if (response.isSuccessful) {
-                        val content = response.body?.string()
-                        if (!content.isNullOrBlank()) {
-                            val ext = when (formatStr) {
-                                "ASS" -> "ass"
-                                "VTT" -> "vtt"
-                                else -> "srt"
-                            }
-                            val langName = sub.language.toString()
-                            val file = File(activity.cacheDir, "server_sub_${langName.hashCode()}.$ext")
-                            file.writeText(content)
-                            currentActiveSubFile = file
-                            currentActiveSubRawContent = content
+                    val client = Injekt.get<NetworkHelper>().client
+                    val requestBuilder = Request.Builder().url(resolvedUrl)
+                    defaultHeaders.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+                    sub.file.headers?.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+                    client.newCall(requestBuilder.build()).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val content = response.body?.string()
+                            if (!content.isNullOrBlank()) {
+                                val ext = when (formatStr) {
+                                    "ASS" -> "ass"
+                                    "VTT" -> "vtt"
+                                    else -> "srt"
+                                }
+                                val langName = sub.language.toString()
+                                val file = File(activity.cacheDir, "server_sub_${langName.hashCode()}.$ext")
+                                file.writeText(content)
+                                currentActiveSubFile = file
+                                currentActiveSubRawContent = content
 
-                            if (subtitleDelayMs != 0L) {
-                                withContext(Dispatchers.Main) {
-                                    setSubtitleDelay(subtitleDelayMs)
+                                val effectiveDelay = subtitleDelayMs - audioDelayMs
+                                if (effectiveDelay != 0L) {
+                                    withContext(Dispatchers.Main) {
+                                        applyDelayInternal()
+                                    }
                                 }
                             }
                         }
@@ -152,33 +161,41 @@ class PlayerSubtitleManager(
     fun setSubtitleDelay(delayMs: Long) {
         subtitleDelayMs = delayMs
         Logger.log("PlayerSubtitleManager: Subtitle delay set to ${delayMs}ms")
+        applyDelayInternal()
+    }
 
+    fun setAudioDelay(delayMs: Long) {
+        audioDelayMs = delayMs
+        Logger.log("PlayerSubtitleManager: Audio delay set to ${delayMs}ms")
+        applyDelayInternal()
+    }
+
+    private fun applyDelayInternal() {
+        val effectiveDelayMs = subtitleDelayMs - audioDelayMs
         val rawContent = currentActiveSubRawContent
         val file = currentActiveSubFile
         if (rawContent != null && file != null) {
             try {
-                if (delayMs == 0L) {
+                // Clean up previous shifted files
+                activity.cacheDir.listFiles()?.filter {
+                    it.isFile && it.name.startsWith("shifted_${file.nameWithoutExtension}_")
+                }?.forEach { it.delete() }
+
+                if (effectiveDelayMs == 0L) {
                     applyShiftedSubtitle(file, currentActiveSubLang, currentActiveSubMimeType)
                     return
                 }
-                val shiftedContent = shiftSubtitleTimestamps(rawContent, currentActiveSubFormat, delayMs)
+                val shiftedContent = shiftSubtitleTimestamps(rawContent, currentActiveSubFormat, effectiveDelayMs)
                 val ext = file.extension
-                val shiftedFile = File(activity.cacheDir, "shifted_${file.nameWithoutExtension}_${delayMs}.$ext")
+                val shiftedFile = File(activity.cacheDir, "shifted_${file.nameWithoutExtension}_${effectiveDelayMs}.$ext")
                 shiftedFile.writeText(shiftedContent)
                 applyShiftedSubtitle(shiftedFile, currentActiveSubLang, currentActiveSubMimeType)
             } catch (e: Exception) {
                 Logger.log("PlayerSubtitleManager: Failed to shift subtitle: ${e.message}")
             }
         } else if (serverSubJob?.isActive == true) {
-            Logger.log("PlayerSubtitleManager: Subtitle caching in progress; will apply ${delayMs}ms once cached")
+            Logger.log("PlayerSubtitleManager: Subtitle caching in progress; will apply ${effectiveDelayMs}ms once cached")
         }
-    }
-
-    fun setAudioDelay(delayMs: Long) {
-        audioDelayMs = delayMs
-        Logger.log("PlayerSubtitleManager: Audio delay set to ${delayMs}ms")
-        // Audio delay offsets the relative timing against subtitles
-        setSubtitleDelay(subtitleDelayMs + delayMs)
     }
 
     fun shiftSubtitleTimestamps(content: String, format: String, delayMs: Long): String {
@@ -572,7 +589,7 @@ class PlayerSubtitleManager(
         model.clearLocalSubtitles(episodeId)
         try {
             activity.cacheDir.listFiles()?.forEach { file ->
-                if (file.name.startsWith("online_subtitle_") || file.name.startsWith("local_sub_")) {
+                if (file.name.startsWith("online_subtitle_") || file.name.startsWith("local_sub_") || file.name.startsWith("shifted_")) {
                     file.delete()
                 }
             }
@@ -584,56 +601,57 @@ class PlayerSubtitleManager(
     fun applyOnlineSubtitleUrl(url: String, id: String, lang: String) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val client = OkHttpClient()
+                val client = Injekt.get<NetworkHelper>().client
                 val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    withContext(Dispatchers.Main) {
-                        snackString("Failed to download subtitle: HTTP ${response.code}", activity)
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        withContext(Dispatchers.Main) {
+                            snackString("Failed to download subtitle: HTTP ${response.code}", activity)
+                        }
+                        return@launch
                     }
-                    return@launch
-                }
 
-                val subtitleContent = response.body?.string()
-                if (subtitleContent.isNullOrEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        snackString("Subtitle file is empty", activity)
+                    val subtitleContent = response.body?.string()
+                    if (subtitleContent.isNullOrEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            snackString("Subtitle file is empty", activity)
+                        }
+                        return@launch
                     }
-                    return@launch
-                }
 
-                val detectedFormat = when {
-                    subtitleContent.trimStart().startsWith("WEBVTT") -> "VTT"
-                    subtitleContent.contains("[Script Info]") || subtitleContent.contains("\\[Events\\]") -> "ASS"
-                    subtitleContent.contains("<tt ") || subtitleContent.contains("<tt>") -> "TTML"
-                    else -> "SRT"
-                }
+                    val detectedFormat = when {
+                        subtitleContent.trimStart().startsWith("WEBVTT") -> "VTT"
+                        subtitleContent.contains("[Script Info]") || subtitleContent.contains("\\[Events\\]") -> "ASS"
+                        subtitleContent.contains("<tt ") || subtitleContent.contains("<tt>") -> "TTML"
+                        else -> "SRT"
+                    }
 
-                val cleanedContent = if (detectedFormat == "ASS") {
-                    stripAssPositioning(subtitleContent)
-                } else {
-                    subtitleContent
-                }
+                    val cleanedContent = if (detectedFormat == "ASS") {
+                        stripAssPositioning(subtitleContent)
+                    } else {
+                        subtitleContent
+                    }
 
-                val mimeType = when (detectedFormat) {
-                    "VTT" -> MimeTypes.TEXT_VTT
-                    "ASS" -> MimeTypes.TEXT_SSA
-                    "TTML" -> MimeTypes.APPLICATION_TTML
-                    else -> MimeTypes.APPLICATION_SUBRIP
-                }
+                    val mimeType = when (detectedFormat) {
+                        "VTT" -> MimeTypes.TEXT_VTT
+                        "ASS" -> MimeTypes.TEXT_SSA
+                        "TTML" -> MimeTypes.APPLICATION_TTML
+                        else -> MimeTypes.APPLICATION_SUBRIP
+                    }
 
-                val extension = when (detectedFormat) {
-                    "VTT" -> "vtt"
-                    "ASS" -> "ass"
-                    "TTML" -> "ttml"
-                    else -> "srt"
-                }
+                    val extension = when (detectedFormat) {
+                        "VTT" -> "vtt"
+                        "ASS" -> "ass"
+                        "TTML" -> "ttml"
+                        else -> "srt"
+                    }
 
-                val subtitleFile = File(activity.cacheDir, "online_subtitle_${id.hashCode()}.$extension")
-                subtitleFile.writeText(cleanedContent)
+                    val subtitleFile = File(activity.cacheDir, "online_subtitle_${id.hashCode()}.$extension")
+                    subtitleFile.writeText(cleanedContent)
 
-                withContext(Dispatchers.Main) {
-                    applySubtitleFromFile(subtitleFile, lang, mimeType)
+                    withContext(Dispatchers.Main) {
+                        applySubtitleFromFile(subtitleFile, lang, mimeType)
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
