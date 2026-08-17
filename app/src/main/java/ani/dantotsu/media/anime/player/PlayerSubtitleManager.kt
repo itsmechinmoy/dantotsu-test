@@ -57,7 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ani.dantotsu.defaultHeaders
-import ani.dantotsu.connections.anilist.api.NetworkHelper
+import eu.kanade.tachiyomi.network.NetworkHelper
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import okhttp3.OkHttpClient
