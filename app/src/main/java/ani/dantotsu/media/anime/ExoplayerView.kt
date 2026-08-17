@@ -665,7 +665,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         }
 
         // FullScreen / Aspect Ratio
-        isFullscreen = PrefManager.getCustomVal("${media.id}_fullscreenInt", isFullscreen)
+        val defaultResize = PrefManager.getVal<Int>(PrefName.Resize)
+        isFullscreen = PrefManager.getCustomVal("${media.id}_fullscreenInt", defaultResize)
         playerView.resizeMode = when (isFullscreen) {
             0 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
             1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -754,17 +755,13 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             }
         }
 
-        isFullscreen = PrefManager.getVal(PrefName.Resize)
-        playerView.resizeMode = when (isFullscreen) {
-            0 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-            1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-        }
-
         // Progress Dialog & Initial Episode
         val incognito = PrefManager.getVal<Boolean>(PrefName.Incognito)
-        val showProgressDialog = PrefManager.getCustomVal("${media.id}_progressDialog", true)
+        val showProgressDialog = if (PrefManager.getVal(PrefName.AskIndividualPlayer)) {
+            PrefManager.getCustomVal("${media.id}_progressDialog", true)
+        } else {
+            false
+        }
         val selectedEpKey = media.anime?.selectedEpisode ?: episodeArr.firstOrNull()
         val initialEp = selectedEpKey?.let { episodes[it] } ?: episodes.values.firstOrNull()
         if (initialEp == null) {
@@ -853,8 +850,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             "Turkish", "Ukrainian", "Urdu", "Vietnamese"
         )
         val lang = subLanguages.getOrNull(PrefManager.getVal<Int>(PrefName.SubLanguage)) ?: "English"
+        val savedSubLang: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
         subtitle = intent.getSerialized("subtitle")
-            ?: when (val subLang: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)) {
+            ?: when (savedSubLang) {
                 null -> when (episode.selectedSubtitle) {
                     null, -1 -> ext.subtitles.find {
                         it.language.contains(lang, true) ||
@@ -864,25 +862,22 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     else -> ext.subtitles.getOrNull(episode.selectedSubtitle!!)
                 }
                 "None" -> null
-                else -> ext.subtitles.find { it.language == subLang }
+                else -> ext.subtitles.find { it.language == savedSubLang }
             }
 
         hasExtSubtitles = ext.subtitles.isNotEmpty()
-        if (subtitle == null && hasExtSubtitles) {
-            val savedLang = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
-            if (savedLang != "None") {
-                subtitle = ext.subtitles.find {
-                    it.language.contains(lang, true) ||
-                    it.language.contains("English", true) ||
-                    it.language.contains("en", true)
-                } ?: ext.subtitles.firstOrNull()
-            }
+        if (subtitle == null && hasExtSubtitles && savedSubLang != "None" && savedSubLang?.startsWith("Online:") != true && savedSubLang?.startsWith("[Local]") != true) {
+            subtitle = ext.subtitles.find {
+                it.language.contains(lang, true) ||
+                it.language.contains("English", true) ||
+                it.language.contains("en", true)
+            } ?: ext.subtitles.firstOrNull()
         }
         subtitleManager.initialSubtitleLabel = subtitle?.language
         if (subtitle != null) {
             PrefManager.setCustomVal("subLang_${media.id}", subtitle!!.language)
             subtitleManager.setActiveServerSubtitle(subtitle)
-        } else if (PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)?.startsWith("Online:") != true) {
+        } else if (savedSubLang?.startsWith("Online:") != true && savedSubLang?.startsWith("[Local]") != true) {
             PrefManager.setCustomVal("subLang_${media.id}", "None")
         }
 
@@ -942,9 +937,27 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             val episodeName = ext.server.name.split("/").last()
             val directory = ani.dantotsu.download.DownloadsManager.getSubDirectory(this, ani.dantotsu.media.MediaType.ANIME, false, titleName, episodeName)
             if (directory != null) {
-                val file = directory.listFiles()?.firstOrNull { it.isFile && it.name?.startsWith("default") == true }
+                val file = directory.listFiles()?.firstOrNull {
+                    it.isFile && !it.name.orEmpty().contains("subtitle", ignoreCase = true) && !it.name.orEmpty().startsWith(".") &&
+                    (it.name?.endsWith(".mp4", ignoreCase = true) == true ||
+                     it.name?.endsWith(".mkv", ignoreCase = true) == true ||
+                     it.name?.endsWith(".webm", ignoreCase = true) == true ||
+                     it.name?.endsWith(".ts", ignoreCase = true) == true ||
+                     it.type?.startsWith("video/") == true)
+                } ?: directory.listFiles()?.firstOrNull {
+                    it.isFile && !it.name.orEmpty().contains("subtitle", ignoreCase = true) && !it.name.orEmpty().startsWith(".")
+                }
                 if (file != null) {
-                    MediaItem.fromUri(file.uri)
+                    val downloadedMimeType = when {
+                        file.name?.endsWith(".mkv", ignoreCase = true) == true -> androidx.media3.common.MimeTypes.APPLICATION_MATROSKA
+                        file.name?.endsWith(".webm", ignoreCase = true) == true -> androidx.media3.common.MimeTypes.APPLICATION_WEBM
+                        file.name?.endsWith(".ts", ignoreCase = true) == true -> androidx.media3.common.MimeTypes.VIDEO_MP2T
+                        else -> androidx.media3.common.MimeTypes.APPLICATION_MP4
+                    }
+                    MediaItem.Builder()
+                        .setUri(file.uri)
+                        .setMimeType(downloadedMimeType)
+                        .build()
                 } else null
             } else null
         } else null
