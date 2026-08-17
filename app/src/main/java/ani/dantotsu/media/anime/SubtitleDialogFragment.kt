@@ -995,7 +995,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
-                            model.setEpisode(episode, "Subtitle")
                             val saveKey = "Online:$displayTitle • Wyzie • ${item.url}"
                             PrefManager.setCustomVal("subLang_${mediaId}", saveKey)
 
@@ -1031,7 +1030,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
-                            model.setEpisode(episode, "Subtitle")
                             val saveKey = "Online:${item.releaseName} • SubSource • ${item.id}"
                             PrefManager.setCustomVal("subLang_${mediaId}", saveKey)
                             exoActivity.applySubSourceSubtitle(item)
@@ -1065,7 +1063,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
-                            model.setEpisode(episode, "Subtitle")
                             val saveKey = "Online:${item.fileName} • OpenSubtitles • ${item.fileId}"
                             PrefManager.setCustomVal("subLang_${mediaId}", saveKey)
                             exoActivity.applyOpenSubRestSubtitle(item)
@@ -1095,7 +1092,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
-                            model.setEpisode(episode, "Subtitle")
                             val saveKey = "Online:$langName • OpenSubtitles • ${item.url}"
                             PrefManager.setCustomVal("subLang_${mediaId}", saveKey)
                             exoActivity.applyOnlineSubtitle(item)
