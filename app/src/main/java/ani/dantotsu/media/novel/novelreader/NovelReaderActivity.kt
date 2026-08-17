@@ -333,7 +333,6 @@ class NovelReaderActivity : AppCompatActivity(), EbookReaderEventListener {
         binding.novelReaderTitle.text = book.title
         binding.novelReaderSource.text = book.author?.joinToString(", ")
 
-        val session = ani.dantotsu.media.novel.NovelReaderSession
         if (session.isActive()) {
             val chapterLabels = session.chapters.mapIndexed { index, fileUrl ->
                 fileUrl.headers?.get("X-Chapter-Name") ?: "Chapter ${index + 1}"
