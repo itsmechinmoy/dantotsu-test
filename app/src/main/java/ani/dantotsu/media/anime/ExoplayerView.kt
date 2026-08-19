@@ -56,7 +56,14 @@ import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.crashlytics.CrashlyticsInterface
 import ani.dantotsu.connections.discord.Discord
 import ani.dantotsu.connections.discord.RPCManager
+import ani.dantotsu.connections.subtitles.OpenSubRestItem
+import ani.dantotsu.connections.subtitles.OpenSubtitlesRestApi
 import ani.dantotsu.connections.subtitles.StremioSub
+import ani.dantotsu.connections.subtitles.StremioSubtitles
+import ani.dantotsu.connections.subtitles.SubSourceSub
+import ani.dantotsu.connections.subtitles.SubSourceSubtitles
+import ani.dantotsu.connections.subtitles.WyzieSub
+import ani.dantotsu.connections.subtitles.WyzieSubtitles
 import ani.dantotsu.databinding.ActivityExoplayerBinding
 import ani.dantotsu.dp
 import ani.dantotsu.hideSystemBars
@@ -852,8 +859,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         val lang = subLanguages.getOrNull(PrefManager.getVal<Int>(PrefName.SubLanguage)) ?: "English"
         val savedSubLang: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
         subtitle = intent.getSerialized("subtitle")
-            ?: when (savedSubLang) {
-                null -> when (episode.selectedSubtitle) {
+            ?: when {
+                savedSubLang == null -> when (episode.selectedSubtitle) {
                     null, -1 -> ext.subtitles.find {
                         it.language.contains(lang, true) ||
                         it.language.contains("English", true) ||
@@ -861,12 +868,19 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     } ?: ext.subtitles.firstOrNull()
                     else -> ext.subtitles.getOrNull(episode.selectedSubtitle!!)
                 }
-                "None" -> null
+                savedSubLang == "None" -> null
+                savedSubLang.startsWith("Online:") -> null
+                savedSubLang.startsWith("[Local]") -> null
+                savedSubLang.startsWith("Embedded:") -> null
                 else -> ext.subtitles.find { it.language == savedSubLang }
             }
 
         hasExtSubtitles = ext.subtitles.isNotEmpty()
-        if (subtitle == null && hasExtSubtitles && savedSubLang != "None" && savedSubLang?.startsWith("Online:") != true && savedSubLang?.startsWith("[Local]") != true) {
+        if (subtitle == null && hasExtSubtitles && savedSubLang != "None" &&
+            savedSubLang?.startsWith("Online:") != true &&
+            savedSubLang?.startsWith("[Local]") != true &&
+            savedSubLang?.startsWith("Embedded:") != true
+        ) {
             subtitle = ext.subtitles.find {
                 it.language.contains(lang, true) ||
                 it.language.contains("English", true) ||
@@ -877,7 +891,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         if (subtitle != null) {
             PrefManager.setCustomVal("subLang_${media.id}", subtitle!!.language)
             subtitleManager.setActiveServerSubtitle(subtitle)
-        } else if (savedSubLang?.startsWith("Online:") != true && savedSubLang?.startsWith("[Local]") != true) {
+        } else if (savedSubLang == null || savedSubLang == "None") {
             PrefManager.setCustomVal("subLang_${media.id}", "None")
         }
 
@@ -1128,15 +1142,19 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         applyLocalSubtitle(Uri.parse(uriString))
     }
 
-    fun applyOnlineSubtitle(subtitle: StremioSub) {
-        subtitleManager.applyOnlineSubtitle(subtitle)
+    fun applyOnlineSubtitle(subtitle: StremioSub, displayName: String = subtitle.lang, provider: String = "OpenSubtitles") {
+        subtitleManager.applyOnlineSubtitle(subtitle, displayName, provider)
     }
 
-    fun applySubSourceSubtitle(sub: ani.dantotsu.connections.subtitles.SubSourceSub) {
+    fun applyWyzieSubtitle(subtitle: WyzieSub) {
+        subtitleManager.applyWyzieSubtitle(subtitle)
+    }
+
+    fun applySubSourceSubtitle(sub: SubSourceSub) {
         subtitleManager.applySubSourceSubtitle(sub)
     }
 
-    fun applyOpenSubRestSubtitle(item: ani.dantotsu.connections.subtitles.OpenSubRestItem) {
+    fun applyOpenSubRestSubtitle(item: OpenSubRestItem) {
         subtitleManager.applyOpenSubRestSubtitle(item)
     }
 
