@@ -120,6 +120,15 @@ object HtmlToEpubUtils {
         zos.closeEntry()
 
       
+        val cleanBody = try {
+            val doc = org.jsoup.Jsoup.parseBodyFragment(htmlContent)
+            doc.outputSettings().syntax(org.jsoup.nodes.Document.OutputSettings.Syntax.xml)
+            doc.outputSettings().charset("UTF-8")
+            doc.body().html()
+        } catch (_: Exception) {
+            htmlContent
+        }
+
         val htmlWrapper = """
             <?xml version="1.0" encoding="utf-8"?>
             <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -130,7 +139,7 @@ object HtmlToEpubUtils {
             </head>
             <body>
                 <h2>$cleanTitle</h2>
-                $htmlContent
+                $cleanBody
             </body>
             </html>
         """.trimIndent().toByteArray(Charsets.UTF_8)
