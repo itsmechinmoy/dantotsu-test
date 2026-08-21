@@ -66,7 +66,7 @@ class DanNovelExtensionManager(private val context: Context) {
     suspend fun findAvailableExtensions(): List<NovelExtension.Available> {
         val extensions: List<NovelExtension.Available> = try {
             val list = api.findNovelExtensions()
-            list.filter { it.pkgName.isNotBlank() && it.apkName.isNotBlank() }
+            list.filter { it.pkgName.isNotBlank() && it.versionName.isNotBlank() }
                 .map { ext ->
                     val detectedLang = ext.sources.firstOrNull()?.lang ?: ext.lang.ifBlank { "all" }
                     ext.copy(lang = detectedLang)
