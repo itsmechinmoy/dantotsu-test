@@ -887,12 +887,10 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 it.language.contains("en", true)
             } ?: ext.subtitles.firstOrNull()
         }
-        subtitleManager.initialSubtitleLabel = subtitle?.language
+        subtitleManager.initialSubtitleLabel = subtitle?.language ?: lang
         if (subtitle != null) {
             PrefManager.setCustomVal("subLang_${media.id}", subtitle!!.language)
             subtitleManager.setActiveServerSubtitle(subtitle)
-        } else if (savedSubLang == null || savedSubLang == "None") {
-            PrefManager.setCustomVal("subLang_${media.id}", "None")
         }
 
         exoSource.setOnClickListener { sourceClick() }
@@ -993,7 +991,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             .build()
 
         playerManager.buildMediaSource(
-            video!!, subConfigs, mimeType, downloadedMediaItem, mediaMetadata
+            video!!, subConfigs, mimeType, downloadedMediaItem, mediaMetadata, ext.audioTracks
         )
 
         castManager.setupCastButton(
