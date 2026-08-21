@@ -39,6 +39,15 @@ class DanNovelExtensionManager(private val context: Context) {
 
     private var availableNovelExtensionsSourcesData: Map<Long, NovelSourceData> = emptyMap()
 
+    fun getAppIcon(pkgName: String): Drawable? {
+        return iconMap[pkgName]
+            ?: try {
+                iconMap.getOrPut(pkgName) { context.packageManager.getApplicationIcon(pkgName) }
+            } catch (_: Exception) {
+                null
+            }
+    }
+
     init {
         initNovelExtensions()
         ExtensionInstallReceiver().setNovelListener(NovelInstallationListener()).register(context)
