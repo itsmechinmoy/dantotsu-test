@@ -90,6 +90,14 @@ object LnReaderJsEngine {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     ids.forEach { jsoupElements[it]?.remove() }
                 }
+                override fun removeAttr(nodeIdsJson: String, attr: String) {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    ids.forEach { jsoupElements[it]?.removeAttr(attr) }
+                }
+                override fun setAttr(nodeIdsJson: String, attr: String, value: String) {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    ids.forEach { jsoupElements[it]?.attr(attr, value) }
+                }
                 override fun next(nodeIdsJson: String): String {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val resultIds = mutableListOf<Int>()
@@ -133,6 +141,20 @@ object LnReaderJsEngine {
                         val node = jsoupElements[id] ?: continue
                         val ch = if (selector.isNotBlank()) node.children().select(selector) else node.children()
                         for (el in ch) {
+                            val newId = ++elementCounter
+                            jsoupElements[newId] = el
+                            resultIds.add(newId)
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
+                override fun siblings(nodeIdsJson: String, selector: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        val node = jsoupElements[id] ?: continue
+                        val sibs = if (selector.isNotBlank()) node.siblingElements().select(selector) else node.siblingElements()
+                        for (el in sibs) {
                             val newId = ++elementCounter
                             jsoupElements[newId] = el
                             resultIds.add(newId)
@@ -318,7 +340,7 @@ object LnReaderJsEngine {
 
             val builtReq = reqBuilder.build()
             val response = httpClient.newCall(builtReq).execute()
-            val responseBody = response.body?.string() ?: ""
+            val responseBody = response.body.string()
             val finalUrl = response.request.url.toString()
             val responseHeaders = response.headers.toMultimap()
                 .entries.associate { it.key to it.value.firstOrNull().orEmpty() }
@@ -375,10 +397,13 @@ object LnReaderJsEngine {
         fun html(nodeIdsJson: String): String
         fun outerHtml(nodeIdsJson: String): String
         fun remove(nodeIdsJson: String)
+        fun removeAttr(nodeIdsJson: String, attr: String)
+        fun setAttr(nodeIdsJson: String, attr: String, value: String)
         fun next(nodeIdsJson: String): String
         fun prev(nodeIdsJson: String): String
         fun parent(nodeIdsJson: String): String
         fun children(nodeIdsJson: String, selector: String): String
+        fun siblings(nodeIdsJson: String, selector: String): String
         fun hasClass(nodeIdsJson: String, className: String): Boolean
         fun attrs(nodeIdsJson: String): String
         fun tagName(nodeIdsJson: String): String
@@ -561,6 +586,42 @@ var console = {
     error: function() { try { __dantotsuLog.log('ERROR: ' + Array.prototype.slice.call(arguments).map(function(a) { return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ')); } catch(e){} }
 };
 
+var setTimeout = function(fn, ms) { try { if (typeof fn === 'function') fn(); } catch(e){} return 0; };
+var clearTimeout = function() {};
+var setInterval = function(fn, ms) { return 0; };
+var clearInterval = function() {};
+
+var btoa = function(str) {
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    var encoded = '';
+    var c1, c2, c3, e1, e2, e3, e4;
+    var i = 0;
+    while (i < str.length) {
+        c1 = str.charCodeAt(i++);
+        c2 = str.charCodeAt(i++);
+        c3 = str.charCodeAt(i++);
+        e1 = c1 >> 2;
+        e2 = ((c1 & 3) << 4) | (c2 >> 4);
+        e3 = ((c2 & 15) << 2) | (c3 >> 6);
+        e4 = c3 & 63;
+        if (isNaN(c2)) e3 = e4 = 64;
+        else if (isNaN(c3)) e4 = 64;
+        encoded += chars.charAt(e1) + chars.charAt(e2) + chars.charAt(e3) + chars.charAt(e4);
+    }
+    return encoded;
+};
+
+var atob = function(input) {
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    var str = String(input).replace(/=+$/, '');
+    var output = '';
+    if (str.length % 4 === 1) return '';
+    for (var bc = 0, bs, buffer, idx = 0; buffer = str.charAt(idx++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
+        buffer = chars.indexOf(buffer);
+    }
+    return output;
+};
+
 if (typeof Object.assign !== 'function') {
     Object.assign = function(target) {
         if (target == null) throw new TypeError('Cannot convert undefined or null to object');
@@ -731,14 +792,16 @@ Parser.prototype.end = function() {
             var tag = buf.slice(i+1, j).toLowerCase();
             i = j;
             var attrs = {};
+            var selfClosing = false;
             while (i < len && buf[i] !== '>') {
                 while (i < len && /\s/.test(buf[i])) i++;
-                if (buf[i] === '>' || buf[i] === '/') break;
+                if (buf[i] === '/') { selfClosing = true; i++; continue; }
+                if (buf[i] === '>') break;
                 var ks = i;
                 while (i < len && !/[\s=>\/]/.test(buf[i])) i++;
                 var key = buf.slice(ks, i).toLowerCase();
                 while (i < len && /\s/.test(buf[i])) i++;
-                var val = null;
+                var val = "";
                 if (buf[i] === '=') {
                     i++;
                     while (i < len && /\s/.test(buf[i])) i++;
@@ -749,7 +812,7 @@ Parser.prototype.end = function() {
                         if (i < len) i++;
                     } else {
                         var vs2 = i;
-                        while (i < len && !/[\s>]/.test(buf[i])) i++;
+                        while (i < len && !/[\s>\/]/.test(buf[i])) i++;
                         val = buf.slice(vs2, i);
                     }
                 }
@@ -761,7 +824,9 @@ Parser.prototype.end = function() {
             } else {
                 if (this.opts.onopentagname) this.opts.onopentagname(tag);
                 if (this.opts.onopentag) this.opts.onopentag(tag, attrs);
-                if (RAW_TAGS[tag]) {
+                if (selfClosing || VOID_ELEMENTS[tag]) {
+                    if (this.opts.onclosetag) this.opts.onclosetag(tag);
+                } else if (RAW_TAGS[tag]) {
                     var closeTag = '</' + tag;
                     var ri = buf.toLowerCase().indexOf(closeTag, i);
                     if (ri !== -1) {
@@ -791,10 +856,65 @@ function load(html) {
         var obj = {
             _nodes: nodeIds,
             length: nodeIds.length,
+            nodeType: 1,
             text: function() { return __dantotsuJsoup.text(JSON.stringify(this._nodes)); },
-            attr: function(a) { 
+            attr: function(a, v) { 
                 if (this._nodes.length === 0) return undefined;
+                if (v !== undefined) {
+                    __dantotsuJsoup.setAttr(JSON.stringify(this._nodes), a, String(v));
+                    return this;
+                }
                 return __dantotsuJsoup.attr(JSON.stringify(this._nodes), a) || undefined; 
+            },
+            removeAttr: function(a) {
+                __dantotsuJsoup.removeAttr(JSON.stringify(this._nodes), a);
+                return this;
+            },
+            val: function() {
+                return this.attr('value') || this.text();
+            },
+            data: function(k) {
+                return this.attr('data-' + k);
+            },
+            contents: function() {
+                return this.children();
+            },
+            addBack: function() {
+                return this;
+            },
+            filter: function(fn) {
+                if (typeof fn === 'function') {
+                    var res = [];
+                    for(var i=0; i<this._nodes.length; i++) {
+                        var el = wrap([this._nodes[i]]);
+                        if (fn.call(el, i, el)) res.push(this._nodes[i]);
+                    }
+                    return wrap(res);
+                }
+                return this;
+            },
+            replaceWith: function(html) {
+                return this;
+            },
+            is: function(sel) {
+                if (typeof sel === 'string' && sel) {
+                    if (sel.startsWith('.')) return this.hasClass(sel.slice(1));
+                    return this.tagName.toLowerCase() === sel.toLowerCase();
+                }
+                return true;
+            },
+            not: function(sel) {
+                return this;
+            },
+            clone: function() {
+                return wrap(this._nodes.slice());
+            },
+            empty: function() {
+                return this;
+            },
+            siblings: function(sel) {
+                var resStr = __dantotsuJsoup.siblings(JSON.stringify(this._nodes), sel || "");
+                return wrap(JSON.parse(resStr));
             },
             html: function() { return __dantotsuJsoup.html(JSON.stringify(this._nodes)); },
             outerHtml: function() { return __dantotsuJsoup.outerHtml(JSON.stringify(this._nodes)); },
@@ -817,7 +937,6 @@ function load(html) {
             each: function(fn) {
                 for (var i = 0; i < this._nodes.length; i++) {
                     var el = wrap([this._nodes[i]]);
-                    el.attribs = JSON.parse(__dantotsuJsoup.attrs(JSON.stringify([this._nodes[i]])));
                     if (fn.call(el, i, el) === false) break;
                 }
                 return this;
@@ -836,7 +955,6 @@ function load(html) {
                  var res = [];
                  for(var i=0; i<this._nodes.length; i++) {
                      var el = wrap([this._nodes[i]]);
-                     el.attribs = JSON.parse(__dantotsuJsoup.attrs(JSON.stringify([this._nodes[i]])));
                      var v = fn.call(el, i, el);
                      if (v !== null && v !== undefined) res.push(v);
                  }
@@ -858,9 +976,15 @@ function load(html) {
         };
         Object.defineProperty(obj, 'attribs', {
             get: function() {
-                 if (nodeIds.length === 0) return {};
-                 var str = __dantotsuJsoup.attrs(JSON.stringify(nodeIds));
-                 return JSON.parse(str);
+                 var map = {};
+                 if (nodeIds.length > 0) {
+                     try {
+                         var str = __dantotsuJsoup.attrs(JSON.stringify(nodeIds));
+                         map = JSON.parse(str) || {};
+                     } catch(e){}
+                 }
+                 if (!map.class) map.class = '';
+                 return map;
             },
             set: function(v) {},
             enumerable: true,
