@@ -85,6 +85,7 @@ class NovelExtensionsViewModel(
                     repository = "lnreader",
                     sources = emptyList(),
                     iconUrl = plugin.iconUrl,
+                    lang = plugin.lang,
                 )
             }
 
@@ -119,20 +120,24 @@ class NovelExtensionPagingSource(
         } else {
             availableExtensions.filter { it.name.contains(query, ignoreCase = true) }
         }
-        /*val filternfsw = if(isNsfwEnabled) {  currently not implemented
-            filteredExtensions
+        val lang: String = PrefManager.getVal(PrefName.LangSort)
+        val langFilter = if (lang != "all") {
+            filteredExtensions.filter { ext ->
+                val extLangCode = LanguageMapper.getLanguageCode(ext.lang)
+                extLangCode.equals(lang, ignoreCase = true) || ext.lang.equals(lang, ignoreCase = true)
+            }
         } else {
-            filteredExtensions.filterNot { it.isNsfw }
-        }*/
+            filteredExtensions
+        }
         return try {
-            val sublist = filteredExtensions.subList(
+            val sublist = langFilter.subList(
                 fromIndex = position,
-                toIndex = (position + params.loadSize).coerceAtMost(filteredExtensions.size)
+                toIndex = (position + params.loadSize).coerceAtMost(langFilter.size)
             )
             LoadResult.Page(
                 data = sublist,
                 prevKey = if (position == 0) null else position - params.loadSize,
-                nextKey = if (position + params.loadSize >= filteredExtensions.size) null else position + params.loadSize
+                nextKey = if (position + params.loadSize >= langFilter.size) null else position + params.loadSize
             )
         } catch (e: Exception) {
             LoadResult.Error(e)
@@ -219,7 +224,7 @@ class NovelExtensionAdapter(private val clickListener: OnNovelInstallClickListen
         val extensionIconImageView: ImageView = binding.extensionIconImageView
         fun bind(extension: NovelExtension.Available) {
             val nsfw = ""
-            val lang = LanguageMapper.getLanguageName("all")
+            val lang = LanguageMapper.getLanguageName(extension.lang)
             binding.extensionNameTextView.text = extension.name
             binding.extensionVersionTextView.text = "$lang ${extension.versionName} $nsfw"
         }
