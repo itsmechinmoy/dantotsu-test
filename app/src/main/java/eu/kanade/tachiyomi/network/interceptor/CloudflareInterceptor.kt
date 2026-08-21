@@ -3,12 +3,9 @@ package eu.kanade.tachiyomi.network.interceptor
 import android.annotation.SuppressLint
 import android.content.Context
 import android.webkit.WebView
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import eu.kanade.tachiyomi.network.AndroidCookieJar
 import eu.kanade.tachiyomi.util.system.WebViewClientCompat
-import eu.kanade.tachiyomi.util.system.isOutdated
-import eu.kanade.tachiyomi.util.system.toast
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -82,7 +79,6 @@ class CloudflareInterceptor(
 
         var challengeFound = false
         var cloudflareBypassed = false
-        var isWebViewOutdated = false
 
         val origRequestUrl = originalRequest.url.toString()
         val headers = parseHeaders(originalRequest.headers)
@@ -134,10 +130,6 @@ class CloudflareInterceptor(
         latch.awaitFor30Seconds()
 
         executor.execute {
-            if (!cloudflareBypassed) {
-                isWebViewOutdated = webview?.isOutdated() == true
-            }
-
             webview?.run {
                 stopLoading()
                 destroy()
@@ -146,20 +138,6 @@ class CloudflareInterceptor(
 
         // Throw exception if we failed to bypass Cloudflare
         if (!cloudflareBypassed) {
-            executor.execute {
-                if (isWebViewOutdated) {
-                    context.toast(
-                        "Please update the webview app for better compatibility",
-                        Toast.LENGTH_LONG
-                    )
-                } else {
-                    context.toast(
-                        "Cloudflare protection detected. Please open WebView to bypass.",
-                        Toast.LENGTH_LONG
-                    )
-                }
-            }
-
             throw CloudflareBypassException()
         }
     }
