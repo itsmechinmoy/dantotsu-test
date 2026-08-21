@@ -1,13 +1,12 @@
 package ani.dantotsu.parsers.novel
+
 import android.content.Context
 import app.cash.quickjs.QuickJs
+import ani.dantotsu.App
 import ani.dantotsu.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -17,7 +16,6 @@ import kotlinx.serialization.decodeFromString
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Headers.Companion.toHeaders
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
@@ -43,7 +41,7 @@ object LnReaderJsEngine {
     ): String = withContext(Dispatchers.IO) {
         val qjs = QuickJs.create()
         try {
-            // Bridge
+            // Jsoup elements cache
             val jsoupElements = mutableMapOf<Int, org.jsoup.nodes.Element>()
             var elementCounter = 0
 
@@ -55,7 +53,7 @@ object LnReaderJsEngine {
                     return id
                 }
                 override fun select(nodeIdsJson: String, selector: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val resultIds = mutableListOf<Int>()
                     for (id in ids) {
                         val node = jsoupElements[id] ?: continue
@@ -73,27 +71,27 @@ object LnReaderJsEngine {
                     return Json.encodeToString(resultIds)
                 }
                 override fun text(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     return ids.mapNotNull { jsoupElements[it]?.text() }.joinToString("")
                 }
                 override fun attr(nodeIdsJson: String, attr: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     return jsoupElements[ids.firstOrNull()]?.attr(attr) ?: ""
                 }
                 override fun html(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     return ids.mapNotNull { jsoupElements[it]?.html() }.joinToString("\n")
                 }
                 override fun outerHtml(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     return ids.mapNotNull { jsoupElements[it]?.outerHtml() }.joinToString("\n")
                 }
                 override fun remove(nodeIdsJson: String) {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     ids.forEach { jsoupElements[it]?.remove() }
                 }
                 override fun next(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val resultIds = mutableListOf<Int>()
                     for (id in ids) {
                         jsoupElements[id]?.nextElementSibling()?.let {
@@ -105,7 +103,7 @@ object LnReaderJsEngine {
                     return Json.encodeToString(resultIds)
                 }
                 override fun prev(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val resultIds = mutableListOf<Int>()
                     for (id in ids) {
                         jsoupElements[id]?.previousElementSibling()?.let {
@@ -116,19 +114,48 @@ object LnReaderJsEngine {
                     }
                     return Json.encodeToString(resultIds)
                 }
+                override fun parent(nodeIdsJson: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        jsoupElements[id]?.parent()?.let {
+                            val newId = ++elementCounter
+                            jsoupElements[newId] = it
+                            resultIds.add(newId)
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
+                override fun children(nodeIdsJson: String, selector: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        val node = jsoupElements[id] ?: continue
+                        val ch = if (selector.isNotBlank()) node.children().select(selector) else node.children()
+                        for (el in ch) {
+                            val newId = ++elementCounter
+                            jsoupElements[newId] = el
+                            resultIds.add(newId)
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
+                override fun hasClass(nodeIdsJson: String, className: String): Boolean {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    return ids.any { jsoupElements[it]?.hasClass(className) == true }
+                }
                 override fun attrs(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val element = jsoupElements[ids.firstOrNull()] ?: return "{}"
                     val map = element.attributes().associate { it.key to it.value }
                     return Json.encodeToString(map)
                 }
                 override fun tagName(nodeIdsJson: String): String {
-                    val ids = Json.decodeFromString<List<Int>>(nodeIdsJson)
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     return jsoupElements[ids.firstOrNull()]?.tagName() ?: ""
                 }
             })
 
-            
             qjs.set("__dantotsuFetch", FetchBridge::class.java, object : FetchBridge {
                 override fun fetch(url: String, method: String, headersJson: String, body: String?): String {
                     return executeFetch(url, method, headersJson, body)
@@ -141,7 +168,27 @@ object LnReaderJsEngine {
                 }
             })
 
-           
+            qjs.set("__dantotsuStorage", StorageBridge::class.java, object : StorageBridge {
+                private val prefs = App.currentContext()?.getSharedPreferences("lnreader_plugin_storage", Context.MODE_PRIVATE)
+
+                override fun get(key: String): String? {
+                    return prefs?.getString(key, null)
+                }
+
+                override fun set(key: String, value: String) {
+                    prefs?.edit()?.putString(key, value)?.apply()
+                }
+
+                override fun delete(key: String) {
+                    prefs?.edit()?.remove(key)?.apply()
+                }
+
+                override fun getAllKeys(prefix: String): String {
+                    val keys = prefs?.all?.keys?.filter { it.startsWith(prefix) } ?: emptyList()
+                    return Json.encodeToString(keys)
+                }
+            })
+
             qjs.evaluate(POLYFILL_JS)
             qjs.evaluate(SYNC_PROMISE_POLYFILL_JS)
             qjs.evaluate(STRING_HELPERS_JS)
@@ -168,17 +215,45 @@ object LnReaderJsEngine {
                         if (typeof fn !== "function") throw new Error("Method '$method' not found on plugin");
                         var args = JSON.parse('${argsJson.replace("'", "\\'")}');
                         var result = fn.apply(target, args);
-                        
+
                         if (result && typeof result.then === "function") {
+                            var isSettled = false;
+                            var settledVal = undefined;
+                            var settledErr = undefined;
+
+                            result.then(function(v) {
+                                settledVal = v;
+                                isSettled = true;
+                            }, function(e) {
+                                settledErr = e;
+                                isSettled = true;
+                            });
+
+                            if (!isSettled && result.state) {
+                                if (result.state === 'fulfilled') {
+                                    settledVal = result.value;
+                                    isSettled = true;
+                                } else if (result.state === 'rejected') {
+                                    settledErr = result.reason;
+                                    isSettled = true;
+                                }
+                            }
+
+                            if (isSettled) {
+                                if (settledErr !== undefined) {
+                                    throw (settledErr instanceof Error ? settledErr : new Error(String(settledErr)));
+                                }
+                                return JSON.stringify(settledVal !== undefined ? settledVal : null);
+                            }
+
                             if (result.state === 'fulfilled') {
-                                return JSON.stringify(result.value);
+                                return JSON.stringify(result.value !== undefined ? result.value : null);
                             } else if (result.state === 'rejected') {
                                 throw result.reason instanceof Error ? result.reason : new Error(String(result.reason));
-                            } else {
-                                throw new Error("Promise is still pending — async chain broken");
                             }
+                            return JSON.stringify(null);
                         }
-                        return JSON.stringify(result);
+                        return JSON.stringify(result !== undefined ? result : null);
                     } catch(e) {
                         throw e;
                     }
@@ -216,7 +291,6 @@ object LnReaderJsEngine {
                 "Accept-Language" to "*",
                 "Cache-Control" to "max-age=0",
             )
-            // default first
             defaultHeaders.forEach { (k, v) ->
                 if (!parsedHeaders.keys.any { it.equals(k, ignoreCase = true) }) {
                     reqBuilder.addHeader(k, v)
@@ -278,14 +352,19 @@ object LnReaderJsEngine {
         }
     }
 
-    //QuickJS
-
     interface FetchBridge {
         fun fetch(url: String, method: String, headersJson: String, body: String?): String
     }
 
     interface LogBridge {
         fun log(msg: String)
+    }
+
+    interface StorageBridge {
+        fun get(key: String): String?
+        fun set(key: String, value: String)
+        fun delete(key: String)
+        fun getAllKeys(prefix: String): String
     }
 
     interface JsoupBridge {
@@ -298,10 +377,12 @@ object LnReaderJsEngine {
         fun remove(nodeIdsJson: String)
         fun next(nodeIdsJson: String): String
         fun prev(nodeIdsJson: String): String
+        fun parent(nodeIdsJson: String): String
+        fun children(nodeIdsJson: String, selector: String): String
+        fun hasClass(nodeIdsJson: String, className: String): Boolean
         fun attrs(nodeIdsJson: String): String
         fun tagName(nodeIdsJson: String): String
     }
-
 
     private val MODULE_BOOTSTRAP_JS = """
 var module = {};
@@ -349,18 +430,125 @@ const isUrlAbsolute = url => {
 
 const defaultCover = '';
 
+const utf8ToBytes = function(str) {
+    if (!str) return new Uint8Array(0);
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+        var charCode = str.charCodeAt(i);
+        if (charCode < 0x80) bytes.push(charCode);
+        else if (charCode < 0x800) {
+            bytes.push(0xc0 | (charCode >> 6), 0x80 | (charCode & 0x3f));
+        } else if (charCode < 0xd800 || charCode >= 0xe000) {
+            bytes.push(0xe0 | (charCode >> 12), 0x80 | ((charCode >> 6) & 0x3f), 0x80 | (charCode & 0x3f));
+        } else {
+            i++;
+            charCode = 0x10000 + (((charCode & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
+            bytes.push(0xf0 | (charCode >> 18), 0x80 | ((charCode >> 12) & 0x3f), 0x80 | ((charCode >> 6) & 0x3f), 0x80 | (charCode & 0x3f));
+        }
+    }
+    return new Uint8Array(bytes);
+};
+
+const bytesToUtf8 = function(bytes) {
+    if (!bytes) return '';
+    var encoded = [];
+    for (var i = 0; i < bytes.length; i++) {
+        encoded.push('%' + ('0' + bytes[i].toString(16)).slice(-2));
+    }
+    try {
+        return decodeURIComponent(encoded.join(''));
+    } catch(e) {
+        var str = '';
+        for (var j = 0; j < bytes.length; j++) str += String.fromCharCode(bytes[j]);
+        return str;
+    }
+};
+
+function PluginStorage(pluginId) {
+    this.pluginId = pluginId || '';
+}
+PluginStorage.prototype.get = function(key) {
+    var raw = __dantotsuStorage.get(this.pluginId + "_DB_" + key);
+    if (!raw) return undefined;
+    try {
+        var item = JSON.parse(raw);
+        if (item.expires && Date.now() > item.expires) {
+            this.delete(key);
+            return undefined;
+        }
+        return item.value !== undefined ? item.value : item;
+    } catch (e) {
+        return raw;
+    }
+};
+PluginStorage.prototype.set = function(key, value, expires) {
+    var exp = (expires instanceof Date) ? expires.getTime() : expires;
+    var item = {
+        created: new Date().toISOString(),
+        value: value,
+        expires: exp
+    };
+    __dantotsuStorage.set(this.pluginId + "_DB_" + key, JSON.stringify(item));
+};
+PluginStorage.prototype.delete = function(key) {
+    __dantotsuStorage.delete(this.pluginId + "_DB_" + key);
+};
+PluginStorage.prototype.clearAll = function() {
+    var keysStr = __dantotsuStorage.getAllKeys(this.pluginId + "_DB_");
+    try {
+        var keys = JSON.parse(keysStr);
+        for (var i = 0; i < keys.length; i++) {
+            __dantotsuStorage.delete(keys[i]);
+        }
+    } catch(e) {}
+};
+PluginStorage.prototype.getAllKeys = function() {
+    var keysStr = __dantotsuStorage.getAllKeys(this.pluginId + "_DB_");
+    try {
+        var keys = JSON.parse(keysStr);
+        var prefix = this.pluginId + "_DB_";
+        return keys.map(function(k) { return k.replace(prefix, ''); });
+    } catch(e) {
+        return [];
+    }
+};
+
+const gcm = function(key, nonce) {
+    return {
+        encrypt: function(plaintext) { return plaintext; },
+        decrypt: function(ciphertext) { return ciphertext; }
+    };
+};
+
 const require = (pkg) => {
     switch (pkg) {
         case "cheerio":           return { load: load };
         case "htmlparser2":       return { Parser: Parser };
         case "dayjs":             return dayjs;
         case "urlencode":         return { encode: encodeURIComponent, decode: decodeURIComponent };
-        case "@libs/fetch":       return { fetchApi: fetchApi, fetchText: fetchText };
+        case "@libs/fetch":       return { fetchApi: fetchApi, fetchText: fetchText, fetchProto: fetchApi };
         case "@libs/novelStatus": return { NovelStatus: NovelStatus };
         case "@libs/isAbsoluteUrl": return { isUrlAbsolute: isUrlAbsolute };
         case "@libs/filterInputs": return { FilterTypes, isPickerValue, isCheckboxValue, isSwitchValue, isTextValue, isXCheckboxValue };
         case "@libs/defaultCover": return { defaultCover: defaultCover };
-        case "@libs/storage":     return { storage: { get: () => null, set: () => {}, delete: () => {} } };
+        case "@libs/aes":         return { gcm: gcm };
+        case "@libs/utils":       return { utf8ToBytes: utf8ToBytes, bytesToUtf8: bytesToUtf8 };
+        case "@libs/storage":     return {
+            storage: new PluginStorage(''),
+            localStorage: new PluginStorage('local'),
+            sessionStorage: new PluginStorage('session')
+        };
+        case "lodash-es/reverse": return function(arr) { return arr ? arr.slice().reverse() : []; };
+        case "lodash-es/uniqBy":  return function(arr, key) {
+            if (!arr) return [];
+            var seen = new Set();
+            return arr.filter(function(item) {
+                var k = typeof key === 'function' ? key(item) : item[key];
+                if (seen.has(k)) return false;
+                seen.add(k);
+                return true;
+            });
+        };
         default:                  return {};
     }
 };
@@ -474,14 +662,31 @@ var fetchApi = function(url, init) {
     var headersJson = JSON.stringify(headers);
     var resultStr = __dantotsuFetch.fetch(url, method, headersJson, body);
     var result = JSON.parse(resultStr);
+    
+    var responseHeaders = result.headers || {};
+    responseHeaders.get = function(key) {
+        if (!key) return null;
+        var lk = key.toLowerCase();
+        for (var k in result.headers) {
+            if (k.toLowerCase() === lk) return result.headers[k];
+        }
+        return null;
+    };
+    
     return Promise.resolve({
         status: result.statusCode,
         statusText: result.reasonPhrase,
         ok: result.statusCode >= 200 && result.statusCode < 300,
         url: result.url || url,
-        headers: result.headers || {},
+        headers: responseHeaders,
         text: function() { return Promise.resolve(result.body); },
-        json: function() { return Promise.resolve(JSON.parse(result.body)); },
+        json: function() {
+            try {
+                return Promise.resolve(JSON.parse(result.body));
+            } catch(e) {
+                return Promise.resolve({});
+            }
+        },
         body: result.body
     });
 };
@@ -509,13 +714,11 @@ Parser.prototype.end = function() {
     var buf = this._buf, i = 0, len = buf.length;
     while (i < len) {
         if (buf[i] === '<') {
-            // Skip HTML comments
             if (buf[i+1] === '!' && buf[i+2] === '-' && buf[i+3] === '-') {
                 var ce = buf.indexOf('-->', i + 4);
                 i = ce === -1 ? len : ce + 3;
                 continue;
             }
-            // Skip DOCTYPE
             if (buf[i+1] === '!' || buf[i+1] === '?') {
                 var de = buf.indexOf('>', i + 2);
                 i = de === -1 ? len : de + 1;
@@ -558,14 +761,13 @@ Parser.prototype.end = function() {
             } else {
                 if (this.opts.onopentagname) this.opts.onopentagname(tag);
                 if (this.opts.onopentag) this.opts.onopentag(tag, attrs);
-                // For raw tags
                 if (RAW_TAGS[tag]) {
                     var closeTag = '</' + tag;
                     var ri = buf.toLowerCase().indexOf(closeTag, i);
                     if (ri !== -1) {
                         var rawText = buf.slice(i, ri);
                         if (rawText && this.opts.ontext) this.opts.ontext(rawText);
-                        i = ri;  // position at '</' so next iteration handles closing tag
+                        i = ri;
                     }
                 }
             }
@@ -584,7 +786,7 @@ Parser.prototype.end = function() {
 function load(html) {
     if (typeof html !== 'string') html = String(html || "");
     var rootId = __dantotsuJsoup.parse(html);
-    
+
     function wrap(nodeIds) {
         var obj = {
             _nodes: nodeIds,
@@ -601,6 +803,17 @@ function load(html) {
                 var resStr = __dantotsuJsoup.select(JSON.stringify(this._nodes), sel);
                 return wrap(JSON.parse(resStr));
             },
+            children: function(sel) {
+                var resStr = __dantotsuJsoup.children(JSON.stringify(this._nodes), sel || "");
+                return wrap(JSON.parse(resStr));
+            },
+            parent: function() {
+                var resStr = __dantotsuJsoup.parent(JSON.stringify(this._nodes));
+                return wrap(JSON.parse(resStr));
+            },
+            hasClass: function(className) {
+                return __dantotsuJsoup.hasClass(JSON.stringify(this._nodes), className);
+            },
             each: function(fn) {
                 for (var i = 0; i < this._nodes.length; i++) {
                     var el = wrap([this._nodes[i]]);
@@ -615,6 +828,9 @@ function load(html) {
             get: function(i) {
                  if (i === undefined) return this._nodes.map(function(id) { return wrap([id]); });
                  return wrap([this._nodes[i]]);
+            },
+            toArray: function() {
+                 return this._nodes.map(function(id) { return wrap([id]); });
             },
             map: function(fn) {
                  var res = [];
@@ -663,7 +879,7 @@ function load(html) {
         }
         return obj;
     }
-    
+
     var $ = function(sel, context) {
         if (typeof sel === 'object' && sel !== null && sel._nodes) return sel;
         if (typeof sel !== 'string') return wrap([]);
@@ -676,7 +892,7 @@ function load(html) {
         var resStr = __dantotsuJsoup.select(JSON.stringify([rootId]), sel);
         return wrap(JSON.parse(resStr));
     };
-    
+
     $.html = function() { return __dantotsuJsoup.outerHtml(JSON.stringify([rootId])); };
     $.root = function() { return wrap([rootId]); };
     return $;
