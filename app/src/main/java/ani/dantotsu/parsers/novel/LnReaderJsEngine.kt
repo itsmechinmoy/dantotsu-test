@@ -268,7 +268,13 @@ object LnReaderJsEngine {
                     (function(module, exports, require) {
                         $pluginJs
                     })(module, exports, require);
-                    globalThis['__plugin_$pluginId'] = module.exports.default || module.exports;
+                    var pluginInstance = module.exports.default || module.exports;
+                    if (typeof pluginInstance === 'function') {
+                        try {
+                            pluginInstance = new pluginInstance();
+                        } catch(e) {}
+                    }
+                    globalThis['__plugin_$pluginId'] = pluginInstance;
                 })();
             """.trimIndent())
 
@@ -303,16 +309,22 @@ object LnReaderJsEngine {
             """.trimIndent()
             qjs.evaluate(invokeScript)
 
-            // Drain microtasks in QuickJS
-            var isDone = qjs.evaluate("globalThis.__callDone") as? Boolean ?: false
-            if (!isDone) {
-                isDone = qjs.evaluate("globalThis.__callDone") as? Boolean ?: false
+            // Drain microtasks in QuickJS until Promise chain completes
+            var isDone = false
+            var iterations = 0
+            while (!isDone && iterations < 500) {
+                isDone = (qjs.evaluate("globalThis.__callDone === true") as? Boolean) == true
+                iterations++
             }
 
             val error = qjs.evaluate("globalThis.__callError") as? String
             if (!error.isNullOrBlank()) {
                 Logger.log("LnReaderJsEngine: error calling '$method' on '$pluginId': $error")
                 throw Exception(error)
+            }
+
+            if (!isDone) {
+                throw Exception("Plugin '$pluginId' method '$method' timed out (still pending after $iterations cycles)")
             }
 
             val resultStr = qjs.evaluate("globalThis.__callResult") as? String ?: "null"
@@ -860,9 +872,16 @@ Parser.prototype.end = function() {
             var tag = buf.slice(i+1, j).toLowerCase();
             i = j;
             var attrs = {};
+            var selfClosing = false;
             while (i < len && buf[i] !== '>') {
                 while (i < len && /\s/.test(buf[i])) i++;
-                if (buf[i] === '>' || buf[i] === '/') break;
+                if (buf[i] === '>') break;
+                if (buf[i] === '/') {
+                    selfClosing = true;
+                    i++;
+                    while (i < len && /\s/.test(buf[i])) i++;
+                    if (buf[i] === '>') break;
+                }
                 var ks = i;
                 while (i < len && !/[\s=>\/]/.test(buf[i])) i++;
                 var key = buf.slice(ks, i).toLowerCase();
@@ -878,11 +897,11 @@ Parser.prototype.end = function() {
                         if (i < len) i++;
                     } else {
                         var vs2 = i;
-                        while (i < len && !/[\s>]/.test(buf[i])) i++;
+                        while (i < len && !/[\s>\/]/.test(buf[i])) i++;
                         val = buf.slice(vs2, i);
                     }
                 }
-                if (key) attrs[key] = val;
+                if (key) attrs[key] = val !== null ? val : "";
             }
             if (buf[i] === '>') i++;
             if (closing) {
@@ -890,14 +909,15 @@ Parser.prototype.end = function() {
             } else {
                 if (this.opts.onopentagname) this.opts.onopentagname(tag);
                 if (this.opts.onopentag) this.opts.onopentag(tag, attrs);
-                // For raw tags
-                if (RAW_TAGS[tag]) {
+                if (selfClosing || VOID_ELEMENTS[tag]) {
+                    if (this.opts.onclosetag) this.opts.onclosetag(tag);
+                } else if (RAW_TAGS[tag]) {
                     var closeTag = '</' + tag;
                     var ri = buf.toLowerCase().indexOf(closeTag, i);
                     if (ri !== -1) {
                         var rawText = buf.slice(i, ri);
                         if (rawText && this.opts.ontext) this.opts.ontext(rawText);
-                        i = ri;  // position at '</' so next iteration handles closing tag
+                        i = ri;
                     }
                 }
             }
@@ -1112,7 +1132,12 @@ function load(html) {
     
     var $ = function(sel, context) {
         if (typeof sel === 'object' && sel !== null && sel._nodes) return sel;
+        if (typeof sel === 'number') return wrap([sel]);
+        if (Array.isArray(sel)) return wrap(sel);
         if (typeof sel !== 'string') return wrap([]);
+        if (sel.trim().startsWith('<')) {
+            return load(sel).root().children();
+        }
         if (context) {
              if (typeof context === 'object' && context._nodes) {
                   var resStr = __dantotsuJsoup.select(JSON.stringify(context._nodes), sel);
