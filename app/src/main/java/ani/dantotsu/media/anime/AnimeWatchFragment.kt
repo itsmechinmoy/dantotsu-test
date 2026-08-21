@@ -693,6 +693,11 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
             val taskName = AnimeDownloaderService.AnimeDownloadTask.getTaskName(media.mainName(), i)
             PrefManager.getAnimeDownloadPreferences().edit().remove(taskName).apply()
             episodeAdapter.deleteDownload(i)
+            val isDownloaded = model.watchSources?.isDownloadedSource(media.selected?.sourceIndex ?: 0) == true
+            if (isDownloaded) {
+                model.invalidateSource(media.selected?.sourceIndex ?: 0)
+                loadEpisodes(media.selected?.sourceIndex ?: 0, true)
+            }
         }
     }
 
@@ -855,6 +860,7 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
         episodeAdapter.arr = arr
         episodeAdapter.updateType(style ?: PrefManager.getVal(PrefName.AnimeDefaultView))
         episodeAdapter.notifyItemRangeInserted(0, arr.size)
+        episodeAdapter.clearAllDownloaded()
         for (download in downloadManager.animeDownloadedTypes) {
             if (media.compareName(download.titleName)) {
                 episodeAdapter.addToDownloadedEpisodes(download.chapterName, downloadManager.getSize(download))
