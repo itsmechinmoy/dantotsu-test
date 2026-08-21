@@ -163,37 +163,37 @@ class LanguageMapper {
             "all" to "all"
         )
 
+        private fun cleanLangString(raw: String): String {
+            return raw.replace("[\u200B-\u200F\u202A-\u202E\uFEFF]".toRegex(), "")
+                .trim()
+                .lowercase()
+        }
+
         fun getLanguageName(codeOrName: String): String {
-            val trimmed = codeOrName.trim()
-            if (trimmed.isEmpty() || trimmed.equals("all", ignoreCase = true)) {
+            val clean = cleanLangString(codeOrName)
+            if (clean.isEmpty() || clean == "all" || clean == "multi") {
                 return codeMap["all"] ?: "Multi"
             }
-            if (codeMap.containsKey(trimmed.lowercase())) {
-                return codeMap[trimmed.lowercase()] ?: trimmed
+            if (codeMap.containsKey(clean)) {
+                return codeMap[clean] ?: codeOrName.trim()
             }
-            val mappedCode = nativeToCodeMap[trimmed.lowercase()]
+            val mappedCode = nativeToCodeMap[clean]
             if (mappedCode != null && codeMap.containsKey(mappedCode)) {
-                return codeMap[mappedCode] ?: trimmed
+                return codeMap[mappedCode] ?: codeOrName.trim()
             }
-            return if (trimmed.contains("-")) {
-                try {
-                    val parts = trimmed.split("-")
-                    Locale(parts[0], parts[1]).displayName
-                } catch (ignored: Exception) {
-                    trimmed
-                }
-            } else {
-                try {
-                    val name = Locale(trimmed).displayName
-                    if (name.isNotBlank() && name != trimmed) name else trimmed
-                } catch (ignored: Exception) {
-                    trimmed
-                }
+            val trimmed = codeOrName.trim()
+            return try {
+                val locale = Locale.forLanguageTag(trimmed)
+                val name = locale.displayName
+                if (name.isNotBlank() && name != trimmed) name else trimmed
+            } catch (ignored: Exception) {
+                trimmed
             }
         }
 
         fun getLanguageCode(language: String): String {
-            val clean = language.trim().lowercase()
+            val clean = cleanLangString(language)
+            if (clean.isEmpty() || clean == "all" || clean == "multi") return "all"
             if (codeMap.containsKey(clean)) return clean
             nativeToCodeMap[clean]?.let { return it }
             for ((k, v) in codeMap) {
