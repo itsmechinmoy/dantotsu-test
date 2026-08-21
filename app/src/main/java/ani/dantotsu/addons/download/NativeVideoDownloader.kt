@@ -500,8 +500,13 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
 
                         val subDeferreds = subtitleUrls.mapIndexed { index, sub ->
                             async {
+                                val ext = when {
+                                    sub.first.contains(".ass", ignoreCase = true) || sub.first.contains(".ssa", ignoreCase = true) -> "ass"
+                                    sub.first.contains(".srt", ignoreCase = true) -> "srt"
+                                    else -> "vtt"
+                                }
                                 val subTempFile =
-                                    File(context.cacheDir, "hls_dl_${sessionId}_sub_${index}.vtt")
+                                    File(context.cacheDir, "hls_dl_${sessionId}_sub_${index}.$ext")
                                 synchronized(localTempFiles) { localTempFiles.add(subTempFile) }
                                 val req = Request.Builder().url(sub.first).headers(okHeaders).build()
                                 client.newCall(req).execute().use { res ->
@@ -584,9 +589,6 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                 }
             }
             command.append("-c copy ")
-            if (subtitleUrls.isNotEmpty()) {
-                command.append("-c:s srt ")
-            }
             for ((index, sub) in subtitleUrls.withIndex()) {
                 command.append("-metadata:s:s:$index language=\"${sub.second}\" ")
             }
@@ -1242,17 +1244,14 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
 
         for (i in subtitles.indices) {
             val inputIndex = 1 + i
-            command.append("-map $inputIndex:s:0? ")
+            command.append("-map $inputIndex? ")
         }
         for (i in audios.indices) {
             val inputIndex = 1 + subtitles.size + i
-            command.append("-map $inputIndex:a:0? ")
+            command.append("-map $inputIndex? ")
         }
 
         command.append("-c copy ")
-        if (subtitles.isNotEmpty()) {
-            command.append("-c:s srt ")
-        }
         for ((index, sub) in subtitles.withIndex()) {
             command.append("-metadata:s:s:$index language=\"${sub.second}\" ")
         }
