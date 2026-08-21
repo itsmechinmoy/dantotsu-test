@@ -1,12 +1,13 @@
 package ani.dantotsu.parsers.novel
-
 import android.content.Context
 import app.cash.quickjs.QuickJs
-import ani.dantotsu.App
 import ani.dantotsu.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -16,6 +17,7 @@ import kotlinx.serialization.decodeFromString
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Headers.Companion.toHeaders
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
@@ -41,7 +43,7 @@ object LnReaderJsEngine {
     ): String = withContext(Dispatchers.IO) {
         val qjs = QuickJs.create()
         try {
-            // Jsoup elements cache
+            // Bridge
             val jsoupElements = mutableMapOf<Int, org.jsoup.nodes.Element>()
             var elementCounter = 0
 
@@ -98,6 +100,14 @@ object LnReaderJsEngine {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     ids.forEach { jsoupElements[it]?.attr(attr, value) }
                 }
+                override fun addClass(nodeIdsJson: String, className: String) {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    ids.forEach { jsoupElements[it]?.addClass(className) }
+                }
+                override fun removeClass(nodeIdsJson: String, className: String) {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    ids.forEach { jsoupElements[it]?.removeClass(className) }
+                }
                 override fun next(nodeIdsJson: String): String {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val resultIds = mutableListOf<Int>()
@@ -134,6 +144,37 @@ object LnReaderJsEngine {
                     }
                     return Json.encodeToString(resultIds)
                 }
+                override fun parents(nodeIdsJson: String, selector: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        val node = jsoupElements[id] ?: continue
+                        val pList = if (selector.isNotBlank()) node.parents().select(selector) else node.parents()
+                        for (el in pList) {
+                            val newId = ++elementCounter
+                            jsoupElements[newId] = el
+                            resultIds.add(newId)
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
+                override fun closest(nodeIdsJson: String, selector: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        var curr = jsoupElements[id]
+                        while (curr != null) {
+                            if (selector.isBlank() || curr.`is`(selector)) {
+                                val newId = ++elementCounter
+                                jsoupElements[newId] = curr
+                                resultIds.add(newId)
+                                break
+                            }
+                            curr = curr.parent()
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
                 override fun children(nodeIdsJson: String, selector: String): String {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     val resultIds = mutableListOf<Int>()
@@ -161,45 +202,6 @@ object LnReaderJsEngine {
                         }
                     }
                     return Json.encodeToString(resultIds)
-                }
-                override fun closest(nodeIdsJson: String, selector: String): String {
-                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
-                    val resultIds = mutableListOf<Int>()
-                    for (id in ids) {
-                        var curr = jsoupElements[id]
-                        while (curr != null) {
-                            if (selector.isBlank() || curr.`is`(selector)) {
-                                val newId = ++elementCounter
-                                jsoupElements[newId] = curr
-                                resultIds.add(newId)
-                                break
-                            }
-                            curr = curr.parent()
-                        }
-                    }
-                    return Json.encodeToString(resultIds)
-                }
-                override fun parents(nodeIdsJson: String, selector: String): String {
-                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
-                    val resultIds = mutableListOf<Int>()
-                    for (id in ids) {
-                        val node = jsoupElements[id] ?: continue
-                        val pList = if (selector.isNotBlank()) node.parents().select(selector) else node.parents()
-                        for (el in pList) {
-                            val newId = ++elementCounter
-                            jsoupElements[newId] = el
-                            resultIds.add(newId)
-                        }
-                    }
-                    return Json.encodeToString(resultIds)
-                }
-                override fun addClass(nodeIdsJson: String, className: String) {
-                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
-                    ids.forEach { jsoupElements[it]?.addClass(className) }
-                }
-                override fun removeClass(nodeIdsJson: String, className: String) {
-                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
-                    ids.forEach { jsoupElements[it]?.removeClass(className) }
                 }
                 override fun hasClass(nodeIdsJson: String, className: String): Boolean {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
@@ -230,7 +232,7 @@ object LnReaderJsEngine {
             })
 
             qjs.set("__dantotsuStorage", StorageBridge::class.java, object : StorageBridge {
-                private val prefs = App.currentContext()?.getSharedPreferences("lnreader_plugin_storage", Context.MODE_PRIVATE)
+                private val prefs = ani.dantotsu.App.currentContext()?.getSharedPreferences("lnreader_plugin_storage", Context.MODE_PRIVATE)
 
                 override fun get(key: String): String? {
                     return prefs?.getString(key, null)
@@ -251,7 +253,6 @@ object LnReaderJsEngine {
             })
 
             qjs.evaluate(POLYFILL_JS)
-            qjs.evaluate(SYNC_PROMISE_POLYFILL_JS)
             qjs.evaluate(STRING_HELPERS_JS)
             qjs.evaluate(HTMLPARSER_JS)
             qjs.evaluate(CHEERIO_JSOUP_BRIDGE_JS)
@@ -259,69 +260,63 @@ object LnReaderJsEngine {
             qjs.evaluate(MODULE_BOOTSTRAP_JS)
             qjs.evaluate(REQUIRE_SHIM_JS)
 
-            // Load plugin
+            // Load plugin safely
             qjs.evaluate("""
                 (function() {
-                    $pluginJs
-                    globalThis['__plugin_$pluginId'] = exports.default ?? exports;
+                    var exports = {};
+                    var module = { exports: exports };
+                    (function(module, exports, require) {
+                        $pluginJs
+                    })(module, exports, require);
+                    globalThis['__plugin_$pluginId'] = module.exports.default || module.exports;
                 })();
             """.trimIndent())
 
-            val callJs = """
+            // Call method and drain async Promise execution
+            val invokeScript = """
+                globalThis.__callResult = null;
+                globalThis.__callError = null;
+                globalThis.__callDone = false;
                 (function() {
                     try {
                         var target = globalThis['__plugin_$pluginId'];
                         if (!target) throw new Error("Plugin '$pluginId' not loaded");
                         var fn = target["$method"];
-                        if (typeof fn !== "function") throw new Error("Method '$method' not found on plugin");
-                        var args = JSON.parse('${argsJson.replace("'", "\\'")}');
-                        var result = fn.apply(target, args);
-
-                        if (result && typeof result.then === "function") {
-                            var isSettled = false;
-                            var settledVal = undefined;
-                            var settledErr = undefined;
-
-                            result.then(function(v) {
-                                settledVal = v;
-                                isSettled = true;
-                            }, function(e) {
-                                settledErr = e;
-                                isSettled = true;
-                            });
-
-                            if (!isSettled && result.state) {
-                                if (result.state === 'fulfilled') {
-                                    settledVal = result.value;
-                                    isSettled = true;
-                                } else if (result.state === 'rejected') {
-                                    settledErr = result.reason;
-                                    isSettled = true;
-                                }
+                        if (typeof fn !== "function") throw new Error("Method '$method' not found on plugin '$pluginId'");
+                        var args = JSON.parse(${Json.encodeToString(argsJson)});
+                        var p = Promise.resolve(fn.apply(target, args));
+                        p.then(
+                            function(r) {
+                                globalThis.__callResult = JSON.stringify(r === undefined ? null : r);
+                                globalThis.__callDone = true;
+                            },
+                            function(e) {
+                                globalThis.__callError = String((e && e.message) || e);
+                                globalThis.__callDone = true;
                             }
-
-                            if (isSettled) {
-                                if (settledErr !== undefined) {
-                                    throw (settledErr instanceof Error ? settledErr : new Error(String(settledErr)));
-                                }
-                                return JSON.stringify(settledVal !== undefined ? settledVal : null);
-                            }
-
-                            if (result.state === 'fulfilled') {
-                                return JSON.stringify(result.value !== undefined ? result.value : null);
-                            } else if (result.state === 'rejected') {
-                                throw result.reason instanceof Error ? result.reason : new Error(String(result.reason));
-                            }
-                            return JSON.stringify(null);
-                        }
-                        return JSON.stringify(result !== undefined ? result : null);
+                        );
                     } catch(e) {
-                        throw e;
+                        globalThis.__callError = String((e && e.message) || e);
+                        globalThis.__callDone = true;
                     }
                 })();
             """.trimIndent()
-            val raw = qjs.evaluate(callJs)
-            raw?.toString() ?: "null"
+            qjs.evaluate(invokeScript)
+
+            // Drain microtasks in QuickJS
+            var isDone = qjs.evaluate("globalThis.__callDone") as? Boolean ?: false
+            if (!isDone) {
+                isDone = qjs.evaluate("globalThis.__callDone") as? Boolean ?: false
+            }
+
+            val error = qjs.evaluate("globalThis.__callError") as? String
+            if (!error.isNullOrBlank()) {
+                Logger.log("LnReaderJsEngine: error calling '$method' on '$pluginId': $error")
+                throw Exception(error)
+            }
+
+            val resultStr = qjs.evaluate("globalThis.__callResult") as? String ?: "null"
+            resultStr
 
         } catch (e: Exception) {
             Logger.log("LnReaderJsEngine.call error [$method]: ${e.message}")
@@ -352,6 +347,7 @@ object LnReaderJsEngine {
                 "Accept-Language" to "*",
                 "Cache-Control" to "max-age=0",
             )
+            // default first
             defaultHeaders.forEach { (k, v) ->
                 if (!parsedHeaders.keys.any { it.equals(k, ignoreCase = true) }) {
                     reqBuilder.addHeader(k, v)
@@ -413,6 +409,8 @@ object LnReaderJsEngine {
         }
     }
 
+    //QuickJS
+
     interface FetchBridge {
         fun fetch(url: String, method: String, headersJson: String, body: String?): String
     }
@@ -452,6 +450,7 @@ object LnReaderJsEngine {
         fun tagName(nodeIdsJson: String): String
     }
 
+
     private val MODULE_BOOTSTRAP_JS = """
 var module = {};
 var exports = (function() { return this; })();
@@ -479,11 +478,11 @@ const FilterTypes = {
     "Switch":"Switch","ExcludableCheckboxGroup":"XCheckbox"
 };
 
-const isPickerValue      = q => q.type === FilterTypes.Picker && typeof q.value === "string";
-const isCheckboxValue    = q => q.type === FilterTypes.CheckboxGroup && Array.isArray(q.value);
-const isSwitchValue      = q => q.type === FilterTypes.Switch && typeof q.value === "boolean";
-const isTextValue        = q => q.type === FilterTypes.TextInput && typeof q.value === "string";
-const isXCheckboxValue   = q => q.type === FilterTypes.ExcludableCheckboxGroup && typeof q.value === "object" && !Array.isArray(q.value);
+const isPickerValue      = q => q && q.type === FilterTypes.Picker && typeof q.value === "string";
+const isCheckboxValue    = q => q && q.type === FilterTypes.CheckboxGroup && Array.isArray(q.value);
+const isSwitchValue      = q => q && q.type === FilterTypes.Switch && typeof q.value === "boolean";
+const isTextValue        = q => q && q.type === FilterTypes.TextInput && typeof q.value === "string";
+const isXCheckboxValue   = q => q && q.type === FilterTypes.ExcludableCheckboxGroup && typeof q.value === "object" && !Array.isArray(q.value);
 
 const isUrlAbsolute = url => {
     if (!url) return false;
@@ -496,66 +495,32 @@ const isUrlAbsolute = url => {
     return false;
 };
 
-const defaultCover = '';
-
-const utf8ToBytes = function(str) {
-    if (!str) return new Uint8Array(0);
-    var bytes = [];
-    for (var i = 0; i < str.length; i++) {
-        var charCode = str.charCodeAt(i);
-        if (charCode < 0x80) bytes.push(charCode);
-        else if (charCode < 0x800) {
-            bytes.push(0xc0 | (charCode >> 6), 0x80 | (charCode & 0x3f));
-        } else if (charCode < 0xd800 || charCode >= 0xe000) {
-            bytes.push(0xe0 | (charCode >> 12), 0x80 | ((charCode >> 6) & 0x3f), 0x80 | (charCode & 0x3f));
-        } else {
-            i++;
-            charCode = 0x10000 + (((charCode & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
-            bytes.push(0xf0 | (charCode >> 18), 0x80 | ((charCode >> 12) & 0x3f), 0x80 | ((charCode >> 6) & 0x3f), 0x80 | (charCode & 0x3f));
-        }
-    }
-    return new Uint8Array(bytes);
+const defaultCover = "https://placehold.co/300x400";
+const gcm = function(key, nonce) {
+    return {
+        encrypt: function(plaintext) { return plaintext; },
+        decrypt: function(ciphertext) { return ciphertext; }
+    };
 };
 
-const bytesToUtf8 = function(bytes) {
-    if (!bytes) return '';
-    var encoded = [];
-    for (var i = 0; i < bytes.length; i++) {
-        encoded.push('%' + ('0' + bytes[i].toString(16)).slice(-2));
-    }
-    try {
-        return decodeURIComponent(encoded.join(''));
-    } catch(e) {
-        var str = '';
-        for (var j = 0; j < bytes.length; j++) str += String.fromCharCode(bytes[j]);
-        return str;
-    }
-};
-
-function PluginStorage(pluginId) {
-    this.pluginId = pluginId || '';
-}
+function PluginStorage(pluginId) { this.pluginId = pluginId || ''; }
 PluginStorage.prototype.get = function(key) {
-    var raw = __dantotsuStorage.get(this.pluginId + "_DB_" + key);
-    if (!raw) return undefined;
+    var stored = __dantotsuStorage.get(this.pluginId + "_DB_" + key);
+    if (!stored) return undefined;
     try {
-        var item = JSON.parse(raw);
+        var item = JSON.parse(stored);
         if (item.expires && Date.now() > item.expires) {
             this.delete(key);
             return undefined;
         }
         return item.value !== undefined ? item.value : item;
-    } catch (e) {
-        return raw;
+    } catch(e) {
+        return stored;
     }
 };
 PluginStorage.prototype.set = function(key, value, expires) {
     var exp = (expires instanceof Date) ? expires.getTime() : expires;
-    var item = {
-        created: new Date().toISOString(),
-        value: value,
-        expires: exp
-    };
+    var item = { created: Date.now(), value: value, expires: exp };
     __dantotsuStorage.set(this.pluginId + "_DB_" + key, JSON.stringify(item));
 };
 PluginStorage.prototype.delete = function(key) {
@@ -581,13 +546,6 @@ PluginStorage.prototype.getAllKeys = function() {
     }
 };
 
-const gcm = function(key, nonce) {
-    return {
-        encrypt: function(plaintext) { return plaintext; },
-        decrypt: function(ciphertext) { return ciphertext; }
-    };
-};
-
 const require = (pkg) => {
     switch (pkg) {
         case "cheerio":           return { load: load };
@@ -601,13 +559,13 @@ const require = (pkg) => {
         case "@libs/defaultCover": return { defaultCover: defaultCover };
         case "@libs/aes":         return { gcm: gcm };
         case "@libs/utils":       return { utf8ToBytes: utf8ToBytes, bytesToUtf8: bytesToUtf8 };
+        case "@/lib/utils":       return { utf8ToBytes: utf8ToBytes, bytesToUtf8: bytesToUtf8 };
+        case "@libs/parseDate":   return { parseDate: function(d) { return dayjs(d).format('LL'); } };
         case "@libs/storage":     return {
             storage: new PluginStorage(''),
             localStorage: new PluginStorage('local'),
             sessionStorage: new PluginStorage('session')
         };
-        case "@libs/parseDate":   return { parseDate: function(d) { return dayjs(d).format('LL'); } };
-        case "@/lib/utils":       return { utf8ToBytes: utf8ToBytes, bytesToUtf8: bytesToUtf8 };
         case "lodash-es/reverse": return function(arr) { return arr ? arr.slice().reverse() : []; };
         case "lodash-es/uniqBy":  return function(arr, key) {
             if (!arr) return [];
@@ -668,6 +626,37 @@ var atob = function(input) {
     }
     return output;
 };
+
+function utf8ToBytes(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+        var code = str.charCodeAt(i);
+        if (code < 0x80) {
+            bytes.push(code);
+        } else if (code < 0x800) {
+            bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
+        } else if (code < 0xd800 || code >= 0xe000) {
+            bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+        } else {
+            i++;
+            code = 0x10000 + (((code & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
+            bytes.push(0xf0 | (code >> 18), 0x80 | ((code >> 12) & 0x3f), 0x80 | (code & 0x3f));
+        }
+    }
+    return new Uint8Array(bytes);
+}
+
+function bytesToUtf8(bytes) {
+    var encoded = "";
+    for (var i = 0; i < bytes.length; i++) {
+        encoded += "%" + ("0" + bytes[i].toString(16)).slice(-2);
+    }
+    try {
+        return decodeURIComponent(encoded);
+    } catch (e) {
+        return unescape(encoded);
+    }
+}
 
 function TextEncoder() {}
 TextEncoder.prototype.encode = function(str) {
@@ -799,7 +788,6 @@ var fetchApi = function(url, init) {
     var headersJson = JSON.stringify(headers);
     var resultStr = __dantotsuFetch.fetch(url, method, headersJson, body);
     var result = JSON.parse(resultStr);
-    
     var responseHeaders = result.headers || {};
     responseHeaders.get = function(key) {
         if (!key) return null;
@@ -809,7 +797,6 @@ var fetchApi = function(url, init) {
         }
         return null;
     };
-    
     return Promise.resolve({
         status: result.statusCode,
         statusText: result.reasonPhrase,
@@ -817,7 +804,7 @@ var fetchApi = function(url, init) {
         url: result.url || url,
         headers: responseHeaders,
         text: function() { return Promise.resolve(result.body); },
-        json: function() {
+        json: function() { 
             try {
                 return Promise.resolve(JSON.parse(result.body));
             } catch(e) {
@@ -854,11 +841,13 @@ Parser.prototype.end = function() {
     var buf = this._buf, i = 0, len = buf.length;
     while (i < len) {
         if (buf[i] === '<') {
+            // Skip HTML comments
             if (buf[i+1] === '!' && buf[i+2] === '-' && buf[i+3] === '-') {
                 var ce = buf.indexOf('-->', i + 4);
                 i = ce === -1 ? len : ce + 3;
                 continue;
             }
+            // Skip DOCTYPE
             if (buf[i+1] === '!' || buf[i+1] === '?') {
                 var de = buf.indexOf('>', i + 2);
                 i = de === -1 ? len : de + 1;
@@ -871,16 +860,14 @@ Parser.prototype.end = function() {
             var tag = buf.slice(i+1, j).toLowerCase();
             i = j;
             var attrs = {};
-            var selfClosing = false;
             while (i < len && buf[i] !== '>') {
                 while (i < len && /\s/.test(buf[i])) i++;
-                if (buf[i] === '/') { selfClosing = true; i++; continue; }
-                if (buf[i] === '>') break;
+                if (buf[i] === '>' || buf[i] === '/') break;
                 var ks = i;
                 while (i < len && !/[\s=>\/]/.test(buf[i])) i++;
                 var key = buf.slice(ks, i).toLowerCase();
                 while (i < len && /\s/.test(buf[i])) i++;
-                var val = "";
+                var val = null;
                 if (buf[i] === '=') {
                     i++;
                     while (i < len && /\s/.test(buf[i])) i++;
@@ -891,7 +878,7 @@ Parser.prototype.end = function() {
                         if (i < len) i++;
                     } else {
                         var vs2 = i;
-                        while (i < len && !/[\s>\/]/.test(buf[i])) i++;
+                        while (i < len && !/[\s>]/.test(buf[i])) i++;
                         val = buf.slice(vs2, i);
                     }
                 }
@@ -903,15 +890,14 @@ Parser.prototype.end = function() {
             } else {
                 if (this.opts.onopentagname) this.opts.onopentagname(tag);
                 if (this.opts.onopentag) this.opts.onopentag(tag, attrs);
-                if (selfClosing || VOID_ELEMENTS[tag]) {
-                    if (this.opts.onclosetag) this.opts.onclosetag(tag);
-                } else if (RAW_TAGS[tag]) {
+                // For raw tags
+                if (RAW_TAGS[tag]) {
                     var closeTag = '</' + tag;
                     var ri = buf.toLowerCase().indexOf(closeTag, i);
                     if (ri !== -1) {
                         var rawText = buf.slice(i, ri);
                         if (rawText && this.opts.ontext) this.opts.ontext(rawText);
-                        i = ri;
+                        i = ri;  // position at '</' so next iteration handles closing tag
                     }
                 }
             }
@@ -930,7 +916,7 @@ Parser.prototype.end = function() {
 function load(html) {
     if (typeof html !== 'string') html = String(html || "");
     var rootId = __dantotsuJsoup.parse(html);
-
+    
     function wrap(nodeIds) {
         var obj = {
             _nodes: nodeIds,
@@ -1123,7 +1109,7 @@ function load(html) {
         }
         return obj;
     }
-
+    
     var $ = function(sel, context) {
         if (typeof sel === 'object' && sel !== null && sel._nodes) return sel;
         if (typeof sel !== 'string') return wrap([]);
@@ -1136,120 +1122,10 @@ function load(html) {
         var resStr = __dantotsuJsoup.select(JSON.stringify([rootId]), sel);
         return wrap(JSON.parse(resStr));
     };
-
+    
     $.html = function() { return __dantotsuJsoup.outerHtml(JSON.stringify([rootId])); };
     $.root = function() { return wrap([rootId]); };
     return $;
 }
 """.trimIndent()
-
-    private val SYNC_PROMISE_POLYFILL_JS = """
-function Promise(executor) {
-    this.state = 'pending';
-    this.value = undefined;
-    this.reason = undefined;
-    this.onFulfilled = [];
-    this.onRejected = [];
-    var self = this;
-    
-    function resolve(value) {
-        if (value instanceof Promise) {
-            value.then(resolve, reject);
-            return;
-        }
-        if (self.state === 'pending') {
-            self.state = 'fulfilled';
-            self.value = value;
-            self.onFulfilled.forEach(function(fn) { fn(value); });
-        }
-    }
-    
-    function reject(reason) {
-        if (self.state === 'pending') {
-            self.state = 'rejected';
-            self.reason = reason;
-            self.onRejected.forEach(function(fn) { fn(reason); });
-        }
-    }
-    
-    try {
-        executor(resolve, reject);
-    } catch (e) {
-        reject(e);
-    }
-}
-
-Promise.prototype.then = function(onFulfilled, onRejected) {
-    var self = this;
-    return new Promise(function(resolve, reject) {
-        function handle(callback, val) {
-            try {
-                if (typeof callback === 'function') {
-                    var result = callback(val);
-                    resolve(result);
-                } else {
-                    if (self.state === 'fulfilled') resolve(val);
-                    else reject(val);
-                }
-            } catch (e) {
-                reject(e);
-            }
-        }
-        
-        if (self.state === 'fulfilled') {
-            handle(onFulfilled, self.value);
-        } else if (self.state === 'rejected') {
-            handle(onRejected, self.reason);
-        } else {
-            self.onFulfilled.push(function(val) { handle(onFulfilled, val); });
-            self.onRejected.push(function(reason) { handle(onRejected, reason); });
-        }
-    });
-};
-
-Promise.prototype.catch = function(onRejected) {
-    return this.then(null, onRejected);
-};
-
-Promise.prototype.finally = function(onFinally) {
-    return this.then(
-        function(value) { return Promise.resolve(onFinally()).then(function() { return value; }); },
-        function(reason) { return Promise.resolve(onFinally()).then(function() { throw reason; }); }
-    );
-};
-
-Promise.resolve = function(value) {
-    if (value instanceof Promise) return value;
-    return new Promise(function(resolve) { resolve(value); });
-};
-
-Promise.reject = function(reason) {
-    return new Promise(function(resolve, reject) { reject(reason); });
-};
-
-Promise.all = function(promises) {
-    return new Promise(function(resolve, reject) {
-        if (!promises || promises.length === 0) return resolve([]);
-        var results = new Array(promises.length);
-        var completed = 0;
-        promises.forEach(function(p, i) {
-            Promise.resolve(p).then(function(val) {
-                results[i] = val;
-                completed++;
-                if (completed === promises.length) resolve(results);
-            }).catch(reject);
-        });
-    });
-};
-
-Promise.allSettled = function(promises) {
-    return Promise.all(promises.map(function(p) {
-        return Promise.resolve(p).then(
-            function(val) { return { status: "fulfilled", value: val }; },
-            function(err) { return { status: "rejected", reason: err }; }
-        );
-    }));
-};
-""".trimIndent()
-
 }
