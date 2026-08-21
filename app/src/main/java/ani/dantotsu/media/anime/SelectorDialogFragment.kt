@@ -838,7 +838,14 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                     }
                     if (subtitles.isNotEmpty()) { // ToTest
                         val subtitleNamesArray = subtitleNames.toTypedArray()
-                        val checkedItems = BooleanArray(subtitleNamesArray.size) { false }
+                        val checkedItems = BooleanArray(subtitleNamesArray.size) { index ->
+                            val name = subtitleNamesArray[index]
+                            val isDefaultMatch = name.contains("English", true) || name.contains("en", true) || (subtitles.size == 1)
+                            if (isDefaultMatch) {
+                                selectedSubtitles.add(subtitles[index].language)
+                            }
+                            isDefaultMatch
+                        }
 
                         currContext.customAlertDialog().apply {
                             setTitle(R.string.download_subtitle)
@@ -846,7 +853,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                                 it.forEachIndexed { index, isChecked ->
                                     val subtitleName = subtitles[index].language
                                     if (isChecked) {
-                                        selectedSubtitles.add(subtitleName)
+                                        if (!selectedSubtitles.contains(subtitleName)) selectedSubtitles.add(subtitleName)
                                     } else {
                                         selectedSubtitles.remove(subtitleName)
                                     }
