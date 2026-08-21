@@ -306,6 +306,10 @@ class EpisodeAdapter(
     override fun getItemCount(): Int = arr.size
     private val downloadedEpisodes = mutableSetOf<String>()
 
+    fun clearAllDownloaded() {
+        downloadedEpisodes.clear()
+    }
+
     fun startDownload(episodeNumber: String) {
         if (downloadedEpisodes.contains(episodeNumber) ||
             AnimeDownloader.isDownloading(media.id, episodeNumber))
