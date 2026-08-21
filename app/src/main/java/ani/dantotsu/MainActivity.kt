@@ -505,7 +505,7 @@ class MainActivity : AppCompatActivity() {
             if (uri == null) {
                 throw Exception("Uri is null")
             }
-            if ((uri.scheme == "tachiyomi" || uri.scheme == "aniyomi" || uri.scheme == "novelyomi") && uri.host == "add-repo") {
+            if ((uri.scheme == "tachiyomi" || uri.scheme == "aniyomi" || uri.scheme == "novelyomi") && (uri.host == "add-repo" || uri.host == "extension-store")) {
                 val url = uri.getQueryParameter("url") ?: throw Exception("No url for repo import")
                 val (prefName, name) = when (uri.scheme) {
                     "tachiyomi" -> PrefName.MangaExtensionRepos to "Manga"
