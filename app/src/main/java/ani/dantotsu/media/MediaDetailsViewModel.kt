@@ -27,6 +27,8 @@ import ani.dantotsu.parsers.MangaImage
 import ani.dantotsu.parsers.MangaReadSources
 import ani.dantotsu.parsers.MangaSources
 import ani.dantotsu.parsers.NovelSources
+import ani.dantotsu.parsers.OfflineAnimeParser
+import ani.dantotsu.parsers.OfflineMangaParser
 import ani.dantotsu.parsers.ShowResponse
 import ani.dantotsu.parsers.VideoExtractor
 import ani.dantotsu.parsers.WatchSources
@@ -690,15 +692,20 @@ class MediaDetailsViewModel : ViewModel() {
     private val episodes = MutableLiveData<MutableMap<Int, MutableMap<String, Episode>>>(null)
     private val epsLoaded = mutableMapOf<Int, MutableMap<String, Episode>>()
     fun getEpisodes(): LiveData<MutableMap<Int, MutableMap<String, Episode>>> = episodes
+    fun invalidateSource(sourceIndex: Int) {
+        epsLoaded.remove(sourceIndex)
+    }
+
     suspend fun loadEpisodes(media: Media, i: Int, invalidate: Boolean = false) {
-        if (!epsLoaded.containsKey(i) || invalidate) {
-            epsLoaded[i] = watchSources?.loadEpisodesFromMedia(i, media) ?: return
+        val isOffline = watchSources?.get(i) is OfflineAnimeParser
+        if (!epsLoaded.containsKey(i) || invalidate || isOffline) {
+            epsLoaded[i] = watchSources?.loadEpisodesFromMedia(i, media) ?: mutableMapOf()
         }
         episodes.postValue(epsLoaded)
     }
 
     suspend fun forceLoadEpisode(media: Media, i: Int) {
-        epsLoaded[i] = watchSources?.loadEpisodesFromMedia(i, media) ?: return
+        epsLoaded[i] = watchSources?.loadEpisodesFromMedia(i, media) ?: mutableMapOf()
         episodes.postValue(epsLoaded)
     }
 
@@ -900,11 +907,16 @@ class MediaDetailsViewModel : ViewModel() {
     fun getMangaChapters(): LiveData<MutableMap<Int, MutableMap<String, MangaChapter>>> =
         mangaChapters
 
+    fun invalidateMangaSource(sourceIndex: Int) {
+        mangaLoaded.remove(sourceIndex)
+    }
+
     suspend fun loadMangaChapters(media: Media, i: Int, invalidate: Boolean = false) {
         Logger.log("Loading Manga Chapters : $mangaLoaded")
-        if (!mangaLoaded.containsKey(i) || invalidate) tryWithSuspend {
+        val isOffline = mangaReadSources?.get(i) is OfflineMangaParser
+        if (!mangaLoaded.containsKey(i) || invalidate || isOffline) tryWithSuspend {
             mangaLoaded[i] =
-                mangaReadSources?.loadChaptersFromMedia(i, media) ?: return@tryWithSuspend
+                mangaReadSources?.loadChaptersFromMedia(i, media) ?: mutableMapOf()
         }
         mangaChapters.postValue(mangaLoaded)
     }
