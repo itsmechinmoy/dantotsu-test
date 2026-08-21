@@ -24,7 +24,16 @@ class LnReaderNovelParser(
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     override suspend fun search(query: String): List<ShowResponse> {
         return try {
-            val raw = engineCall("searchNovels", """["${query.jsEscape()}", 1]""")
+            val raw = if (query.isNotBlank()) {
+                try {
+                    engineCall("searchNovels", """["${query.jsEscape()}", 1]""")
+                } catch (e: Exception) {
+                    Logger.log("LnReaderNovelParser[${plugin.id}] searchNovels failed, fallback to popular: ${e.message}")
+                    engineCall("popularNovels", """[1, {}]""")
+                }
+            } else {
+                engineCall("popularNovels", """[1, {"showLatestNovels": true}]""")
+            }
             val items = json.decodeFromString<List<LnNovelItem>>(raw)
             items.map { item ->
                 ShowResponse(
@@ -43,14 +52,31 @@ class LnReaderNovelParser(
         return try {
             val novelRaw = engineCall("parseNovel", """["${link.jsEscape()}"]""")
             val novel = json.decodeFromString<LnSourceNovel>(novelRaw)
-            val chapters: List<LnChapterItem> = if (!novel.chapters.isNullOrEmpty()) {
-                novel.chapters
-            } else {
+            val chapters = mutableListOf<LnChapterItem>()
+            if (!novel.chapters.isNullOrEmpty()) {
+                chapters.addAll(novel.chapters)
+            }
+            val totalPages = novel.totalPages ?: 1
+            if (totalPages > 1) {
+                for (p in 2..totalPages) {
+                    try {
+                        val pageRaw = engineCall("parsePage", """["${link.jsEscape()}", "$p"]""")
+                        val page = json.decodeFromString<LnSourcePage>(pageRaw)
+                        if (!page.chapters.isNullOrEmpty()) {
+                            chapters.addAll(page.chapters)
+                        }
+                    } catch (e: Exception) {
+                        Logger.log("LnReaderNovelParser[${plugin.id}] parsePage $p failed: ${e.message}")
+                    }
+                }
+            } else if (chapters.isEmpty()) {
                 try {
                     val pageRaw = engineCall("parsePage", """["${link.jsEscape()}", "1"]""")
                     val page = json.decodeFromString<LnSourcePage>(pageRaw)
-                    page.chapters ?: emptyList()
-                } catch (_: Exception) { emptyList() }
+                    if (!page.chapters.isNullOrEmpty()) {
+                        chapters.addAll(page.chapters)
+                    }
+                } catch (_: Exception) {}
             }
 
             val links = chapters.map { ch ->
@@ -75,11 +101,7 @@ class LnReaderNovelParser(
     suspend fun loadChapterHtml(chapterPath: String): String {
         return try {
             val raw = engineCall("parseChapter", """["${chapterPath.jsEscape()}"]""")
-            if (raw.startsWith("\"") && raw.endsWith("\"")) {
-                json.decodeFromString<String>(raw)
-            } else {
-                raw
-            }
+            runCatching { json.decodeFromString<String>(raw) }.getOrDefault(raw)
         } catch (e: Exception) {
             Logger.log("LnReaderNovelParser[${plugin.id}].loadChapterHtml error: ${e.message}")
             "<html><body><p>Failed to load chapter: ${e.message}</p></body></html>"
