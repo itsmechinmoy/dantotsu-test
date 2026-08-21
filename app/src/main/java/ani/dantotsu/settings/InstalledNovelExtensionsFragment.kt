@@ -117,6 +117,20 @@ class InstalledNovelExtensionsFragment : Fragment(), SearchQueryHandler {
                             snackString("No update available")
                         }
                     }
+                    is NovelExtension.JsPlugin -> {
+                        if (ext.hasUpdate) {
+                            lifecycleScope.launch {
+                                val success = novelExtensionManager.updateLnReaderPlugin(ext.pkgName)
+                                if (success) {
+                                    snackString("Extension updated")
+                                } else {
+                                    snackString("Update failed")
+                                }
+                            }
+                        } else {
+                            snackString("No update available")
+                        }
+                    }
                     else -> snackString("No update available")
                 }
             }
