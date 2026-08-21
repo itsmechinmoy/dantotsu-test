@@ -979,6 +979,7 @@ class PlayerSubtitleManager(
                     val isExactLabelMatch = pendingLabel != null && trackLabel.equals(pendingLabel, ignoreCase = true)
                     val isFuzzyMatch = targetTrackId == null && pendingLabel != null && (
                         trackLang.equals(pendingLabel, ignoreCase = true) ||
+                        (pendingLabel.equals("English", ignoreCase = true) && (trackLang.equals("en", ignoreCase = true) || trackLang.equals("eng", ignoreCase = true) || trackLabel.contains("English", ignoreCase = true) || trackLabel.contains("Eng", ignoreCase = true))) ||
                         (trackLabel.isNotBlank() && trackLabel.contains(pendingLabel, ignoreCase = true))
                     )
 
