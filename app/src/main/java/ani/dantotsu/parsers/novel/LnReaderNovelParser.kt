@@ -47,7 +47,8 @@ class LnReaderNovelParser(
                 val obj = el as? JsonObject ?: return@mapNotNull null
                 val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                 val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                val cover = obj["cover"]?.jsonPrimitive?.contentOrNull ?: ""
+                val rawCover = obj["cover"]?.jsonPrimitive?.contentOrNull ?: ""
+                val cover = resolveUrl(rawCover)
                 ShowResponse(
                     name     = name,
                     link     = path,
@@ -67,7 +68,8 @@ class LnReaderNovelParser(
                 ?: throw IllegalStateException("Invalid JSON returned by parseNovel")
 
             val novelName = jsonElement["name"]?.jsonPrimitive?.contentOrNull ?: "Unknown Novel"
-            val novelCover = jsonElement["cover"]?.jsonPrimitive?.contentOrNull ?: ""
+            val rawCover = jsonElement["cover"]?.jsonPrimitive?.contentOrNull ?: ""
+            val novelCover = resolveUrl(rawCover)
             val novelSummary = jsonElement["summary"]?.jsonPrimitive?.contentOrNull
             val totalPages = jsonElement["totalPages"]?.jsonPrimitive?.intOrNull
                 ?: jsonElement["totalPages"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
@@ -130,7 +132,12 @@ class LnReaderNovelParser(
     suspend fun loadChapterHtml(chapterPath: String): String {
         return try {
             val raw = engineCall("parseChapter", """["${chapterPath.jsEscape()}"]""")
-            runCatching { json.decodeFromString<String>(raw) }.getOrDefault(raw)
+            val decoded = runCatching { json.decodeFromString<String>(raw) }.getOrDefault(raw)
+            if (decoded.isBlank() || decoded == "null") {
+                "<html><body><p>No content available for this chapter.</p></body></html>"
+            } else {
+                decoded
+            }
         } catch (e: Exception) {
             Logger.log("LnReaderNovelParser[${plugin.id}].loadChapterHtml error: ${e.message}")
             "<html><body><p>Failed to load chapter: ${e.message}</p></body></html>"
@@ -153,4 +160,13 @@ class LnReaderNovelParser(
             .replace("\n", "\\n")
             .replace("\r", "\\r")
             .replace("`", "\\`")
+
+    private fun resolveUrl(path: String): String {
+        if (path.isBlank() || path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+            return path
+        }
+        val site = plugin.site.trimEnd('/')
+        val rel = path.trimStart('/')
+        return "$site/$rel"
+    }
 }

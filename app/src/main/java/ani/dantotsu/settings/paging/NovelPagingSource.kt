@@ -89,7 +89,7 @@ class NovelExtensionsViewModel(
                 )
             }
 
-        val combinedAvailable = available.filterNot { it.pkgName.isBlank() || it.pkgName in installedPkgs } + lnAsAvailable
+        val combinedAvailable = available.filterNot { it.pkgName.isBlank() || it.apkName.isBlank() || it.pkgName in installedPkgs } + lnAsAvailable
         Pair(combinedAvailable, query)
     }.flatMapLatest { (combinedAvailable, query) ->
         Pager(

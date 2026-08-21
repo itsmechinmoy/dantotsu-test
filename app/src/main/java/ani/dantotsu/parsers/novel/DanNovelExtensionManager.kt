@@ -66,10 +66,11 @@ class DanNovelExtensionManager(private val context: Context) {
     suspend fun findAvailableExtensions(): List<NovelExtension.Available> {
         val extensions: List<NovelExtension.Available> = try {
             val list = api.findNovelExtensions()
-            list.map { ext ->
-                val detectedLang = ext.sources.firstOrNull()?.lang ?: "all"
-                ext.copy(lang = detectedLang)
-            }
+            list.filter { it.pkgName.isNotBlank() && it.apkName.isNotBlank() }
+                .map { ext ->
+                    val detectedLang = ext.sources.firstOrNull()?.lang ?: ext.lang.ifBlank { "all" }
+                    ext.copy(lang = detectedLang)
+                }
         } catch (e: Exception) {
             Logger.log("DanNovelExtensionManager: Error finding extensions: ${e.message}")
             withUIContext { snackString("Failed to get Novel extensions list") }

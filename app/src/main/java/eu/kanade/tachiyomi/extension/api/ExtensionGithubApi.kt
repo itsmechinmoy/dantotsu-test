@@ -375,7 +375,7 @@ internal class ExtensionGithubApi {
     }
 
     private fun List<ExtensionJsonObject>.toNovelExtensions(repository: String): List<NovelExtension.Available> {
-        return filter { !it.apk.isNullOrBlank() && !it.pkg.isNullOrBlank() }
+        return filter { !it.apk.isNullOrBlank() && !it.pkg.isNullOrBlank() && it.apk.endsWith(".apk", ignoreCase = true) }
             .mapNotNull { extension ->
                 val sources = extension.sources?.map { source ->
                     ExtensionSourceJsonObject(

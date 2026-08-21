@@ -252,6 +252,7 @@ object LnReaderJsEngine {
                 }
             })
 
+            qjs.evaluate(SYNC_PROMISE_JS)
             qjs.evaluate(POLYFILL_JS)
             qjs.evaluate(STRING_HELPERS_JS)
             qjs.evaluate(HTMLPARSER_JS)
@@ -594,6 +595,164 @@ const require = (pkg) => {
         default:                  return {};
     }
 };
+""".trimIndent()
+
+    private val SYNC_PROMISE_JS = """
+(function() {
+    function SyncPromise(executor) {
+        this.state = 'pending';
+        this.value = undefined;
+        this.reason = undefined;
+        this.handlers = [];
+        
+        var self = this;
+        function resolve(val) {
+            if (self.state !== 'pending') return;
+            if (val && (typeof val === 'object' || typeof val === 'function') && typeof val.then === 'function') {
+                try {
+                    val.then.call(val, resolve, reject);
+                } catch(e) {
+                    reject(e);
+                }
+                return;
+            }
+            self.state = 'fulfilled';
+            self.value = val;
+            var h = self.handlers;
+            self.handlers = [];
+            for (var i = 0; i < h.length; i++) {
+                try { h[i](); } catch(e) {}
+            }
+        }
+        
+        function reject(err) {
+            if (self.state !== 'pending') return;
+            self.state = 'rejected';
+            self.reason = err;
+            var h = self.handlers;
+            self.handlers = [];
+            for (var i = 0; i < h.length; i++) {
+                try { h[i](); } catch(e) {}
+            }
+        }
+        
+        try {
+            if (typeof executor === 'function') {
+                executor(resolve, reject);
+            }
+        } catch(e) {
+            reject(e);
+        }
+    }
+    
+    SyncPromise.prototype.then = function(onFulfilled, onRejected) {
+        var self = this;
+        return new SyncPromise(function(resolve, reject) {
+            function execute() {
+                if (self.state === 'fulfilled') {
+                    if (typeof onFulfilled === 'function') {
+                        try {
+                            resolve(onFulfilled(self.value));
+                        } catch(e) {
+                            reject(e);
+                        }
+                    } else {
+                        resolve(self.value);
+                    }
+                } else if (self.state === 'rejected') {
+                    if (typeof onRejected === 'function') {
+                        try {
+                            resolve(onRejected(self.reason));
+                        } catch(e) {
+                            reject(e);
+                        }
+                    } else {
+                        reject(self.reason);
+                    }
+                }
+            }
+            if (self.state === 'pending') {
+                self.handlers.push(execute);
+            } else {
+                execute();
+            }
+        });
+    };
+    
+    SyncPromise.prototype.catch = function(onRejected) {
+        return this.then(null, onRejected);
+    };
+    
+    SyncPromise.prototype.finally = function(onFinally) {
+        return this.then(
+            function(value) {
+                return SyncPromise.resolve(typeof onFinally === 'function' ? onFinally() : undefined).then(function() { return value; });
+            },
+            function(reason) {
+                return SyncPromise.resolve(typeof onFinally === 'function' ? onFinally() : undefined).then(function() { throw reason; });
+            }
+        );
+    };
+    
+    SyncPromise.resolve = function(val) {
+        if (val instanceof SyncPromise) return val;
+        return new SyncPromise(function(resolve) { resolve(val); });
+    };
+    
+    SyncPromise.reject = function(err) {
+        return new SyncPromise(function(resolve, reject) { reject(err); });
+    };
+    
+    SyncPromise.all = function(iterable) {
+        return new SyncPromise(function(resolve, reject) {
+            if (!iterable) return resolve([]);
+            var arr = Array.from ? Array.from(iterable) : Array.prototype.slice.call(iterable);
+            var results = new Array(arr.length);
+            var remaining = arr.length;
+            if (remaining === 0) return resolve(results);
+            arr.forEach(function(item, idx) {
+                SyncPromise.resolve(item).then(function(val) {
+                    results[idx] = val;
+                    remaining--;
+                    if (remaining === 0) resolve(results);
+                }, reject);
+            });
+        });
+    };
+    
+    SyncPromise.allSettled = function(iterable) {
+        return new SyncPromise(function(resolve) {
+            if (!iterable) return resolve([]);
+            var arr = Array.from ? Array.from(iterable) : Array.prototype.slice.call(iterable);
+            var results = new Array(arr.length);
+            var remaining = arr.length;
+            if (remaining === 0) return resolve(results);
+            arr.forEach(function(item, idx) {
+                SyncPromise.resolve(item).then(function(val) {
+                    results[idx] = { status: 'fulfilled', value: val };
+                    remaining--;
+                    if (remaining === 0) resolve(results);
+                }, function(err) {
+                    results[idx] = { status: 'rejected', reason: err };
+                    remaining--;
+                    if (remaining === 0) resolve(results);
+                });
+            });
+        });
+    };
+    
+    SyncPromise.race = function(iterable) {
+        return new SyncPromise(function(resolve, reject) {
+            if (!iterable) return;
+            var arr = Array.from ? Array.from(iterable) : Array.prototype.slice.call(iterable);
+            arr.forEach(function(item) {
+                SyncPromise.resolve(item).then(resolve, reject);
+            });
+        });
+    };
+    
+    globalThis.Promise = SyncPromise;
+})();
 """.trimIndent()
 
     private val POLYFILL_JS = """
