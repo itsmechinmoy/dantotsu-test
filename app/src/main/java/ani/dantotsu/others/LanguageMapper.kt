@@ -119,29 +119,90 @@ class LanguageMapper {
             "zu" to "Zulu"
         )
 
-        fun getLanguageName(code: String): String {
-            return if (code.contains("-")) {
+        private val nativeToCodeMap: Map<String, String> = mapOf(
+            "english" to "en",
+            "français" to "fr",
+            "french" to "fr",
+            "español" to "es",
+            "spanish" to "es",
+            "bahasa indonesia" to "id",
+            "indonesian" to "id",
+            "日本語" to "ja",
+            "japanese" to "ja",
+            "조선말, 한국어" to "ko",
+            "한국어" to "ko",
+            "korean" to "ko",
+            "polski" to "pl",
+            "polish" to "pl",
+            "português" to "pt",
+            "portuguese" to "pt",
+            "português (brasil)" to "pt-BR",
+            "portuguese (brazil)" to "pt-BR",
+            "русский" to "ru",
+            "russian" to "ru",
+            "ไทย" to "th",
+            "thai" to "th",
+            "türkçe" to "tr",
+            "turkish" to "tr",
+            "українська" to "uk",
+            "ukrainian" to "uk",
+            "tiếng việt" to "vi",
+            "vietnamese" to "vi",
+            "中文, 汉语, 漢語" to "zh",
+            "中文" to "zh",
+            "chinese" to "zh",
+            "chinese (simplified)" to "zh-Hans",
+            "chinese (traditional)" to "zh-Hant",
+            "العربية" to "ar",
+            "arabic" to "ar",
+            "german" to "de",
+            "deutsch" to "de",
+            "italian" to "it",
+            "italiano" to "it",
+            "multi" to "all",
+            "all" to "all"
+        )
+
+        fun getLanguageName(codeOrName: String): String {
+            val trimmed = codeOrName.trim()
+            if (trimmed.isEmpty() || trimmed.equals("all", ignoreCase = true)) {
+                return codeMap["all"] ?: "Multi"
+            }
+            if (codeMap.containsKey(trimmed.lowercase())) {
+                return codeMap[trimmed.lowercase()] ?: trimmed
+            }
+            val mappedCode = nativeToCodeMap[trimmed.lowercase()]
+            if (mappedCode != null && codeMap.containsKey(mappedCode)) {
+                return codeMap[mappedCode] ?: trimmed
+            }
+            return if (trimmed.contains("-")) {
                 try {
-                    val parts = code.split("-")
+                    val parts = trimmed.split("-")
                     Locale(parts[0], parts[1]).displayName
                 } catch (ignored: Exception) {
-                    code
+                    trimmed
                 }
             } else {
                 try {
-                    if (code == "all") {
-                        return codeMap[code] ?: code
-                    }
-                    Locale(code).displayName
+                    val name = Locale(trimmed).displayName
+                    if (name.isNotBlank() && name != trimmed) name else trimmed
                 } catch (ignored: Exception) {
-                    code
+                    trimmed
                 }
             }
         }
 
         fun getLanguageCode(language: String): String {
-            return codeMap.filterValues { it.lowercase() == language.lowercase() }.keys.firstOrNull()
-                ?: "all"
+            val clean = language.trim().lowercase()
+            if (codeMap.containsKey(clean)) return clean
+            nativeToCodeMap[clean]?.let { return it }
+            for ((k, v) in codeMap) {
+                if (v.lowercase() == clean || clean.contains(v.lowercase())) return k
+            }
+            for ((k, v) in nativeToCodeMap) {
+                if (clean.contains(k)) return v
+            }
+            return "all"
         }
 
         enum class Language(val code: String) {
@@ -167,4 +228,3 @@ class LanguageMapper {
         }
     }
 }
-
