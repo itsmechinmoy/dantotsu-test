@@ -162,6 +162,45 @@ object LnReaderJsEngine {
                     }
                     return Json.encodeToString(resultIds)
                 }
+                override fun closest(nodeIdsJson: String, selector: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        var curr = jsoupElements[id]
+                        while (curr != null) {
+                            if (selector.isBlank() || curr.`is`(selector)) {
+                                val newId = ++elementCounter
+                                jsoupElements[newId] = curr
+                                resultIds.add(newId)
+                                break
+                            }
+                            curr = curr.parent()
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
+                override fun parents(nodeIdsJson: String, selector: String): String {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    val resultIds = mutableListOf<Int>()
+                    for (id in ids) {
+                        val node = jsoupElements[id] ?: continue
+                        val pList = if (selector.isNotBlank()) node.parents().select(selector) else node.parents()
+                        for (el in pList) {
+                            val newId = ++elementCounter
+                            jsoupElements[newId] = el
+                            resultIds.add(newId)
+                        }
+                    }
+                    return Json.encodeToString(resultIds)
+                }
+                override fun addClass(nodeIdsJson: String, className: String) {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    ids.forEach { jsoupElements[it]?.addClass(className) }
+                }
+                override fun removeClass(nodeIdsJson: String, className: String) {
+                    val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
+                    ids.forEach { jsoupElements[it]?.removeClass(className) }
+                }
                 override fun hasClass(nodeIdsJson: String, className: String): Boolean {
                     val ids = runCatching { Json.decodeFromString<List<Int>>(nodeIdsJson) }.getOrDefault(emptyList())
                     return ids.any { jsoupElements[it]?.hasClass(className) == true }
@@ -399,9 +438,13 @@ object LnReaderJsEngine {
         fun remove(nodeIdsJson: String)
         fun removeAttr(nodeIdsJson: String, attr: String)
         fun setAttr(nodeIdsJson: String, attr: String, value: String)
+        fun addClass(nodeIdsJson: String, className: String)
+        fun removeClass(nodeIdsJson: String, className: String)
         fun next(nodeIdsJson: String): String
         fun prev(nodeIdsJson: String): String
         fun parent(nodeIdsJson: String): String
+        fun parents(nodeIdsJson: String, selector: String): String
+        fun closest(nodeIdsJson: String, selector: String): String
         fun children(nodeIdsJson: String, selector: String): String
         fun siblings(nodeIdsJson: String, selector: String): String
         fun hasClass(nodeIdsJson: String, className: String): Boolean
@@ -563,6 +606,8 @@ const require = (pkg) => {
             localStorage: new PluginStorage('local'),
             sessionStorage: new PluginStorage('session')
         };
+        case "@libs/parseDate":   return { parseDate: function(d) { return dayjs(d).format('LL'); } };
+        case "@/lib/utils":       return { utf8ToBytes: utf8ToBytes, bytesToUtf8: bytesToUtf8 };
         case "lodash-es/reverse": return function(arr) { return arr ? arr.slice().reverse() : []; };
         case "lodash-es/uniqBy":  return function(arr, key) {
             if (!arr) return [];
@@ -574,6 +619,8 @@ const require = (pkg) => {
                 return true;
             });
         };
+        case "lodash-es/filter":  return function(arr, fn) { return arr ? arr.filter(fn) : []; };
+        case "lodash-es/map":     return function(arr, fn) { return arr ? arr.map(fn) : []; };
         default:                  return {};
     }
 };
@@ -620,6 +667,35 @@ var atob = function(input) {
         buffer = chars.indexOf(buffer);
     }
     return output;
+};
+
+function TextEncoder() {}
+TextEncoder.prototype.encode = function(str) {
+    return utf8ToBytes(str || "");
+};
+
+function TextDecoder(encoding) {
+    this.encoding = encoding || 'utf-8';
+}
+TextDecoder.prototype.decode = function(bytes) {
+    if (!bytes) return "";
+    return bytesToUtf8(bytes);
+};
+
+var crypto = {
+    getRandomValues: function(arr) {
+        if (!arr) return arr;
+        for (var i = 0; i < arr.length; i++) {
+            arr[i] = Math.floor(Math.random() * 256);
+        }
+        return arr;
+    },
+    randomUUID: function() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
 };
 
 if (typeof Object.assign !== 'function') {
@@ -755,6 +831,9 @@ var fetchApi = function(url, init) {
 var fetchText = function(url, init) {
     return fetchApi(url, init).then(function(res) { return res.text(); });
 };
+
+var fetch = fetchApi;
+globalThis.fetch = fetchApi;
 """.trimIndent()
 
     private val HTMLPARSER_JS = """
@@ -870,6 +949,20 @@ function load(html) {
                 __dantotsuJsoup.removeAttr(JSON.stringify(this._nodes), a);
                 return this;
             },
+            addClass: function(className) {
+                if (className) __dantotsuJsoup.addClass(JSON.stringify(this._nodes), className);
+                return this;
+            },
+            removeClass: function(className) {
+                if (className) __dantotsuJsoup.removeClass(JSON.stringify(this._nodes), className);
+                return this;
+            },
+            prop: function(name) {
+                if (name === 'outerHTML') return this.outerHtml();
+                if (name === 'innerHTML') return this.html();
+                if (name === 'tagName') return this.tagName;
+                return this.attr(name);
+            },
             val: function() {
                 return this.attr('value') || this.text();
             },
@@ -915,6 +1008,33 @@ function load(html) {
             siblings: function(sel) {
                 var resStr = __dantotsuJsoup.siblings(JSON.stringify(this._nodes), sel || "");
                 return wrap(JSON.parse(resStr));
+            },
+            closest: function(sel) {
+                var resStr = __dantotsuJsoup.closest(JSON.stringify(this._nodes), sel || "");
+                return wrap(JSON.parse(resStr));
+            },
+            parents: function(sel) {
+                var resStr = __dantotsuJsoup.parents(JSON.stringify(this._nodes), sel || "");
+                return wrap(JSON.parse(resStr));
+            },
+            slice: function(start, end) {
+                return wrap(this._nodes.slice(start, end));
+            },
+            wrap: function(html) {
+                return this;
+            },
+            unwrap: function() {
+                return this;
+            },
+            after: function(html) {
+                return this;
+            },
+            before: function(html) {
+                return this;
+            },
+            css: function(prop, val) {
+                if (val !== undefined) return this.attr('style', (this.attr('style') || '') + ';' + prop + ':' + val);
+                return '';
             },
             html: function() { return __dantotsuJsoup.html(JSON.stringify(this._nodes)); },
             outerHtml: function() { return __dantotsuJsoup.outerHtml(JSON.stringify(this._nodes)); },
