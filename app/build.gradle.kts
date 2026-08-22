@@ -151,6 +151,8 @@ dependencies {
     // Core libs
     implementation(libs.bundles.misc)
     implementation(libs.metro.runtime)
+    implementation(libs.bundles.sqldelight)
+    implementation(libs.androidx.profileInstaller)
 
     // Shizuku
     implementation(libs.bundles.shizuku)
