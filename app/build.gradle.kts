@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.metro)
 }
 
 if (gradle.startParameter.taskNames.any { it.contains("google", true) }) {
@@ -149,6 +150,7 @@ dependencies {
 
     // Core libs
     implementation(libs.bundles.misc)
+    implementation(libs.metro.runtime)
 
     // Shizuku
     implementation(libs.bundles.shizuku)
@@ -163,6 +165,7 @@ dependencies {
 
     // UI
     implementation(libs.material)
+    implementation(libs.materialKolor)
     implementation(files("libs/AnimatedBottomBar-7fcb9af.aar"))
     implementation(libs.flexbox)
     implementation(libs.kenburns)
