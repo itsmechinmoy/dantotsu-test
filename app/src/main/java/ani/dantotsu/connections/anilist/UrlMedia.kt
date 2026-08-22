@@ -3,7 +3,6 @@ package ani.dantotsu.connections.anilist
 import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
-import androidx.core.os.bundleOf
 import ani.dantotsu.loadMedia
 import ani.dantotsu.startMainActivity
 import ani.dantotsu.themes.ThemeManager
@@ -59,7 +58,7 @@ class UrlMedia : Activity() {
                     loadMedia = id
                     startMainActivity(
                         this,
-                        bundleOf("mediaId" to id, "mal" to isMAL, "continue" to continueMedia, "mediaType" to "ANIME")
+                        createMediaBundle(id, isMAL, continueMedia, "ANIME")
                     )
                 } else {
                     startMainActivity(this)
@@ -71,7 +70,7 @@ class UrlMedia : Activity() {
                     loadMedia = id
                     startMainActivity(
                         this,
-                        bundleOf("mediaId" to id, "mal" to isMAL, "continue" to continueMedia, "mediaType" to "MANGA")
+                        createMediaBundle(id, isMAL, continueMedia, "MANGA")
                     )
                 } else {
                     startMainActivity(this)
@@ -84,7 +83,7 @@ class UrlMedia : Activity() {
                     loadMedia = id
                     startMainActivity(
                         this,
-                        bundleOf("mediaId" to id, "mal" to isMAL, "continue" to continueMedia, "mediaType" to type)
+                        createMediaBundle(id, isMAL, continueMedia, type)
                     )
                 } else {
                     startMainActivity(this)
@@ -93,7 +92,7 @@ class UrlMedia : Activity() {
             "user", "u", "profile" -> {
                 val username = idStr ?: uri.getQueryParameter("username") ?: uri.getQueryParameter("name")
                 if (!username.isNullOrEmpty()) {
-                    startMainActivity(this, bundleOf("username" to username))
+                    startMainActivity(this, createUserBundle(username))
                 } else {
                     startMainActivity(this)
                 }
@@ -111,7 +110,11 @@ class UrlMedia : Activity() {
 
         if (firstSegment == "user" || firstSegment == "u") {
             val username = segments.getOrNull(1)
-            startMainActivity(this, bundleOf("username" to username))
+            if (!username.isNullOrEmpty()) {
+                startMainActivity(this, createUserBundle(username))
+            } else {
+                startMainActivity(this)
+            }
             return
         }
 
@@ -134,7 +137,7 @@ class UrlMedia : Activity() {
 
         startMainActivity(
             this,
-            bundleOf("mediaId" to id, "mal" to isMAL, "continue" to continueMedia, "mediaType" to mediaType)
+            createMediaBundle(id ?: 0, isMAL, continueMedia, mediaType)
         )
     }
 
@@ -146,11 +149,30 @@ class UrlMedia : Activity() {
             val mediaType = type?.uppercase()
             startMainActivity(
                 this,
-                bundleOf("mediaId" to id, "mal" to isMAL, "continue" to false, "mediaType" to mediaType)
+                createMediaBundle(id, isMAL, false, mediaType)
             )
         } else {
             val username = data.pathSegments?.getOrNull(1)
-            startMainActivity(this, bundleOf("username" to username))
+            if (!username.isNullOrEmpty()) {
+                startMainActivity(this, createUserBundle(username))
+            } else {
+                startMainActivity(this)
+            }
+        }
+    }
+
+    private fun createMediaBundle(id: Int, isMAL: Boolean, continueMedia: Boolean, mediaType: String?): Bundle {
+        return Bundle().apply {
+            putInt("mediaId", id)
+            putBoolean("mal", isMAL)
+            putBoolean("continue", continueMedia)
+            if (mediaType != null) putString("mediaType", mediaType)
+        }
+    }
+
+    private fun createUserBundle(username: String): Bundle {
+        return Bundle().apply {
+            putString("username", username)
         }
     }
 }
