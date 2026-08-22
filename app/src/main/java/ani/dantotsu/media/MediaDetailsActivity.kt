@@ -136,7 +136,7 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
         binding.mediaBanner.updateLayoutParams { height += statusBarHeight }
         binding.mediaBannerNoKen.updateLayoutParams { height += statusBarHeight }
         binding.mediaClose.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin += statusBarHeight }
-        binding.mediaHome?.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin += statusBarHeight }
+        binding.mediaHome.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin += statusBarHeight }
         binding.incognito.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin += statusBarHeight }
         binding.mediaCollapsing.minimumHeight = statusBarHeight
 
@@ -145,7 +145,7 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
         mMaxScrollSize = binding.mediaAppBar.totalScrollRange
         binding.mediaAppBar.addOnOffsetChangedListener(this)
 
-        binding.mediaHome?.setOnClickListener {
+        binding.mediaHome.setOnClickListener {
             val intent = Intent(this, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 putExtra("goToHome", true)
