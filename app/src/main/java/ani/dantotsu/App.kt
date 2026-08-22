@@ -36,6 +36,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ani.dantotsu.core.metro.GraphProvider
+import ani.dantotsu.di.AppGraph
+import ani.dantotsu.di.injekt.MetroInteropModule
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.createGraphFactory
 import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.LogcatLogger
@@ -45,7 +50,14 @@ import uy.kohesive.injekt.api.get
 
 
 @SuppressLint("StaticFieldLeak")
-class App : Application() {
+class App : Application(), GraphProvider<AppGraph> {
+
+    override val graph: AppGraph by lazy {
+        createGraphFactory<AppGraph.Factory>().create(context = this)
+    }
+
+    @Inject lateinit var interopModule: MetroInteropModule
+
     private lateinit var animeExtensionManager: AnimeExtensionManager
     private lateinit var mangaExtensionManager: MangaExtensionManager
     private lateinit var novelExtensionManager: NovelExtensionManager
@@ -61,6 +73,9 @@ class App : Application() {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        graph.inject(this)
+        Injekt.importModule(interopModule)
+
         PrefManager.init(this)
 
         val crashlytics =
@@ -70,9 +85,6 @@ class App : Application() {
         Logger.init(this)
         Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
         Logger.log(Log.WARN, "App: Logging started")
-
-        Injekt.importModule(AppModule(this))
-        Injekt.importModule(PreferenceModule(this))
 
 
         val useMaterialYou: Boolean = PrefManager.getVal(PrefName.UseMaterialYou)
