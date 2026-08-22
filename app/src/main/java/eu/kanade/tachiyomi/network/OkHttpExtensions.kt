@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.network
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.okio.decodeFromBufferedSource
 import kotlinx.serialization.serializer
