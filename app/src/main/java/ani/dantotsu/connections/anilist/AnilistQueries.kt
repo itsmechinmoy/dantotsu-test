@@ -1023,8 +1023,7 @@ class AnilistQueries {
             }
         }
         return if (!genres.isNullOrEmpty() && tags != null) {
-            val nonNullGenres = genres ?: arrayListOf()
-            Anilist.genres = ArrayList(nonNullGenres.sorted())
+            Anilist.genres = ArrayList(genres.sorted())
             Anilist.tags = tags
             true
         } else false
