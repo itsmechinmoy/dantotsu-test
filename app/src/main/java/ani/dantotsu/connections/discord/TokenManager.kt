@@ -1,5 +1,6 @@
 package ani.dantotsu.connections.discord
 
+import ani.dantotsu.Mapper
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import ani.dantotsu.util.Logger
