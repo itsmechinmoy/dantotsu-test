@@ -12,6 +12,9 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.domain.base.BasePreferences
+import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.core.preference.AndroidPreferenceStore
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
@@ -21,6 +24,7 @@ import eu.kanade.tachiyomi.source.manga.AndroidMangaSourceManager
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import tachiyomi.core.preference.PreferenceStore
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 
@@ -31,6 +35,19 @@ object AppBindings {
     @Provides
     @SingleIn(AppScope::class)
     fun providesApplication(context: Context): Application = context.applicationContext as Application
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesPreferenceStore(application: Application): PreferenceStore = AndroidPreferenceStore(application)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesSourcePreferences(preferenceStore: PreferenceStore): SourcePreferences = SourcePreferences(preferenceStore)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesBasePreferences(application: Application, preferenceStore: PreferenceStore): BasePreferences =
+        BasePreferences(application, preferenceStore)
 
     @Provides
     @SingleIn(AppScope::class)
@@ -46,11 +63,17 @@ object AppBindings {
 
     @Provides
     @SingleIn(AppScope::class)
-    fun providesAnimeExtensionManager(application: Application): AnimeExtensionManager = AnimeExtensionManager(application)
+    fun providesAnimeExtensionManager(
+        application: Application,
+        sourcePreferences: SourcePreferences,
+    ): AnimeExtensionManager = AnimeExtensionManager(application, sourcePreferences)
 
     @Provides
     @SingleIn(AppScope::class)
-    fun providesMangaExtensionManager(application: Application): MangaExtensionManager = MangaExtensionManager(application)
+    fun providesMangaExtensionManager(
+        application: Application,
+        sourcePreferences: SourcePreferences,
+    ): MangaExtensionManager = MangaExtensionManager(application, sourcePreferences)
 
     @Provides
     @SingleIn(AppScope::class)
