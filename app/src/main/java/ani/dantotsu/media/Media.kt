@@ -610,11 +610,11 @@ data class Media(
                     id = it.malId,
                     name = it.name,
                     image = it.images?.jpg?.imageUrl,
-                    role = jikan.authors?.firstOrNull()?.position ?: "Author"
+                    role = jikan.authors.firstOrNull()?.position ?: "Author"
                 )
             }
             this.staff = jikan.authors
-                ?.mapNotNull { author ->
+                .mapNotNull { author ->
                     author.person?.let {
                         Author(
                             id = it.malId,
