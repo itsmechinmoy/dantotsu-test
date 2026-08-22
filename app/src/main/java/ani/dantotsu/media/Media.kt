@@ -614,7 +614,7 @@ data class Media(
                 )
             }
             this.staff = jikan.authors
-                .mapNotNull { author ->
+                ?.mapNotNull { author ->
                     author.person?.let {
                         Author(
                             id = it.malId,
