@@ -72,10 +72,9 @@ class App : Application(), GraphProvider<AppGraph> {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        PrefManager.init(this)
         graph.inject(this)
         Injekt.importModule(interopModule)
-
-        PrefManager.init(this)
 
         val crashlytics =
             ani.dantotsu.connections.crashlytics.CrashlyticsFactory.createCrashlytics()
