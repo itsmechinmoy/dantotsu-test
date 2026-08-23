@@ -8,8 +8,6 @@ import android.os.Bundle
 import android.util.Log
 import ani.dantotsu.addons.download.DownloadAddonManager
 import ani.dantotsu.torrent.TorrentServerManager
-import ani.dantotsu.aniyomi.anime.custom.AppModule
-import ani.dantotsu.aniyomi.anime.custom.PreferenceModule
 import ani.dantotsu.connections.comments.CommentsAPI
 import ani.dantotsu.connections.crashlytics.CrashlyticsInterface
 import ani.dantotsu.connections.discord.Discord
