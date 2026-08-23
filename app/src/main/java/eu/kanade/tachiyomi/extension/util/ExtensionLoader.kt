@@ -31,7 +31,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
+import ani.dantotsu.core.metro.GraphProvider
+import ani.dantotsu.di.AppGraph
 import java.util.Locale
 import java.io.File
 
@@ -54,8 +55,8 @@ internal object ExtensionLoader {
     private fun isNsfwAllowed(context: Context): Boolean {
         return try {
             val app = context.applicationContext
-            if (app is ani.dantotsu.di.GraphProvider<*>) {
-                (app.graph as? ani.dantotsu.di.AppGraph)?.let {
+            if (app is GraphProvider<*>) {
+                (app.graph as? AppGraph)?.let {
                     return it.sourcePreferences.showNsfwSource().get()
                 }
             }
