@@ -86,22 +86,20 @@ class MediaDetailsActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedLi
         super.onCreate(savedInstanceState)
         var media: Media = intent.getSerialized("media") ?: mediaSingleton ?: emptyMedia()
         val id = intent.getIntExtra("mediaId", -1)
-        if (id != -1) {
+        if (id != -1 && media.name == "No media found") {
             val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
-            runBlocking {
-                withContext(Dispatchers.IO) {
-                    if (rescueMode) {
-                        val animeNode = MAL.query.getAnimeDetails(id)
-                        if (animeNode != null) {
-                            media = Media(animeNode, true)
-                        } else {
-                            val mangaNode = MAL.query.getMangaDetails(id)
-                            media = if (mangaNode != null) Media(mangaNode, false)
-                            else emptyMedia()
-                        }
+            runBlocking(Dispatchers.IO) {
+                if (rescueMode) {
+                    val animeNode = MAL.query.getAnimeDetails(id)
+                    if (animeNode != null) {
+                        media = Media(animeNode, true)
                     } else {
-                        media = Anilist.query.getMedia(id, false) ?: emptyMedia()
+                        val mangaNode = MAL.query.getMangaDetails(id)
+                        media = if (mangaNode != null) Media(mangaNode, false)
+                        else emptyMedia()
                     }
+                } else {
+                    media = Anilist.query.getMedia(id, false) ?: emptyMedia()
                 }
             }
         }
