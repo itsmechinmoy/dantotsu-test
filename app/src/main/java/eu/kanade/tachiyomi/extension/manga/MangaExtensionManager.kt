@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import rx.Observable
 import tachiyomi.core.util.lang.launchNow
 import tachiyomi.core.util.lang.withUIContext
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import tachiyomi.domain.source.manga.model.MangaSourceData
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -37,6 +40,8 @@ import java.util.Locale
  * @param context The application context.
  * @param preferences The application preferences.
  */
+@Inject
+@SingleIn(AppScope::class)
 class MangaExtensionManager(
     private val context: Context,
     private val preferences: SourcePreferences = Injekt.get(),
