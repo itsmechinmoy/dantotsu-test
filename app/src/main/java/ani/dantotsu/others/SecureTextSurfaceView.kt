@@ -44,7 +44,8 @@ class SecureTextSurfaceView @JvmOverloads constructor(
             }
         }
 
-    @ColorInt
+    @get:ColorInt
+    @setparam:ColorInt
     var textColor: Int
         get() = textPaint.color
         set(value) {
