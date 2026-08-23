@@ -124,25 +124,25 @@ class App : Application(), GraphProvider<AppGraph> {
         scope.launch {
             animeExtensionManager = Injekt.get()
             launch {
+                delay(1500)
                 animeExtensionManager.findAvailableExtensions()
             }
-            Logger.log("Anime Extensions: ${animeExtensionManager.installedExtensionsFlow.first()}")
             AnimeSources.init(animeExtensionManager.installedExtensionsFlow)
         }
         scope.launch {
             mangaExtensionManager = Injekt.get()
             launch {
+                delay(1500)
                 mangaExtensionManager.findAvailableExtensions()
             }
-            Logger.log("Manga Extensions: ${mangaExtensionManager.installedExtensionsFlow.first()}")
             MangaSources.init(mangaExtensionManager.installedExtensionsFlow)
         }
         scope.launch {
             novelExtensionManager = Injekt.get()
             launch {
+                delay(1500)
                 novelExtensionManager.findAvailableExtensions()
             }
-            Logger.log("Novel Extensions: ${novelExtensionManager.installedExtensionsFlow.first()}")
             NovelSources.init(novelExtensionManager.allInstalledExtensionsFlow)
         }
         GlobalScope.launch {
