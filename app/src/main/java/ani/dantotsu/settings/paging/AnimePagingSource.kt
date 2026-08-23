@@ -19,6 +19,8 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
 import ani.dantotsu.databinding.ItemExtensionAllBinding
 import ani.dantotsu.others.LanguageMapper
+import ani.dantotsu.others.into
+import ani.dantotsu.others.SecureImageSurfaceView
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
 import com.bumptech.glide.Glide
@@ -199,7 +201,7 @@ class AnimeExtensionAdapter(private val clickListener: OnAnimeInstallClickListen
             }
         }
 
-        val extensionIconImageView: ImageView = binding.extensionIconImageView
+        val extensionIconImageView: SecureImageSurfaceView = binding.extensionIconImageView
 
         fun bind(extension: AnimeExtension.Available) {
             val nsfw = if (extension.isNsfw) "(18+)" else ""
