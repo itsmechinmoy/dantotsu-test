@@ -73,6 +73,7 @@ enum class PrefName(val data: Pref) {
     UseMaterialYou(Pref(Location.UI, Boolean::class, false)),
     Theme(Pref(Location.UI, String::class, "PURPLE")),
     SkipExtensionIcons(Pref(Location.UI, Boolean::class, false)),
+    SecureExtensionScreenshots(Pref(Location.UI, Boolean::class, true)),
     DarkMode(Pref(Location.UI, Int::class, 0)),
     ShowYtButton(Pref(Location.UI, Boolean::class, true)),
     AnimeDefaultView(Pref(Location.UI, Int::class, 0)),
