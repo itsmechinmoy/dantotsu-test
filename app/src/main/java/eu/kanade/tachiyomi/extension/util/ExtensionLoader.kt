@@ -298,7 +298,7 @@ internal object ExtensionLoader {
         if (extPkgs.isEmpty()) return emptyList()
 
         // Load each extension concurrently and wait for completion
-        return runBlocking {
+        return runBlocking(Dispatchers.IO) {
             val deferred = extPkgs.map {
                 async { loadAnimeExtension(context, it) }
             }
@@ -348,7 +348,7 @@ internal object ExtensionLoader {
         if (extPkgs.isEmpty()) return emptyList()
 
         // Load each extension concurrently and wait for completion
-        return runBlocking {
+        return runBlocking(Dispatchers.IO) {
             val deferred = extPkgs.map {
                 async { loadMangaExtension(context, it) }
             }
@@ -398,7 +398,7 @@ internal object ExtensionLoader {
         if (extPkgs.isEmpty()) return emptyList()
 
         // Load each extension concurrently and wait for completion
-        return runBlocking {
+        return runBlocking(Dispatchers.IO) {
             val deferred = extPkgs.map {
                 async { loadNovelExtension(context, it) }
             }
