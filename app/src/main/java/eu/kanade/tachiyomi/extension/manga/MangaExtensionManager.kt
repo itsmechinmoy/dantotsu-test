@@ -42,13 +42,15 @@ import java.util.Locale
  */
 @Inject
 @SingleIn(AppScope::class)
-class MangaExtensionManager(
+class MangaExtensionManager @Inject constructor(
     private val context: Context,
-    private val preferences: SourcePreferences = Injekt.get(),
+    private val preferences: SourcePreferences,
 ) {
 
     var isInitialized = false
         private set
+
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     /**
      * API where all the available extensions can be found.
@@ -94,8 +96,10 @@ class MangaExtensionManager(
     val untrustedExtensionsFlow = _untrustedExtensionsFlow.asStateFlow()
 
     init {
-        initExtensions()
-        ExtensionInstallReceiver().setMangaListener(InstallationListener()).register(context)
+        scope.launch {
+            initExtensions()
+            ExtensionInstallReceiver().setMangaListener(InstallationListener()).register(context)
+        }
     }
 
     /**
