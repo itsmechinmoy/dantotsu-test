@@ -4,6 +4,7 @@ import android.graphics.drawable.Drawable
 import android.view.View
 import ani.dantotsu.R
 import ani.dantotsu.databinding.ItemExtensionSelectBinding
+import ani.dantotsu.others.into
 import com.bumptech.glide.Glide
 import com.xwray.groupie.viewbinding.BindableItem
 
