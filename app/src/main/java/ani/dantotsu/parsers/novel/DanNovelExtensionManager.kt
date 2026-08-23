@@ -25,6 +25,7 @@ class DanNovelExtensionManager(private val context: Context) {
     var isInitialized = false
         private set
 
+    private val scope = CoroutineScope(Dispatchers.IO)
     private val api = ExtensionGithubApi()
     private val installer by lazy { ExtensionInstaller(context) }
     private val iconMap = mutableMapOf<String, Drawable>()
@@ -49,8 +50,10 @@ class DanNovelExtensionManager(private val context: Context) {
     }
 
     init {
-        initNovelExtensions()
-        ExtensionInstallReceiver().setNovelListener(NovelInstallationListener()).register(context)
+        scope.launch {
+            initNovelExtensions()
+            ExtensionInstallReceiver().setNovelListener(NovelInstallationListener()).register(context)
+        }
     }
 
     private fun initNovelExtensions() {
