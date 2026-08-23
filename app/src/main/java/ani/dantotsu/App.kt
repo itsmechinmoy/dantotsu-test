@@ -74,6 +74,8 @@ class App : Application(), GraphProvider<AppGraph> {
     override fun onCreate() {
         super.onCreate()
         graph.inject(this)
+        Injekt.addSingleton<Application>(this)
+        Injekt.addSingleton<Context>(this)
         Injekt.importModule(interopModule)
 
         PrefManager.init(this)
