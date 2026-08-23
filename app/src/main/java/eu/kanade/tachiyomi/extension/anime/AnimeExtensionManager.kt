@@ -42,13 +42,15 @@ import java.util.Locale
  */
 @Inject
 @SingleIn(AppScope::class)
-class AnimeExtensionManager(
+class AnimeExtensionManager @Inject constructor(
     private val context: Context,
-    private val preferences: SourcePreferences = Injekt.get(),
+    private val preferences: SourcePreferences,
 ) {
 
     var isInitialized = false
         private set
+
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     /**
      * API where all the available anime extensions can be found.
@@ -97,8 +99,10 @@ class AnimeExtensionManager(
     val untrustedExtensionsFlow = _untrustedAnimeExtensionsFlow.asStateFlow()
 
     init {
-        initAnimeExtensions()
-        ExtensionInstallReceiver().setAnimeListener(InstallationListener()).register(context)
+        scope.launch {
+            initAnimeExtensions()
+            ExtensionInstallReceiver().setAnimeListener(InstallationListener()).register(context)
+        }
     }
 
     /**
