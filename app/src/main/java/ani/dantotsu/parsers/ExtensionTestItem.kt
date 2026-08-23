@@ -7,6 +7,7 @@ import androidx.core.view.isVisible
 import ani.dantotsu.R
 import ani.dantotsu.databinding.ItemExtensionTestBinding
 import ani.dantotsu.getThemeColor
+import ani.dantotsu.others.into
 import com.bumptech.glide.Glide
 import com.xwray.groupie.viewbinding.BindableItem
 import kotlinx.coroutines.CoroutineScope
