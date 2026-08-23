@@ -19,13 +19,18 @@
         android:src="@drawable/ic_round_equal_24"
         tools:ignore="ContentDescription" />
 
-    <ImageView
-        android:id="@+id/extensionIconImageView"
+    <ani.dantotsu.others.SecureFrameLayout
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center_vertical"
-        android:layout_marginEnd="9dp"
-        tools:ignore="ContentDescription" />
+        android:layout_marginEnd="9dp">
+
+        <ImageView
+            android:id="@+id/extensionIconImageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:ignore="ContentDescription" />
+    </ani.dantotsu.others.SecureFrameLayout>
 
     <LinearLayout
         android:layout_width="245dp"
@@ -34,13 +39,18 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/extensionNameTextView"
+        <ani.dantotsu.others.SecureFrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_semi_bold"
-            android:text="@string/extension_name"
-            android:textSize="15sp" />
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/extensionNameTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semi_bold"
+                android:text="@string/extension_name"
+                android:textSize="15sp" />
+        </ani.dantotsu.others.SecureFrameLayout>
 
         <TextView
             android:id="@+id/extensionVersionTextView"
