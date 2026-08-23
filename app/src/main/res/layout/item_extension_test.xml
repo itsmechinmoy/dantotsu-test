@@ -16,25 +16,35 @@
         android:orientation="horizontal"
         tools:ignore="UseCompoundDrawables">
 
-        <ImageView
-            android:id="@+id/extensionIconImageView"
+        <ani.dantotsu.others.SecureFrameLayout
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="10dp"
-            android:layout_marginEnd="3dp"
-            tools:ignore="ContentDescription" />
+            android:layout_marginEnd="3dp">
 
-        <TextView
-            android:id="@+id/extensionNameTextView"
+            <ImageView
+                android:id="@+id/extensionIconImageView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                tools:ignore="ContentDescription" />
+        </ani.dantotsu.others.SecureFrameLayout>
+
+        <ani.dantotsu.others.SecureFrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="10dp"
-            android:layout_weight="1"
-            android:fontFamily="@font/poppins_semi_bold"
-            android:text="@string/extension_name"
-            android:textSize="15sp" />
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/extensionNameTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semi_bold"
+                android:text="@string/extension_name"
+                android:textSize="15sp" />
+        </ani.dantotsu.others.SecureFrameLayout>
 
     </LinearLayout>
 
