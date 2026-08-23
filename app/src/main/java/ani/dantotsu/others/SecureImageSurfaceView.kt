@@ -206,11 +206,11 @@ fun RequestBuilder<Drawable>.into(secureView: SecureImageSurfaceView) {
         override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
             view.setImageDrawable(resource)
         }
-        override fun onLoadCleared(placeholder: Drawable?) {
-            view.setImageDrawable(placeholder)
-        }
         override fun onResourceCleared(placeholder: Drawable?) {
             view.setImageDrawable(placeholder)
+        }
+        override fun onLoadFailed(errorDrawable: Drawable?) {
+            view.setImageDrawable(errorDrawable)
         }
     })
 }
