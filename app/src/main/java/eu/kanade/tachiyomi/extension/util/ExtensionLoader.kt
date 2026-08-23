@@ -27,6 +27,7 @@ import eu.kanade.tachiyomi.util.lang.Hash
 import android.content.pm.ApplicationInfo
 import eu.kanade.tachiyomi.util.system.getApplicationIcon
 import eu.kanade.tachiyomi.util.system.ChildFirstPathClassLoader
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import uy.kohesive.injekt.Injekt
