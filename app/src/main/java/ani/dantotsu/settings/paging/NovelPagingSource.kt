@@ -19,6 +19,8 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
 import ani.dantotsu.databinding.ItemExtensionAllBinding
 import ani.dantotsu.others.LanguageMapper
+import ani.dantotsu.others.into
+import ani.dantotsu.others.SecureImageSurfaceView
 import ani.dantotsu.parsers.novel.LnReaderPluginItem
 import ani.dantotsu.parsers.novel.NovelExtension
 import ani.dantotsu.parsers.novel.NovelExtensionManager
@@ -221,7 +223,7 @@ class NovelExtensionAdapter(private val clickListener: OnNovelInstallClickListen
             }
         }
 
-        val extensionIconImageView: ImageView = binding.extensionIconImageView
+        val extensionIconImageView: SecureImageSurfaceView = binding.extensionIconImageView
         fun bind(extension: NovelExtension.Available) {
             val nsfw = ""
             val lang = LanguageMapper.getLanguageName(extension.lang)
