@@ -21,7 +21,9 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.hls.DefaultHlsExtractorFactory
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -112,6 +114,21 @@ class DantotsuPlayerManager(
             .setUpstreamDataSourceFactory(upstream)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
+        val isLocalProxy = video.file.url.contains("localhost:", ignoreCase = true) ||
+            video.file.url.contains("127.0.0.1:", ignoreCase = true)
+        val effectiveHlsDataSourceFactory = if (isLocalProxy) upstream else cacheFactory
+
+        val hlsExtractorFactory = DefaultHlsExtractorFactory(
+            DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS or
+                DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS or
+                DefaultTsPayloadReaderFactory.FLAG_IGNORE_SPLICE_INFO_STREAM,
+            /* exposeId3TagPayload = */ true,
+        )
+        val hlsMediaSourceFactory = HlsMediaSource.Factory(effectiveHlsDataSourceFactory)
+            .setExtractorFactory(hlsExtractorFactory)
+            .setAllowChunklessPreparation(false)
+
         val extractorsFactory = subtitleManager.createExtractorsFactory()
         val assParserFactory = subtitleManager.createSubtitleParserFactory()
         val assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
@@ -129,13 +146,20 @@ class DantotsuPlayerManager(
             .build()
         this.currentMediaItem = mediaItem
 
+        val isHlsStream = mimeType == androidx.media3.common.MimeTypes.APPLICATION_M3U8 ||
+            video.file.url.contains(".m3u8", ignoreCase = true) ||
+            video.file.url.contains("/m3u8", ignoreCase = true) ||
+            isLocalProxy
+
         val isContentUri = video.file.url.startsWith("content://")
-        val activeFactory = if (isContentUri) {
-            val localDataSourceFactory = DefaultDataSource.Factory(activity)
-            DefaultMediaSourceFactory(localDataSourceFactory, extractorsFactory)
-                .setSubtitleParserFactory(assParserFactory)
-        } else {
-            assMediaSourceFactory
+        val activeFactory: MediaSource.Factory = when {
+            isContentUri -> {
+                val localDataSourceFactory = DefaultDataSource.Factory(activity)
+                DefaultMediaSourceFactory(localDataSourceFactory, extractorsFactory)
+                    .setSubtitleParserFactory(assParserFactory)
+            }
+            isHlsStream -> hlsMediaSourceFactory
+            else -> assMediaSourceFactory
         }
         this.activeMediaSourceFactory = activeFactory
         val primarySource = activeFactory.createMediaSource(mediaItem)
@@ -155,7 +179,12 @@ class DantotsuPlayerManager(
                         if (audioMimeType != null) setMimeType(audioMimeType)
                     }
                     .build()
-                val audioSource = activeFactory.createMediaSource(audioMediaItem)
+                val audioFactory = if (audioMimeType == androidx.media3.common.MimeTypes.APPLICATION_M3U8) {
+                    hlsMediaSourceFactory
+                } else {
+                    activeFactory
+                }
+                val audioSource = audioFactory.createMediaSource(audioMediaItem)
                 audioSources.add(audioSource)
             }
         }
