@@ -51,9 +51,18 @@ import java.io.File
  */
 internal object ExtensionLoader {
 
-    private val preferences: SourcePreferences by injectLazy()
-    private val loadNsfwSource by lazy {
-        preferences.showNsfwSource().get()
+    private fun isNsfwAllowed(context: Context): Boolean {
+        return try {
+            val app = context.applicationContext
+            if (app is ani.dantotsu.di.GraphProvider<*>) {
+                (app.graph as? ani.dantotsu.di.AppGraph)?.let {
+                    return it.sourcePreferences.showNsfwSource().get()
+                }
+            }
+            Injekt.get<SourcePreferences>().showNsfwSource().get()
+        } catch (_: Throwable) {
+            true
+        }
     }
 
     private const val ANIME_PACKAGE = "tachiyomi.animeextension"
@@ -481,6 +490,7 @@ internal object ExtensionLoader {
             return AnimeLoadResult.Error
         }
 
+        val loadNsfwSource = isNsfwAllowed(context)
         val isNsfw = (appInfo.metaData?.getInt("aniyomix.contentWarning", 0) ?: 0) > 0 ||
             appInfo.metaData?.getInt("$ANIME_PACKAGE$XX_METADATA_NSFW", 0) == 1
         if (!loadNsfwSource && isNsfw) {
@@ -496,7 +506,7 @@ internal object ExtensionLoader {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
         } catch (e: Throwable) {
             Logger.log("Extension load error: $extName")
-            Injekt.get<CrashlyticsInterface>().logException(e)
+            try { Injekt.get<CrashlyticsInterface>().logException(e) } catch (_: Throwable) {}
             return AnimeLoadResult.Error
         }
 
@@ -622,6 +632,7 @@ internal object ExtensionLoader {
             return MangaLoadResult.Error
         }
 
+        val loadNsfwSource = isNsfwAllowed(context)
         val isNsfw = appInfo.metaData?.getInt("$MANGA_PACKAGE$XX_METADATA_NSFW", 0) == 1
         if (!loadNsfwSource && isNsfw) {
             Logger.log("NSFW extension $pkgName not allowed")
@@ -636,7 +647,7 @@ internal object ExtensionLoader {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
         } catch (e: Throwable) {
             Logger.log("Extension load error: $extName")
-            Injekt.get<CrashlyticsInterface>().logException(e)
+            try { Injekt.get<CrashlyticsInterface>().logException(e) } catch (_: Throwable) {}
             return MangaLoadResult.Error
         }
 
