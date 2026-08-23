@@ -38,64 +38,13 @@ object AppBindings {
 
     @Provides
     @SingleIn(AppScope::class)
-    fun providesPreferenceStore(application: Application): PreferenceStore = AndroidPreferenceStore(application)
+    fun providesAnimeSourceManager(context: Context, extensionManager: AnimeExtensionManager): AnimeSourceManager =
+        AndroidAnimeSourceManager(context, extensionManager)
 
     @Provides
     @SingleIn(AppScope::class)
-    fun providesSourcePreferences(preferenceStore: PreferenceStore): SourcePreferences = SourcePreferences(preferenceStore)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesBasePreferences(application: Application, preferenceStore: PreferenceStore): BasePreferences =
-        BasePreferences(application, preferenceStore)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesDownloadsManager(application: Application): DownloadsManager = DownloadsManager(application)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesNetworkHelper(application: Application): NetworkHelper = NetworkHelper(application)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesJavaScriptEngine(application: Application): JavaScriptEngine = JavaScriptEngine(application)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesAnimeExtensionManager(
-        application: Application,
-        sourcePreferences: SourcePreferences,
-    ): AnimeExtensionManager = AnimeExtensionManager(application, sourcePreferences)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesMangaExtensionManager(
-        application: Application,
-        sourcePreferences: SourcePreferences,
-    ): MangaExtensionManager = MangaExtensionManager(application, sourcePreferences)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesNovelExtensionManager(application: Application): NovelExtensionManager = NovelExtensionManager(application)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesTorrentServerManager(application: Application): TorrentServerManager = TorrentServerManager(application)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesDownloadAddonManager(application: Application): DownloadAddonManager = DownloadAddonManager(application)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesAnimeSourceManager(application: Application, extensionManager: AnimeExtensionManager): AnimeSourceManager =
-        AndroidAnimeSourceManager(application, extensionManager)
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun providesMangaSourceManager(application: Application, extensionManager: MangaExtensionManager): MangaSourceManager =
-        AndroidMangaSourceManager(application, extensionManager)
+    fun providesMangaSourceManager(context: Context, extensionManager: MangaExtensionManager): MangaSourceManager =
+        AndroidMangaSourceManager(context, extensionManager)
 
     @Provides
     @SingleIn(AppScope::class)
