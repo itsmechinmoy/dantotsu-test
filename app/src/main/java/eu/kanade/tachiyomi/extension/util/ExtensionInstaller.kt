@@ -59,7 +59,8 @@ class ExtensionInstaller(private val context: Context) {
      */
     private val downloadsRelay = PublishRelay.create<Pair<Long, InstallStep>>()
 
-    private val extensionInstaller = Injekt.get<BasePreferences>().extensionInstaller()
+    private val basePreferences: BasePreferences by injectLazy()
+    private val extensionInstaller get() = basePreferences.extensionInstaller()
 
     /**
      * Adds the given extension to the downloads queue and returns an observable containing its
