@@ -319,11 +319,13 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         }
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val extensionNameTextView: TextView = view.findViewById(R.id.extensionNameTextView)
+            val extensionNameTextView: ani.dantotsu.others.SecureTextSurfaceView =
+                view.findViewById(R.id.extensionNameTextView)
             val extensionVersionTextView: TextView =
                 view.findViewById(R.id.extensionVersionTextView)
             val settingsImageView: ImageView = view.findViewById(R.id.settingsImageView)
-            val extensionIconImageView: ImageView = view.findViewById(R.id.extensionIconImageView)
+            val extensionIconImageView: ani.dantotsu.others.SecureImageSurfaceView =
+                view.findViewById(R.id.extensionIconImageView)
             val deleteView: ImageView = view.findViewById(R.id.deleteTextView)
             val updateView: ImageView = view.findViewById(R.id.updateTextView)
         }
