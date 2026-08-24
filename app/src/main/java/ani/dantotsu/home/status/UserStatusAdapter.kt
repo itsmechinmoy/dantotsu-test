@@ -19,8 +19,8 @@ import ani.dantotsu.util.ActivityMarkdownCreator
 
 fun sortUserStatusList(users: List<User>): ArrayList<User> {
     if (users.isEmpty()) return arrayListOf()
-    val watchedActivity = PrefManager.getCustomVal<Set<*>>("activities", setOf())
-        .mapNotNull { it.toString().toIntOrNull() }.toSet()
+    val watchedActivity = PrefManager.getCustomVal<Set<String>>("activities", emptySet())
+        .mapNotNull { it.toIntOrNull() }.toSet()
 
     val currentUser = users.firstOrNull { it.id == Anilist.userid }
     val otherUsers = users.filter { it.id != Anilist.userid }
@@ -104,8 +104,8 @@ class UserStatusAdapter(userList: ArrayList<User>) :
         b.profileUserAvatar.loadImage(user.pfp)
         b.profileUserName.text =
             if (Anilist.userid == user.id) getAppString(R.string.your_story) else user.name
-        val watchedActivity = PrefManager.getCustomVal<Set<*>>("activities", setOf())
-            .mapNotNull { it.toString().toIntOrNull() }.toSet()
+        val watchedActivity = PrefManager.getCustomVal<Set<String>>("activities", emptySet())
+            .mapNotNull { it.toIntOrNull() }.toSet()
         val booleanList = user.activity.map { watchedActivity.contains(it.id) }
         b.profileUserStatusIndicator.setParts(
             user.activity.size,
