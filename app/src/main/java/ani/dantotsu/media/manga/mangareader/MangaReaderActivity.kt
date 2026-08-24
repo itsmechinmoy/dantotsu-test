@@ -169,6 +169,7 @@ class MangaReaderActivity : AppCompatActivity() {
     override fun onDestroy() {
         mangaCache.clear()
         RPCManager.clearPresence(this)
+        ani.dantotsu.widgets.continue_widget.ContinueWidget.updateReadingState(this, null, null, null, isExiting = true)
         super.onDestroy()
     }
 
