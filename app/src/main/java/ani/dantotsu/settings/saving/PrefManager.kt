@@ -152,7 +152,18 @@ object PrefManager {
                 is Float -> irrelevantPreferences!!.getFloat(key, default) as T
                 is Long -> irrelevantPreferences!!.getLong(key, default) as T
                 is String -> irrelevantPreferences!!.getString(key, default) as T
-                is Set<*> -> irrelevantPreferences!!.getStringSet(key, default as Set<String>) as T
+                is Set<*> -> {
+                    val stringSet = irrelevantPreferences!!.getStringSet(key, null) ?: return default
+                    val sample = default.firstOrNull()
+                    when (sample) {
+                        is Int -> stringSet.mapNotNull { it.toIntOrNull() }.toSet() as T
+                        is Long -> stringSet.mapNotNull { it.toLongOrNull() }.toSet() as T
+                        else -> {
+                            // If default is empty, check if expected type might be Int or return stringSet
+                            stringSet as T
+                        }
+                    }
+                }
                 else -> throw IllegalArgumentException("Type not supported")
             }
         } catch (e: Exception) {
@@ -220,7 +231,7 @@ object PrefManager {
                 is Float -> putFloat(key, value as Float)
                 is Long -> putLong(key, value as Long)
                 is String -> putString(key, value as String)
-                is Set<*> -> putStringSet(key, value as Set<String>)
+                is Set<*> -> putStringSet(key, (value as Set<*>).map { it.toString() }.toSet())
                 null -> remove(key)
                 else -> serializeClass(key, value, Location.Irrelevant)
             }
