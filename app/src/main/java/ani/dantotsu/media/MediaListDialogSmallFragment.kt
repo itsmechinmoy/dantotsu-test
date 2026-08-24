@@ -171,9 +171,9 @@ class MediaListDialogSmallFragment : BottomSheetDialogFragment() {
         binding.mediaListPrivate.setOnCheckedChangeListener { _, checked ->
             media.isListPrivate = checked
         }
-        val removeList = PrefManager.getCustomVal("removeList", setOf<Int>())
+        val removeList = PrefManager.getCustomVal<Set<String>>("removeList", emptySet())
         var remove: Boolean? = null
-        binding.mediaListShow.isChecked = media.id in removeList
+        binding.mediaListShow.isChecked = media.id.toString() in removeList
         binding.mediaListShow.setOnCheckedChangeListener { _, checked ->
             remove = checked
         }
@@ -226,9 +226,9 @@ class MediaListDialogSmallFragment : BottomSheetDialogFragment() {
                     )
                 }
                 if (remove == true) {
-                    PrefManager.setCustomVal("removeList", removeList.plus(media.id))
+                    PrefManager.setCustomVal("removeList", removeList.plus(media.id.toString()))
                 } else if (remove == false) {
-                    PrefManager.setCustomVal("removeList", removeList.minus(media.id))
+                    PrefManager.setCustomVal("removeList", removeList.minus(media.id.toString()))
                 }
                 Refresh.all()
                 snackString(getString(R.string.list_updated))
