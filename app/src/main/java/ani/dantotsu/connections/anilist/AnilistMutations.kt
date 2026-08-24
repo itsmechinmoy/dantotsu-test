@@ -452,6 +452,9 @@ class AnilistMutations {
         """.trimIndent()
         val result = executeQuery<JsonObject>(query)
         val errors = result?.get("errors")
+        if (errors == null && result != null) {
+            Anilist.query.invalidateUserStatusCache()
+        }
         return errors == null
     }
 
