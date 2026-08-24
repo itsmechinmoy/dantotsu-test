@@ -648,7 +648,8 @@ class AnilistQueries {
     }
 
     suspend fun initHomePage(): Map<String, ArrayList<Media>> {
-        val removeList = PrefManager.getCustomVal("removeList", setOf<Int>())
+        val removeList = PrefManager.getCustomVal<Set<String>>("removeList", emptySet())
+            .mapNotNull { it.toIntOrNull() }.toSet()
         val hidePrivate = PrefManager.getVal<Boolean>(PrefName.HidePrivate)
         val removedMedia = ArrayList<Media>()
         val toShow = PrefManager.getVal<List<Boolean>>(PrefName.HomeLayout).toMutableList()
