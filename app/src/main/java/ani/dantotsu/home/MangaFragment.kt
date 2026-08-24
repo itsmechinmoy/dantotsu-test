@@ -288,6 +288,12 @@ class MangaFragment : Fragment() {
                         }
                     }
                     model.loaded = true
+                    if (_binding?.mangaRefresh?.isRefreshing == true) {
+                        withContext(Dispatchers.Main) {
+                            model.aniMangaSearchResults.results.clear()
+                            popularAdaptor.notifyDataSetChanged()
+                        }
+                    }
                     withContext(Dispatchers.IO) {
                         model.loadAll(PrefManager.getVal(PrefName.PopularMangaList))
                     }
