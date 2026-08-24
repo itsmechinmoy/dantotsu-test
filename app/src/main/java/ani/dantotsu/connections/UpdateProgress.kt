@@ -202,8 +202,8 @@ fun syncPendingDeletions() {
                 if (listId != null) {
                     Anilist.mutation.deleteList(listId)
                 }
-                val removeList = PrefManager.getCustomVal("removeList", setOf<Int>())
-                PrefManager.setCustomVal("removeList", removeList.minus(anilistId))
+                val removeList = PrefManager.getCustomVal<Set<String>>("removeList", emptySet())
+                PrefManager.setCustomVal("removeList", removeList.minus(anilistId.toString()))
                 val progressUpdates: List<PendingProgressUpdate> =
                     PrefManager.getVal(PrefName.PendingProgressUpdates, listOf())
                 val filteredUpdates = progressUpdates.filterNot { update ->
