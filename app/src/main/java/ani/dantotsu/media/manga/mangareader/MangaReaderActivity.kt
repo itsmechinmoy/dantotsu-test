@@ -362,7 +362,7 @@ class MangaReaderActivity : AppCompatActivity() {
         }
         binding.mangaReaderNextChapter.setOnClickListener {
             if (directionRLBT) {
-                if (currentChapterIndex > 0) change(currentChapterIndex - 1)
+                if (currentChapterIndex > 0) progress { change(currentChapterIndex - 1) }
                 else snackString(getString(R.string.first_chapter))
             } else {
                 if (chaptersArr.size > currentChapterIndex + 1) progress {
@@ -379,11 +379,7 @@ class MangaReaderActivity : AppCompatActivity() {
         }
         binding.mangaReaderPreviousChapter.setOnClickListener {
             if (directionRLBT) {
-                if (chaptersArr.size > currentChapterIndex + 1) progress {
-                    change(
-                        currentChapterIndex + 1
-                    )
-                }
+                if (chaptersArr.size > currentChapterIndex + 1) change(currentChapterIndex + 1)
                 else snackString(getString(R.string.next_chapter_not_found))
             } else {
                 if (currentChapterIndex > 0) change(currentChapterIndex - 1)
