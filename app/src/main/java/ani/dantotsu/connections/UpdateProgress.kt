@@ -75,6 +75,8 @@ fun updateProgress(media: Media, number: String) {
                 }
             }
             media.userProgress = progressInt
+            Anilist.query.invalidateHomePageCache()
+            Anilist.query.invalidateUserStatusCache()
             Refresh.all()
         } else if (Anilist.userid != null) {
             CoroutineScope(Dispatchers.IO).launch {
@@ -94,6 +96,8 @@ fun updateProgress(media: Media, number: String) {
                     toast(currContext()?.getString(R.string.setting_progress, a))
                 }
                 media.userProgress = a
+                Anilist.query.invalidateHomePageCache()
+                Anilist.query.invalidateUserStatusCache()
                 Refresh.all()
             }
         } else {
