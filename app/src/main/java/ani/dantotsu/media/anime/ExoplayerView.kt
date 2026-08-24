@@ -925,9 +925,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         val mimeType = when {
             video?.format == VideoType.M3U8 ||
                     videoUrl.contains(".m3u8", ignoreCase = true) ||
-                    videoUrl.contains("/m3u8", ignoreCase = true) ||
-                    videoUrl.contains("localhost:", ignoreCase = true) ||
-                    videoUrl.contains("127.0.0.1:", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
+                    videoUrl.contains("/m3u8", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
             video?.format == VideoType.DASH ||
                     videoUrl.contains(".mpd", ignoreCase = true) ||
                     videoUrl.contains("/mpd", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_MPD
@@ -943,10 +941,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     null // ExoPlayer auto-detect for non-local containers
                 }
             }
-            videoUrl.endsWith(".mp4", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_MP4
-            videoUrl.endsWith(".mkv", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_MATROSKA
-            videoUrl.endsWith(".webm", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_WEBM
-            else -> null // Allow ExoPlayer to infer container format rather than forcing APPLICATION_MP4 on non-MP4 streams
+            else -> androidx.media3.common.MimeTypes.APPLICATION_MP4
         }
 
         val downloadedMediaItem = if (ext.server.offline) {
