@@ -212,6 +212,16 @@ class MediaListDialogFragment : BottomSheetDialogFragment() {
                     }
                 }
 
+                binding.mediaListDecrement.setOnClickListener {
+                    val init =
+                        if (binding.mediaListProgress.text.toString() != "") binding.mediaListProgress.text.toString()
+                            .toInt() else 0
+                    if (init > 0) {
+                        val progressText = "${init - 1}"
+                        binding.mediaListProgress.setText(progressText)
+                    }
+                }
+
                 val isRescueMode = PrefManager.getVal<Boolean>(PrefName.RescueMode)
                 if (isRescueMode) {
                     binding.mediaListPrivate.apply { (parent as? ViewGroup)?.removeView(this) }
