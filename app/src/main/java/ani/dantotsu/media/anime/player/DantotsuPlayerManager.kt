@@ -70,11 +70,11 @@ class DantotsuPlayerManager(
     var isInitialized = false
         private set
 
-    private val DEFAULT_MIN_BUFFER_MS = 30_000
-    private val DEFAULT_MAX_BUFFER_MS = 120_000
-    private val BUFFER_FOR_PLAYBACK_MS = 2_500
-    private val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5_000
-    private val BACK_BUFFER_DURATION_MS = 60_000
+    private val DEFAULT_MIN_BUFFER_MS = 15_000
+    private val DEFAULT_MAX_BUFFER_MS = 45_000
+    private val BUFFER_FOR_PLAYBACK_MS = 1_500
+    private val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000
+    private val BACK_BUFFER_DURATION_MS = 15_000
 
     fun initTrackSelector() {
         trackSelector = DefaultTrackSelector(activity)
@@ -202,15 +202,15 @@ class DantotsuPlayerManager(
         releaseExoPlayer()
 
         val loadControl = DefaultLoadControl.Builder()
-            .setBackBuffer(BACK_BUFFER_DURATION_MS, false)
+            .setBackBuffer(BACK_BUFFER_DURATION_MS, true)
             .setBufferDurationsMs(
                 DEFAULT_MIN_BUFFER_MS,
                 DEFAULT_MAX_BUFFER_MS,
                 BUFFER_FOR_PLAYBACK_MS,
                 BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
             )
-            .setTargetBufferBytes(C.LENGTH_UNSET)
-            .setPrioritizeTimeOverSizeThresholds(true)
+            .setTargetBufferBytes(32 * 1024 * 1024)
+            .setPrioritizeTimeOverSizeThresholds(false)
             .build()
 
         val useExtensionDecoder = PrefManager.getVal<Boolean>(PrefName.UseAdditionalCodec) && !forceDefaultRenderers
