@@ -29,13 +29,14 @@ import java.util.Locale
 
 class StatsFragment :
     Fragment() {
-    private lateinit var binding: FragmentStatisticsBinding
+    private var _binding: FragmentStatisticsBinding? = null
+    private val binding get() = _binding!!
     private var adapter: GroupieAdapter = GroupieAdapter()
     private var stats: MutableList<Query.StatisticsUser?> = mutableListOf()
     private var type: MediaType = MediaType.ANIME
     private var statType: StatType = StatType.COUNT
     private lateinit var user: Query.UserProfile
-    private lateinit var activity: ProfileActivity
+    private val activity: ProfileActivity get() = requireActivity() as ProfileActivity
     private var loadedFirstTime = false
 
     override fun onCreateView(
@@ -43,13 +44,18 @@ class StatsFragment :
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentStatisticsBinding.inflate(inflater, container, false)
+        _binding = FragmentStatisticsBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.statisticList?.adapter = null
+        _binding = null
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        activity = requireActivity() as ProfileActivity
 
         user = arguments?.getSerializableCompat<Query.UserProfile>("user") as Query.UserProfile
 
