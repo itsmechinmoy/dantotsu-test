@@ -125,8 +125,9 @@ class TrackGroupDialogFragment(
         override fun getItemCount(): Int = trackGroups.size
     }
 
-    override fun onDestroy() {
+    override fun onDestroyView() {
+        _binding?.trackRecyclerView?.adapter = null
         _binding = null
-        super.onDestroy()
+        super.onDestroyView()
     }
 }
