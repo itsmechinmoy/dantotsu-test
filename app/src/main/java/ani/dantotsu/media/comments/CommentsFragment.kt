@@ -50,8 +50,9 @@ import java.util.TimeZone
 
 @SuppressLint("ClickableViewAccessibility")
 class CommentsFragment : Fragment() {
-    lateinit var binding: FragmentCommentsBinding
-    lateinit var activity: MediaDetailsActivity
+    private var _binding: FragmentCommentsBinding? = null
+    val binding get() = _binding!!
+    val activity: MediaDetailsActivity get() = requireActivity() as MediaDetailsActivity
     private var interactionState = InteractionState.NONE
     private var commentWithInteraction: CommentItem? = null
     private val section = Section()
@@ -75,14 +76,19 @@ class CommentsFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentCommentsBinding.inflate(inflater, container, false)
+        _binding = FragmentCommentsBinding.inflate(inflater, container, false)
         binding.commentsLayout.isNestedScrollingEnabled = true
         return binding.root
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.commentsRecycler?.adapter = null
+        _binding = null
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        activity = requireActivity() as MediaDetailsActivity
 
         val baselineAnchor = activity.binding.mediaBottomBarContainer ?: activity.binding.commentMessageContainer
         baselineAnchor?.let {
