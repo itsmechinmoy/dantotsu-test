@@ -218,9 +218,10 @@ class DiscordDialogFragment : BottomSheetDialogFragment() {
         }
     }
 
-    override fun onDestroy() {
+    override fun onDestroyView() {
         tokenRefreshJob?.cancel()
+        tokenRefreshJob = null
         _binding = null
-        super.onDestroy()
+        super.onDestroyView()
     }
 }
