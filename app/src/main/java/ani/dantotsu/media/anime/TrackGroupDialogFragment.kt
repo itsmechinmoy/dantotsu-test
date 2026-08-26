@@ -126,7 +126,7 @@ class TrackGroupDialogFragment(
     }
 
     override fun onDestroyView() {
-        _binding?.trackRecyclerView?.adapter = null
+        _binding?.subtitlesRecycler?.adapter = null
         _binding = null
         super.onDestroyView()
     }
