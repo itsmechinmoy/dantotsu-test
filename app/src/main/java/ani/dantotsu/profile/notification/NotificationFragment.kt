@@ -35,7 +35,8 @@ import kotlinx.coroutines.launch
 class NotificationFragment : Fragment() {
     private lateinit var type: NotificationType
     private var getID: Int = -1
-    private lateinit var binding: FragmentNotificationsBinding
+    private var _binding: FragmentNotificationsBinding? = null
+    private val binding get() = _binding!!
     private var adapter: GroupieAdapter = GroupieAdapter()
     private var currentPage = 1
     private var hasNextPage = false
@@ -46,8 +47,14 @@ class NotificationFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentNotificationsBinding.inflate(inflater, container, false)
+        _binding = FragmentNotificationsBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.notificationRecyclerView?.adapter = null
+        _binding = null
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
