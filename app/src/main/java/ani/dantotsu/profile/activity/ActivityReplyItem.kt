@@ -36,7 +36,7 @@ class ActivityReplyItem(
     override fun bind(viewBinding: ItemActivityReplyBinding, position: Int) {
         binding = viewBinding
         val context = binding.root.context
-        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        val scope = fragActivity.lifecycleScope
         binding.activityUserAvatar.loadImage(reply.user.avatar?.medium)
         binding.activityUserName.text = reply.user.name
         binding.activityTime.text = ActivityItemBuilder.getDateTime(reply.createdAt)
