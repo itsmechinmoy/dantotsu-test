@@ -120,8 +120,8 @@ class App : Application(), GraphProvider<AppGraph> {
             }
         }
 
-        val scope = CoroutineScope(Dispatchers.IO)
-        scope.launch {
+        val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        applicationScope.launch(Dispatchers.IO) {
             animeExtensionManager = Injekt.get()
             launch {
                 delay(1500)
@@ -129,7 +129,7 @@ class App : Application(), GraphProvider<AppGraph> {
             }
             AnimeSources.init(animeExtensionManager.installedExtensionsFlow)
         }
-        scope.launch {
+        applicationScope.launch(Dispatchers.IO) {
             mangaExtensionManager = Injekt.get()
             launch {
                 delay(1500)
@@ -137,7 +137,7 @@ class App : Application(), GraphProvider<AppGraph> {
             }
             MangaSources.init(mangaExtensionManager.installedExtensionsFlow)
         }
-        scope.launch {
+        applicationScope.launch(Dispatchers.IO) {
             novelExtensionManager = Injekt.get()
             launch {
                 delay(1500)
@@ -145,7 +145,7 @@ class App : Application(), GraphProvider<AppGraph> {
             }
             NovelSources.init(novelExtensionManager.allInstalledExtensionsFlow)
         }
-        GlobalScope.launch {
+        applicationScope.launch(Dispatchers.IO) {
             torrentServerManager = Injekt.get()
             downloadAddonManager = Injekt.get()
             if (torrentServerManager.isAvailable()) {
@@ -274,7 +274,11 @@ class App : Application(), GraphProvider<AppGraph> {
         }
 
         override fun onActivitySaveInstanceState(p0: Activity, p1: Bundle) {}
-        override fun onActivityDestroyed(p0: Activity) {}
+        override fun onActivityDestroyed(p0: Activity) {
+            if (currentActivity === p0) {
+                currentActivity = null
+            }
+        }
     }
 
     companion object {
