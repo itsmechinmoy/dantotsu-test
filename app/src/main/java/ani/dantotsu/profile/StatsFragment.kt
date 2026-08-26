@@ -125,7 +125,7 @@ class StatsFragment :
 
     override fun onResume() {
         super.onResume()
-        if (this::binding.isInitialized) {
+        if (_binding != null) {
             binding.statisticList.visibility = View.VISIBLE
             binding.statisticList.setBaseline(activity.binding.profileNavBarContainer!!)
             binding.root.requestLayout()
