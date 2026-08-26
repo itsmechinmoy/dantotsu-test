@@ -63,17 +63,16 @@ class ProfileFragment : Fragment() {
             removeAllViews()
             destroy()
         }
-        _binding?.profileAnimeFavRecycler?.adapter = null
-        _binding?.profileMangaFavRecycler?.adapter = null
-        _binding?.profileStaffFavRecycler?.adapter = null
-        _binding?.profileCharFavRecycler?.adapter = null
+        _binding?.profileFavAnimeRecyclerView?.adapter = null
+        _binding?.profileFavMangaRecyclerView?.adapter = null
+        _binding?.profileFavStaffRecycler?.adapter = null
+        _binding?.profileFavCharacterRecycler?.adapter = null
         _binding = null
     }
 
     val model: ProfileViewModel by activityViewModels()
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        activity = requireActivity() as ProfileActivity
 
         binding.root.setBaseline(activity.binding.profileNavBarContainer)
 
@@ -161,7 +160,7 @@ class ProfileFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (this::binding.isInitialized) {
+        if (_binding != null) {
             binding.root.requestLayout()
             binding.root.setBaseline(activity.binding.profileNavBarContainer)
         }
