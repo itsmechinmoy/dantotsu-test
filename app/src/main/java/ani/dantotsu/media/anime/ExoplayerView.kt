@@ -1495,17 +1495,24 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     override fun onDestroy() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         orientationListener?.disable()
+        orientationListener = null
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 extractor?.onVideoStopped(video)
             } catch (_: Exception) {}
         }
-        if (playerManager.isInitialized) {
-            progressManager.updateAniProgress()
-            val episodeId = "${media.id}-${media.anime?.selectedEpisode ?: ""}"
-            subtitleManager.clearTransientSubtitleCache(episodeId)
-            releasePlayer()
-        }
+        aniSkipManager.stopTracking()
+        progressManager.stopTracking()
+        try {
+            if (playerManager.isInitialized) {
+                progressManager.updateAniProgress()
+                val episodeId = "${media.id}-${media.anime?.selectedEpisode ?: ""}"
+                subtitleManager.clearTransientSubtitleCache(episodeId)
+                releasePlayer()
+            } else {
+                playerView.player = null
+            }
+        } catch (_: Exception) {}
         castManager.release()
         super.onDestroy()
     }
