@@ -130,10 +130,10 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         animeLink: String,
         extra: Map<String, String>?,
         sAnime: SAnime
-    ): List<Episode> {
+    ): List<Episode> = withContext(Dispatchers.IO) {
         val source = (extension.sources.getOrNull(sourceLanguage)
             ?: extension.sources.firstOrNull()) as? AnimeSource
-            ?: return emptyList()
+            ?: return@withContext emptyList()
         try {
             val networkAnime = runCatching {
                 source.getAnimeDetails(sAnime)
@@ -170,7 +170,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 source.getEpisodeListCompat(sAnime)
             }
 
-            if (res.isEmpty()) return emptyList()
+            if (res.isEmpty()) return@withContext emptyList()
 
             val sortedEpisodes = if (res[0].episode_number == -1f) {
                 // Find the number in the string and sort by that number
@@ -214,11 +214,11 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                         } ?: emptyList()
                     }
             }
-            return sortedEpisodes.map { sEpisodeToEpisode(it) }
+            return@withContext sortedEpisodes.map { sEpisodeToEpisode(it) }
         } catch (e: Exception) {
             Logger.log("Exception: $e")
         }
-        return emptyList()
+        return@withContext emptyList()
     }
 
     private fun episodesAreIncrementing(episodes: List<SEpisode>): Boolean {
@@ -237,11 +237,11 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         episodeLink: String,
         extra: Map<String, String>?,
         sEpisode: SEpisode
-    ): List<VideoServer> {
+    ): List<VideoServer> = withContext(Dispatchers.IO) {
         val source = (extension.sources.getOrNull(sourceLanguage)
-            ?: extension.sources.firstOrNull()) as? AnimeSource ?: return emptyList()
+            ?: extension.sources.firstOrNull()) as? AnimeSource ?: return@withContext emptyList()
 
-        return try {
+        return@withContext try {
             val videos = getVideoList(source, sEpisode)
 
             videos.map { videoToVideoServer(it) }
@@ -253,7 +253,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     suspend fun getVideoList(
         source: AnimeSource,
         episode: SEpisode
-    ): List<Video> {
+    ): List<Video> = withContext(Dispatchers.IO) {
         val directVideos = runCatching {
             source.getVideoList(episode)
         }.getOrElse { emptyList() }
@@ -316,7 +316,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             }
             .filter { (it.videoUrl.isNotBlank() && it.videoUrl != "null") || (it.url.isNotBlank() && it.url != "null") }
 
-        return runCatching {
+        return@withContext runCatching {
             if (source is AnimeHttpSource) source.run { allVideos.sortVideos() } else allVideos
         }.getOrElse { allVideos }
     }
@@ -324,9 +324,9 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     private suspend fun resolveVideo(
         source: AnimeSource,
         video: Video
-    ): Video {
+    ): Video = withContext(Dispatchers.IO) {
         if (video.initialized && video.videoUrl.isNotEmpty() && video.videoUrl != "null") {
-            return video
+            return@withContext video
         }
 
         if (video.videoUrl == "null" || video.videoUrl.isEmpty()) {
@@ -335,7 +335,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             }.getOrNull()
 
             if (!newUrl.isNullOrEmpty() && newUrl != "null") {
-                return video.copy(videoUrl = newUrl, initialized = true)
+                return@withContext video.copy(videoUrl = newUrl, initialized = true)
             }
         }
 
@@ -343,9 +343,9 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             if (source is AnimeHttpSource) source.resolveVideo(video) else null
         }.getOrNull()
 
-        if (resolved != null) return resolved
+        if (resolved != null) return@withContext resolved
 
-        return video
+        return@withContext video
     }
 
     override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor {
