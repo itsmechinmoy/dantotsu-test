@@ -622,9 +622,18 @@ class NovelReadFragment : Fragment(),
         return _binding?.root
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.mediaSourceRecycler?.adapter = null
+        _binding = null
+    }
+
     override fun onDestroy() {
         model.mangaReadSources?.flushText()
-        requireContext().unregisterReceiver(downloadStatusReceiver)
+        try {
+            requireContext().unregisterReceiver(downloadStatusReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
         super.onDestroy()
     }
 
