@@ -686,10 +686,19 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
         chapterAdapter.notifyItemRangeInserted(0, arr.size)
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.mediaSourceRecycler?.adapter = null
+        _binding = null
+    }
+
     override fun onDestroy() {
         model.mangaReadSources?.flushText()
         super.onDestroy()
-        requireContext().unregisterReceiver(downloadStatusReceiver)
+        try {
+            requireContext().unregisterReceiver(downloadStatusReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
     }
 
     private var state: Parcelable? = null
