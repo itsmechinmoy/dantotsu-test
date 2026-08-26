@@ -48,7 +48,6 @@ class SettingsCommonActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsCommonBinding
     private lateinit var launcher: LauncherWrapper
 
-    @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
