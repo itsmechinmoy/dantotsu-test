@@ -44,8 +44,9 @@ class DevelopersDialogFragment : BottomSheetDialogFragment() {
         }
     }
 
-    override fun onDestroy() {
+    override fun onDestroyView() {
+        _binding?.devsRecyclerView?.adapter = null
         _binding = null
-        super.onDestroy()
+        super.onDestroyView()
     }
 }
