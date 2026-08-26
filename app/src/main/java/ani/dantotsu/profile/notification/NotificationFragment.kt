@@ -242,7 +242,7 @@ class NotificationFragment : Fragment() {
     }
     override fun onResume() {
         super.onResume()
-        if (this::binding.isInitialized) {
+        if (_binding != null) {
             binding.root.requestLayout()
         }
     }
