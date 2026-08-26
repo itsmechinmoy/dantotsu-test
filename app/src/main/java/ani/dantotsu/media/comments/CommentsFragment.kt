@@ -83,7 +83,7 @@ class CommentsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding?.commentsRecycler?.adapter = null
+        _binding?.commentsList?.adapter = null
         _binding = null
     }
 
