@@ -28,7 +28,8 @@ class ActivityFragment : Fragment() {
     private lateinit var type: ActivityType
     private var userId: Int? = null
     private var activityId: Int? = null
-    private lateinit var binding: FragmentFeedBinding
+    private var _binding: FragmentFeedBinding? = null
+    private val binding get() = _binding!!
     private var adapter: GroupieAdapter = GroupieAdapter()
     private var page: Int = 1
     private var allActivities: MutableList<Activity> = mutableListOf()
@@ -40,8 +41,14 @@ class ActivityFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentFeedBinding.inflate(inflater, container, false)
+        _binding = FragmentFeedBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.listRecyclerView?.adapter = null
+        _binding = null
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
