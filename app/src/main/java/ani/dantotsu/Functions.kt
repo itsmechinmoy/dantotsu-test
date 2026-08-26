@@ -167,6 +167,9 @@ var statusBarHeight = 0
 var navBarHeight = 0
 private const val MARKDOWN_IMAGE_MAX_SCREEN_SCALE_FACTOR = 2L
 val Int.dp: Float get() = (this / getSystem().displayMetrics.density)
+val Float.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
+val Int.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
+val Double.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
 private var _bottomBarRef: java.lang.ref.WeakReference<AnimatedBottomBar>? = null
 var bottomBar: AnimatedBottomBar
     get() = _bottomBarRef?.get() ?: throw IllegalStateException("bottomBar is not attached or has been destroyed")
