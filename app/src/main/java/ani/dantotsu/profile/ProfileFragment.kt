@@ -38,18 +38,36 @@ import kotlinx.coroutines.launch
 
 
 class ProfileFragment : Fragment() {
-    lateinit var binding: FragmentProfileBinding
-    private lateinit var activity: ProfileActivity
+    private var _binding: FragmentProfileBinding? = null
+    val binding get() = _binding!!
+    private val activity: ProfileActivity get() = requireActivity() as ProfileActivity
     private lateinit var user: Query.UserProfile
     private val favStaff = arrayListOf<Author>()
     private val favCharacter = arrayListOf<Character>()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = FragmentProfileBinding.inflate(inflater, container, false)
+        _binding = FragmentProfileBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.profileUserBio?.apply {
+            stopLoading()
+            loadUrl("about:blank")
+            clearHistory()
+            removeAllViews()
+            destroy()
+        }
+        _binding?.profileAnimeFavRecycler?.adapter = null
+        _binding?.profileMangaFavRecycler?.adapter = null
+        _binding?.profileStaffFavRecycler?.adapter = null
+        _binding?.profileCharFavRecycler?.adapter = null
+        _binding = null
     }
 
     val model: ProfileViewModel by activityViewModels()
