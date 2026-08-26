@@ -868,6 +868,12 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
         }
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.mediaSourceRecycler?.adapter = null
+        _binding = null
+    }
+
     override fun onDestroy() {
         model.watchSources?.flushText()
         super.onDestroy()
