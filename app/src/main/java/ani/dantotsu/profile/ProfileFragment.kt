@@ -66,7 +66,7 @@ class ProfileFragment : Fragment() {
         _binding?.profileFavAnimeRecyclerView?.adapter = null
         _binding?.profileFavMangaRecyclerView?.adapter = null
         _binding?.profileFavStaffRecycler?.adapter = null
-        _binding?.profileFavCharacterRecycler?.adapter = null
+        _binding?.profileFavCharactersRecycler?.adapter = null
         _binding = null
     }
 
