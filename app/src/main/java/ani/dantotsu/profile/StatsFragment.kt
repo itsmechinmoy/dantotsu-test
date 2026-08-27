@@ -89,20 +89,22 @@ class StatsFragment :
 
         binding.compare.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                activity.lifecycleScope.launch {
+                viewLifecycleOwner.lifecycleScope.launch {
                     if (Anilist.userid != null) {
                         withContext(Dispatchers.Main) {
-                            binding.statisticProgressBar.visibility = View.VISIBLE
-                            binding.statisticList.visibility = View.GONE
+                            val currentBinding = _binding ?: return@withContext
+                            currentBinding.statisticProgressBar.visibility = View.VISIBLE
+                            currentBinding.statisticList.visibility = View.GONE
                         }
                         val userStats =
                             Anilist.query.getUserStatistics(Anilist.userid!!)?.data?.user
                         if (userStats != null) {
                             stats.add(userStats)
                             withContext(Dispatchers.Main) {
+                                val currentBinding = _binding ?: return@withContext
                                 loadStats(type == MediaType.ANIME)
-                                binding.statisticProgressBar.visibility = View.GONE
-                                binding.statisticList.visibility = View.VISIBLE
+                                currentBinding.statisticProgressBar.visibility = View.GONE
+                                currentBinding.statisticList.visibility = View.VISIBLE
                             }
                         }
                     }
@@ -130,21 +132,22 @@ class StatsFragment :
             binding.statisticList.setBaseline(activity.binding.profileNavBarContainer!!)
             binding.root.requestLayout()
             if (!loadedFirstTime) {
-                activity.lifecycleScope.launch {
+                viewLifecycleOwner.lifecycleScope.launch {
                     stats.clear()
                     stats.add(Anilist.query.getUserStatistics(user.id)?.data?.user)
                     withContext(Dispatchers.Main) {
-                        binding.filterContainer.visibility = View.VISIBLE
-                        binding.sourceType.setOnItemClickListener { _, _, i, _ ->
+                        val currentBinding = _binding ?: return@withContext
+                        currentBinding.filterContainer.visibility = View.VISIBLE
+                        currentBinding.sourceType.setOnItemClickListener { _, _, i, _ ->
                             type = MediaType.entries.toTypedArray()[i]
                             loadStats(type == MediaType.ANIME)
                         }
-                        binding.sourceFilter.setOnItemClickListener { _, _, i, _ ->
+                        currentBinding.sourceFilter.setOnItemClickListener { _, _, i, _ ->
                             statType = StatType.entries.toTypedArray()[i]
                             loadStats(type == MediaType.ANIME)
                         }
                         loadStats(type == MediaType.ANIME)
-                        binding.statisticProgressBar.visibility = View.GONE
+                        currentBinding.statisticProgressBar.visibility = View.GONE
                     }
                 }
                 loadedFirstTime = true
