@@ -42,7 +42,7 @@ import ani.dantotsu.databinding.ItemUrlBinding
 import ani.dantotsu.download.DownloadedType
 import ani.dantotsu.download.video.Helper
 import ani.dantotsu.getThemeColor
-import ani.dantotsu.hideSystemBars
+import ani.dantotsu.hideSystemBarsExtendView
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaDetailsViewModel
 import ani.dantotsu.media.MediaType
@@ -979,7 +979,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
 
     override fun onDismiss(dialog: DialogInterface) {
         if (launch == false) {
-            activity?.hideSystemBars()
+            activity?.hideSystemBarsExtendView()
             model.epChanged.postValue(true)
             if (prevEpisode != null) {
                 media?.anime?.selectedEpisode = prevEpisode
