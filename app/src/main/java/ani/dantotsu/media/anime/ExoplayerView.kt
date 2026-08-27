@@ -23,6 +23,7 @@ import android.view.MotionEvent
 import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ImageButton
 import android.widget.Spinner
@@ -67,6 +68,7 @@ import ani.dantotsu.connections.subtitles.WyzieSubtitles
 import ani.dantotsu.databinding.ActivityExoplayerBinding
 import ani.dantotsu.dp
 import ani.dantotsu.hideSystemBars
+import ani.dantotsu.hideSystemBarsExtendView
 import ani.dantotsu.isOnline
 import ani.dantotsu.media.EpisodeMapper
 import ani.dantotsu.media.Media
@@ -288,12 +290,17 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             return
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+
         ThemeManager(this).applyTheme()
         binding = ActivityExoplayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         playerView = binding.playerView
-        hideSystemBars()
+        hideSystemBarsExtendView()
 
         // Bind Views
         exoPlay = playerView.findViewById(androidx.media3.ui.R.id.exo_play)
@@ -643,7 +650,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
         // Episode Observer
         model.getEpisode().observe(this) { ep ->
-            hideSystemBars()
+            hideSystemBarsExtendView()
             if (ep != null && !epChanging) {
                 val currentPos = playerManager.exoPlayer?.currentPosition
                 episode = ep
@@ -737,9 +744,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     val speed = speeds.getOrNull(i) ?: 1f
                     curSpeed = i
                     playerManager.exoPlayer?.playbackParameters = PlaybackParameters(speed)
-                    hideSystemBars()
+                    hideSystemBarsExtendView()
                 }
-                setOnCancelListener { hideSystemBars() }
+                setOnCancelListener { hideSystemBarsExtendView() }
                 show()
             }
         }
@@ -794,7 +801,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     toast(getString(R.string.reset_auto_update))
                     model.setEpisode(initialEp, "invoke")
                 }
-                setOnCancelListener { hideSystemBars() }
+                setOnCancelListener { hideSystemBarsExtendView() }
                 show()
             }
         } else {
@@ -1010,7 +1017,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         customSubtitleView.visibility = View.GONE
         exoSubtitleView.visibility = View.GONE
         playerErrorRetryCount = 0
-        hideSystemBars()
+        hideSystemBarsExtendView()
 
         val selEp = media.anime?.selectedEpisode
         val cleanEp = selEp?.let { MediaNameAdapter.findEpisodeNumber(it) }?.let {
@@ -1451,7 +1458,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
     override fun onResume() {
         super.onResume()
-        hideSystemBars()
+        hideSystemBarsExtendView()
         if (playerManager.isInitialized) {
             playerManager.exoPlayer?.play()
         }
