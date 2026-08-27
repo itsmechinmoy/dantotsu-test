@@ -164,14 +164,15 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
                     isRefreshing = false
                     return@setOnRefreshListener
                 }
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val offline = !isOnline(binding.root.context) || PrefManager.getVal(PrefName.OfflineMode)
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    val ctx = context
+                    val offline = (ctx != null && !isOnline(ctx)) || PrefManager.getVal(PrefName.OfflineMode)
                     if (offline && media.format != "LOCAL") {
                         media.selected!!.sourceIndex = model.mangaReadSources!!.list.lastIndex
                     }
                     model.loadMangaChapters(media, media.selected!!.sourceIndex, invalidate = true)
                     withContext(Dispatchers.Main) {
-                        binding.mediaSourceSwipeRefresh.isRefreshing = false
+                        _binding?.mediaSourceSwipeRefresh?.isRefreshing = false
                     }
                 }
             }
@@ -241,9 +242,10 @@ open class MangaReadFragment : Fragment(), ScanlatorSelectionListener {
                         binding.mediaSourceRecycler.adapter =
                             ConcatAdapter(headerAdapter, chapterAdapter)
 
-                        lifecycleScope.launch(Dispatchers.IO) {
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                            val ctx = context
                             val offline =
-                                !isOnline(binding.root.context) || PrefManager.getVal(PrefName.OfflineMode)
+                                (ctx != null && !isOnline(ctx)) || PrefManager.getVal(PrefName.OfflineMode)
                             if (offline && media.format != "LOCAL") media.selected!!.sourceIndex =
                                 model.mangaReadSources!!.list.lastIndex
                             model.loadMangaChapters(media, media.selected!!.sourceIndex)
