@@ -1,6 +1,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en-rUS">
 
     <bool name="leak_canary_allow_in_non_debuggable_build">true</bool>
+    <bool name="leak_canary_add_launcher_icon">false</bool>
+    <bool name="leak_canary_add_dynamic_shortcut">false</bool>
 
     <string name="repo" translatable="false">rebelonion/Dantotsu</string>
     <string name="preference_file_key" translatable="false">dantotsuprefs</string>
