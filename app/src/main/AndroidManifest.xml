@@ -462,6 +462,8 @@
                 <data android:scheme="tachiyomi"/>
                 <data android:scheme="aniyomi"/>
                 <data android:scheme="novelyomi"/>
+                <data android:scheme="mihon"/>
+                <data android:scheme="dantotsu"/>
             </intent-filter>
         </activity>
         <activity
