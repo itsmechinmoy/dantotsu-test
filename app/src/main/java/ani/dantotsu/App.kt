@@ -94,7 +94,7 @@ class App : Application(), GraphProvider<AppGraph> {
 
         runCatching {
             leakcanary.LeakCanary.config = leakcanary.LeakCanary.config.copy(
-                showToast = true
+                retainedVisibleThreshold = 20
             )
         }
 
