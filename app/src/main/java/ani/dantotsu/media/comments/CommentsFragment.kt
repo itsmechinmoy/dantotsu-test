@@ -132,9 +132,9 @@ class CommentsFragment : Fragment() {
             activity.binding.commentMessageContainer.visibility =
                 if (CommentsAPI.authToken != null) View.VISIBLE else View.GONE
 
-            lifecycleScope.launch {
+            viewLifecycleOwner.lifecycleScope.launch {
                 loadAndDisplayComments()
-                binding.commentsRefresh.isRefreshing = false
+                _binding?.commentsRefresh?.isRefreshing = false
             }
             activity.binding.commentReplyToContainer.visibility = View.GONE
         }
@@ -206,7 +206,7 @@ class CommentsFragment : Fragment() {
                 }
                 PrefManager.setVal(PrefName.CommentSortOrder, sortOrder)
                 if (totalPages > pagesLoaded) {
-                    lifecycleScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         loadAndDisplayComments()
                         activity.binding.commentReplyToContainer.visibility = View.GONE
                     }
@@ -315,10 +315,10 @@ class CommentsFragment : Fragment() {
                             if (pagesLoaded < totalPages && totalPages > 1) {
                                 binding.commentBottomRefresh.visibility = View.VISIBLE
                                 loadMoreComments()
-                                lifecycleScope.launch {
+                                viewLifecycleOwner.lifecycleScope.launch {
                                     kotlinx.coroutines.delay(1000)
                                     withContext(Dispatchers.Main) {
-                                        binding.commentBottomRefresh.visibility = View.GONE
+                                        _binding?.commentBottomRefresh?.visibility = View.GONE
                                     }
                                 }
                             } else {
