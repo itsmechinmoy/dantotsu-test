@@ -30,16 +30,17 @@ class DevelopersDialogFragment : BottomSheetDialogFragment() {
         binding.devsProgressBar.visibility = View.VISIBLE
         binding.devsRecyclerView.visibility = View.GONE
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val contributors = Contributors().getContributors()
-                binding.devsRecyclerView.adapter = DevelopersAdapter(contributors)
-                binding.devsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
-                binding.devsRecyclerView.visibility = View.VISIBLE
-                binding.devsProgressBar.visibility = View.GONE
+                val currentBinding = _binding ?: return@launch
+                currentBinding.devsRecyclerView.adapter = DevelopersAdapter(contributors)
+                currentBinding.devsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+                currentBinding.devsRecyclerView.visibility = View.VISIBLE
+                currentBinding.devsProgressBar.visibility = View.GONE
             } catch (e: Exception) {
                 e.printStackTrace()
-                binding.devsProgressBar.visibility = View.GONE
+                _binding?.devsProgressBar?.visibility = View.GONE
             }
         }
     }
