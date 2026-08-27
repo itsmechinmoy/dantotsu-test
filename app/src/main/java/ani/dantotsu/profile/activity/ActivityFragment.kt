@@ -78,21 +78,22 @@ class ActivityFragment : Fragment() {
             bottomMargin = navBarHeight
         }
         binding.emptyTextView.text = getString(R.string.nothing_here)
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             getList()
+            val currentBinding = _binding ?: return@launch
             if (adapter.itemCount == 0) {
-                binding.emptyTextView.isVisible = true
+                currentBinding.emptyTextView.isVisible = true
             }
-            binding.listProgressBar.isVisible = false
+            currentBinding.listProgressBar.isVisible = false
         }
         binding.feedSwipeRefresh.setOnRefreshListener {
-            lifecycleScope.launch {
+            viewLifecycleOwner.lifecycleScope.launch {
                 adapter.clear()
                 allActivities.clear()
                 page = 1
                 hasMoreActivities = true
                 getList()
-                binding.feedSwipeRefresh.isRefreshing = false
+                _binding?.feedSwipeRefresh?.isRefreshing = false
             }
         }
         binding.listRecyclerView.addOnScrollListener(object :
@@ -100,10 +101,10 @@ class ActivityFragment : Fragment() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 if (shouldLoadMore()) {
-                    lifecycleScope.launch {
-                        binding.feedRefresh.isVisible = true
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        _binding?.feedRefresh?.isVisible = true
                         getList()
-                        binding.feedRefresh.isVisible = false
+                        _binding?.feedRefresh?.isVisible = false
                     }
                 }
             }
@@ -113,14 +114,14 @@ class ActivityFragment : Fragment() {
     private fun showFilterBottomSheet() {
         ActivityFilterBottomSheet.newInstance(currentFilter) { filterType ->
             currentFilter = filterType
-            lifecycleScope.launch {
-                binding.listProgressBar.isVisible = true
+            viewLifecycleOwner.lifecycleScope.launch {
+                _binding?.listProgressBar?.isVisible = true
                 adapter.clear()
                 allActivities.clear()
                 page = 1
                 hasMoreActivities = true
                 getList()
-                binding.listProgressBar.isVisible = false
+                _binding?.listProgressBar?.isVisible = false
             }
         }.show(childFragmentManager, "ActivityFilterBottomSheet")
     }
