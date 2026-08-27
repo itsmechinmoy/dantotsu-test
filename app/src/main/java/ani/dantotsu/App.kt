@@ -92,6 +92,12 @@ class App : Application(), GraphProvider<AppGraph> {
         }
         registerActivityLifecycleCallbacks(mFTActivityLifecycleCallbacks)
 
+        runCatching {
+            leakcanary.LeakCanary.config = leakcanary.LeakCanary.config.copy(
+                showToast = true
+            )
+        }
+
         crashlytics.setCrashlyticsCollectionEnabled(!DisabledReports)
         (PrefManager.getVal(PrefName.SharedUserID) as Boolean).let {
             if (!it) return@let
