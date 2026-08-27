@@ -164,8 +164,9 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                     isRefreshing = false
                     return@setOnRefreshListener
                 }
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val offline = !isOnline(binding.root.context) || PrefManager.getVal(PrefName.OfflineMode)
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    val ctx = context
+                    val offline = (ctx != null && !isOnline(ctx)) || PrefManager.getVal(PrefName.OfflineMode)
                     val isLocal = model.watchSources?.list?.getOrNull(media.selected!!.sourceIndex)?.name == "Local"
                     if (!offline && !isLocal) {
                         val kitsuEpisodes = async { model.loadKitsuEpisodes(media, force = true) }
@@ -175,7 +176,7 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                     }
                     model.loadEpisodes(media, media.selected!!.sourceIndex, invalidate = true)
                     withContext(Dispatchers.Main) {
-                        binding.mediaSourceSwipeRefresh.isRefreshing = false
+                        _binding?.mediaSourceSwipeRefresh?.isRefreshing = false
                     }
                 }
             }
@@ -246,9 +247,10 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                     binding.mediaSourceRecycler.adapter =
                         ConcatAdapter(headerAdapter, episodeAdapter)
 
-                    lifecycleScope.launch(Dispatchers.IO) {
+                    viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                        val ctx = context
                         val offline =
-                            !isOnline(binding.root.context) || PrefManager.getVal(PrefName.OfflineMode)
+                            (ctx != null && !isOnline(ctx)) || PrefManager.getVal(PrefName.OfflineMode)
                         val isLocal = model.watchSources!!.list.getOrNull(media.selected!!.sourceIndex)?.name == "Local"
                         if (offline && !isLocal) {
                             media.selected!!.sourceIndex = model.watchSources!!.list.lastIndex
