@@ -426,7 +426,32 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                 if (total > limit) {
                     val arr = filteredEpisodes.keys.toTypedArray()
                     val stored = ceil((total).toDouble() / limit).toInt()
-                    val position = MathUtils.clamp(media.selected!!.chip, 0, stored - 1)
+
+                    val anilistEp = (media.userProgress ?: 0).plus(1)
+                    val appEp = PrefManager.getCustomVal<String?>(
+                        "${media.id}_current_ep", ""
+                    )?.let { MediaNameAdapter.findEpisodeNumber(it)?.toInt() ?: it.toIntOrNull() } ?: 1
+                    val targetEpNum = (if (anilistEp > appEp) anilistEp else appEp).toFloat()
+
+                    var targetIndex = arr.indexOfFirst { key ->
+                        val epObj = filteredEpisodes[key]
+                        MediaNameAdapter.findEpisodeNumber(key) == targetEpNum ||
+                        (epObj?.number != null && MediaNameAdapter.findEpisodeNumber(epObj.number) == targetEpNum)
+                    }
+                    if (targetIndex == -1) {
+                        val targetIdx = targetEpNum.toInt() - 1
+                        if (targetIdx in arr.indices) {
+                            targetIndex = targetIdx
+                        }
+                    }
+
+                    val targetChip = if (targetIndex >= 0) (targetIndex / limit).coerceIn(0, stored - 1) else 0
+                    val position = if (media.selected!!.chip == 0 && targetChip > 0) {
+                        media.selected!!.chip = targetChip
+                        targetChip
+                    } else {
+                        MathUtils.clamp(media.selected!!.chip, 0, stored - 1)
+                    }
                     val last = if (position + 1 == stored) total else (limit * (position + 1))
                     start = limit * (position)
                     end = last - 1
