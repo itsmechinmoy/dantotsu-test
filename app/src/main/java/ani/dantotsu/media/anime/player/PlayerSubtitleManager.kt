@@ -455,8 +455,10 @@ class PlayerSubtitleManager(
         subtitles: List<Subtitle>,
         embedUrl: String,
         currentVideoUrl: String,
-        hasExtSubtitles: Boolean
+        hasExtSubtitles: Boolean,
+        defaultSubLanguage: String? = null
     ): List<MediaItem.SubtitleConfiguration> {
+        val targetLabel = defaultSubLanguage ?: initialSubtitleLabel
         return subtitles.mapIndexed { index, subtitle ->
             val subtitleUrl = if (!hasExtSubtitles) currentVideoUrl else subtitle.file.url
             val resolvedSubtitleUrl = resolveSubtitleUrl(subtitleUrl, embedUrl, currentVideoUrl)
@@ -473,11 +475,18 @@ class PlayerSubtitleManager(
                     MimeTypes.APPLICATION_SUBRIP
                 }
             }
+            val isMatch = targetLabel != null && (
+                subtitle.language.equals(targetLabel, ignoreCase = true) ||
+                subtitle.language.contains(targetLabel, ignoreCase = true) ||
+                (targetLabel.equals("English", ignoreCase = true) && (subtitle.language.contains("Eng", ignoreCase = true) || subtitle.language.contains("en", ignoreCase = true)))
+            )
+            val isDefaultSelection = isMatch || (targetLabel == null && index == 0)
             MediaItem.SubtitleConfiguration.Builder(resolvedSubtitleUrl.toUri())
                 .setMimeType(subtitleMime)
                 .setId(subtitleId)
                 .setLanguage(subtitleLanguageCode)
                 .setLabel(subtitle.language)
+                .setSelectionFlags(if (isDefaultSelection) C.SELECTION_FLAG_DEFAULT else 0)
                 .build()
         }
     }
@@ -570,7 +579,7 @@ class PlayerSubtitleManager(
     fun handleCues(cueGroup: CueGroup, subtitle: Subtitle?) {
         val player = getPlayer() ?: return
         val exoSubtitleView = playerView.subtitleView
-        val libassActive = assHandler?.hasTracks() == true || subtitle?.type == SubtitleType.ASS
+        val libassActive = assHandler?.hasTracks() == true
         if (libassActive) {
             exoSubtitleView?.visibility = View.GONE
             customSubtitleView.visibility = View.GONE
