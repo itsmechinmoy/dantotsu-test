@@ -1291,4 +1291,6 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="status_sub_off">Subtitles: Off</string>
     <string name="cloudflare_protection_toast">Cloudflare protection detected. Please bypass Cloudflare via WebView.</string>
 
+    <string name="torrent_folder_hint">Folder / Season</string>
+    <string name="torrent_folder_all">All Folders</string>
 </resources>
