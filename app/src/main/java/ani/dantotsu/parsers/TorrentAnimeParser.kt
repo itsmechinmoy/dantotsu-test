@@ -3,7 +3,6 @@ package ani.dantotsu.parsers
 import ani.dantotsu.FileUrl
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaNameAdapter
-import ani.dantotsu.media.anime.Episode
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.torrent.TorrentServerManager
 import ani.dantotsu.util.Logger
@@ -36,6 +35,28 @@ class TorrentAnimeParser : AnimeParser() {
             coverUrl = FileUrl(mediaObj.cover ?: mediaObj.banner ?: ""),
             sAnime = sAnime
         )
+    }
+
+    override suspend fun search(query: String): List<ShowResponse> {
+        val trimmed = query.trim()
+        if (trimmed.startsWith("magnet:?xt=", ignoreCase = true) ||
+            (trimmed.startsWith("http", ignoreCase = true) && trimmed.contains(".torrent", ignoreCase = true)) ||
+            trimmed.startsWith("file://", ignoreCase = true)
+        ) {
+            val sAnime = SAnime.create().apply {
+                this.title = "Torrent Stream"
+                this.url = trimmed
+            }
+            return listOf(
+                ShowResponse(
+                    name = "Torrent Stream",
+                    link = trimmed,
+                    coverUrl = FileUrl(""),
+                    sAnime = sAnime
+                )
+            )
+        }
+        return emptyList()
     }
 
     override suspend fun loadEpisodes(
@@ -99,6 +120,9 @@ class TorrentAnimeParser : AnimeParser() {
                     number = epNum,
                     link = streamUrl,
                     title = cleanFileName,
+                    thumbnail = null,
+                    description = null,
+                    isFiller = false,
                     extra = extraData,
                     sEpisode = sEp
                 )
