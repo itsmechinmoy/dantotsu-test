@@ -669,8 +669,18 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
             clipText
         } else null
 
-        ani.dantotsu.torrent.DirectTorrentBottomSheet.newInstanceLinked(media, torrentUrl)
-            .show(parentFragmentManager, "DirectTorrentBottomSheet")
+        val sheet = ani.dantotsu.torrent.DirectTorrentBottomSheet.newInstanceLinked(media, torrentUrl)
+        sheet.onTorrentSelected = { chosenUrl ->
+            PrefManager.setCustomVal("${media.id}_torrent_url", chosenUrl)
+            val torrentIndex = model.watchSources?.names?.indexOf("Torrent") ?: -1
+            if (torrentIndex != -1) {
+                media.selected!!.sourceIndex = torrentIndex
+                onSourceChange(torrentIndex)
+                loadEpisodes(torrentIndex, false)
+                toast(getString(R.string.play_via_torrent_magnet))
+            }
+        }
+        sheet.show(parentFragmentManager, "DirectTorrentBottomSheet")
     }
 
     fun onAnimeEpisodesDownload(episodesToDownload: ArrayList<String>) {
