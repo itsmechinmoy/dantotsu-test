@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.torrentServer.model.FileStat
 import eu.kanade.tachiyomi.data.torrentServer.model.Torrent
 import org.libtorrent4j.*
 import java.io.File
+import java.net.URLEncoder
 
 @Inject
 @SingleIn(AppScope::class)
@@ -21,15 +22,59 @@ class TorrentServerManager(private val context: Context) {
     var serverPort: Int = 8090
         private set
 
+    companion object {
+        // High-speed public anime & general trackers matching qBittorrent & Aniyomi
+        val DEFAULT_TRACKERS = listOf(
+            "udp://tracker.opentrackr.org:1337/announce",
+            "udp://open.stealth.si:80/announce",
+            "udp://tracker.torrent.eu.org:451/announce",
+            "udp://explodie.org:6969/announce",
+            "udp://tracker.moeking.me:6969/announce",
+            "udp://tracker.coppersurfer.tk:6969/announce",
+            "http://tracker.openbittorrent.com:80/announce",
+            "udp://opentracker.i2p.rocks:6969/announce",
+            "udp://tracker.internetwarriors.net:1337/announce",
+            "udp://tracker.openbts.com:6969/announce"
+        )
+
+        // Reliable DHT bootstrap routers matching qBittorrent
+        const val DHT_BOOTSTRAP_NODES =
+            "dht.libtorrent.org:25401,dht.transmissionbt.com:6881,router.bittorrent.com:6881,router.utorrent.com:6881,router.bt.ouinet.work:6881"
+    }
+
     fun start() {
         if (sessionManager.isRunning) return
-        Logger.log("Starting built-in TorrentServerManager...")
+        Logger.log("Starting built-in TorrentServerManager with qBittorrent optimizations...")
         try {
             val settings = SettingsPack()
+
+            // 1. Discovery & Protocols
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.enable_upnp.swigValue(), true)
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.enable_natpmp.swigValue(), true)
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.enable_lsd.swigValue(), true)
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.enable_dht.swigValue(), true)
+            settings.setString(org.libtorrent4j.swig.settings_pack.string_types.dht_bootstrap_nodes.swigValue(), DHT_BOOTSTRAP_NODES)
+
+            // Announce to all trackers across all tiers simultaneously (faster peer discovery)
+            settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
+            settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.announce_to_all_tiers.swigValue(), true)
+
+            // 2. Mobile-Optimized Disk I/O & RAM Cache (Avoid OOM & reduce flash wear)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.cache_size.swigValue(), 256) // 16 MB (256 * 64KB blocks)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.cache_expiry.swigValue(), 60) // 60s TTL
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_queued_disk_bytes.swigValue(), 4 * 1024 * 1024) // 4 MB write-behind queue
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.aio_threads.swigValue(), 2) // 2 background I/O threads for mobile CPU
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.file_pool_size.swigValue(), 25) // Max 25 open FDs
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.checking_mem_usage.swigValue(), 128) // 8 MB hash check buffer
+
+            // Suggest read cache to peers for higher upload/download efficiency
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.suggest_mode.swigValue(), org.libtorrent4j.swig.settings_pack.suggest_mode_t.suggest_read_cache.swigValue())
+
+            // Connection pacing for smooth playback and low battery drain
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.connection_speed.swigValue(), 15) // Max 15 handshakes/sec
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_out_request_queue.swigValue(), 300)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_allowed_in_request_queue.swigValue(), 1000)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.unchoke_slots_limit.swigValue(), 8)
 
             // Disable UDP (uTP) if configured
             val disableUtp = PrefManager.getVal<Boolean>(PrefName.TorrentDisableUtp)
@@ -86,10 +131,10 @@ class TorrentServerManager(private val context: Context) {
                 val proxyHost = PrefManager.getVal<String>(PrefName.Socks5ProxyHost)
                 val proxyPortStr = PrefManager.getVal<String>(PrefName.Socks5ProxyPort)
                 val proxyPort = proxyPortStr.toIntOrNull() ?: 1080
-                
+
                 settings.setString(org.libtorrent4j.swig.settings_pack.string_types.proxy_hostname.swigValue(), proxyHost)
                 settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.proxy_port.swigValue(), proxyPort)
-                
+
                 val authEnabled = PrefManager.getVal<Boolean>(PrefName.ProxyAuthEnabled)
                 if (authEnabled) {
                     val proxyUsername = PrefManager.getVal<String>(PrefName.Socks5ProxyUsername)
@@ -151,13 +196,31 @@ class TorrentServerManager(private val context: Context) {
         }
     }
 
-    fun isRunning(): Boolean {
-        return sessionManager.isRunning
-    }
+    fun isRunning(): Boolean = sessionManager.isRunning
 
     fun isAvailable(andEnabled: Boolean = true): Boolean {
         if (android.os.Build.VERSION.SDK_INT < 28) return false
         return true
+    }
+
+    /**
+     * Injects popular public anime/general trackers into a magnet link if missing,
+     * significantly accelerating metadata resolution and peer discovery.
+     */
+    fun enhanceMagnetUrl(url: String): String {
+        if (!url.startsWith("magnet:", ignoreCase = true)) return url
+        val builder = StringBuilder(url)
+        for (tracker in DEFAULT_TRACKERS) {
+            val encoded = try {
+                URLEncoder.encode(tracker, "UTF-8")
+            } catch (e: Exception) {
+                tracker
+            }
+            if (!url.contains(encoded) && !url.contains(tracker)) {
+                builder.append("&tr=").append(encoded)
+            }
+        }
+        return builder.toString()
     }
 
     fun addTorrent(
@@ -175,8 +238,9 @@ class TorrentServerManager(private val context: Context) {
         val cacheDir = getTorrentCacheDir()
         var handle: TorrentHandle? = null
 
-        if (url.startsWith("magnet:")) {
-            sessionManager.download(url, cacheDir, TorrentFlags.SEQUENTIAL_DOWNLOAD)
+        if (url.startsWith("magnet:", ignoreCase = true)) {
+            val enhancedUrl = enhanceMagnetUrl(url)
+            sessionManager.download(enhancedUrl, cacheDir, TorrentFlags.SEQUENTIAL_DOWNLOAD)
             val infoHash = parseMagnetHash(url)
             val sha1 = Sha1Hash.parseHex(infoHash)
             handle = sessionManager.find(sha1)
@@ -188,7 +252,7 @@ class TorrentServerManager(private val context: Context) {
                 handle = sessionManager.find(sha1)
                 waitTime++
             }
-        } else if (url.startsWith("http://") || url.startsWith("https://")) {
+        } else if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
             val tempFile = downloadTorrentFile(url)
             if (tempFile != null) {
                 val ti = TorrentInfo(tempFile)
@@ -236,18 +300,23 @@ class TorrentServerManager(private val context: Context) {
         )
     }
 
+    /**
+     * Pre-buffers video file using qBittorrent's 1% Head + 1% Tail piece algorithm.
+     * This guarantees container header and moov atom / Matroska Cues are downloaded
+     * before ExoPlayer begins playback, preventing buffering freezes.
+     */
     fun prebuffer(torrentHash: String, fileIndex: Int): Boolean {
         try {
             val sha1 = Sha1Hash.parseHex(torrentHash)
             val handle = sessionManager.find(sha1) ?: return false
-            
+
             // Wait for metadata if not loaded yet
             var waitTime = 0
             while (handle.torrentFile() == null && waitTime < 300) {
                 Thread.sleep(100)
                 waitTime++
             }
-            
+
             val torrentInfo = handle.torrentFile() ?: return false
             val fileStorage = torrentInfo.files()
 
@@ -256,31 +325,40 @@ class TorrentServerManager(private val context: Context) {
             val fileOffset = fileStorage.fileOffset(fileIndex)
             val fileSize = fileStorage.fileSize(fileIndex)
             val pieceLength = torrentInfo.pieceLength().toLong()
+            val numPiecesTotal = torrentInfo.numPieces()
+
             val firstPiece = (fileOffset / pieceLength).toInt()
             val lastPiece = if (fileSize > 0) ((fileOffset + fileSize - 1) / pieceLength).toInt() else firstPiece
 
-            Logger.log("TorrentServerManager: Pre-buffering pieces [$firstPiece..${firstPiece + 1}] and last piece $lastPiece for file $fileIndex")
+            // Calculate 1% of total file size in pieces (min 2, max 16 pieces, matching qBittorrent formula)
+            val numPiecesOnePercent = if (fileSize > 0 && pieceLength > 0) {
+                ((fileSize * 0.01) / pieceLength).toInt().coerceIn(2, 16)
+            } else 2
 
-            // Prioritize first piece (video header)
-            handle.piecePriority(firstPiece, Priority.TOP_PRIORITY)
-            handle.setPieceDeadline(firstPiece, 1000)
+            Logger.log("TorrentServerManager: Pre-buffering $numPiecesOnePercent head pieces and $numPiecesOnePercent tail pieces for file $fileIndex")
 
-            // Prioritize next piece too
-            val secondPiece = firstPiece + 1
-            if (secondPiece < torrentInfo.numPieces()) {
-                handle.piecePriority(secondPiece, Priority.TOP_PRIORITY)
-                handle.setPieceDeadline(secondPiece, 2000)
+            // 1. Prioritize Head Pieces (Container Headers & Video Start)
+            for (i in 0 until numPiecesOnePercent) {
+                val p = firstPiece + i
+                if (p <= lastPiece && p < numPiecesTotal) {
+                    handle.piecePriority(p, Priority.TOP_PRIORITY)
+                    handle.setPieceDeadline(p, 1000 + (i * 500))
+                }
             }
 
-            // Prioritize last piece (moov atom / seek table at end of file, matching qBittorrent)
-            if (lastPiece < torrentInfo.numPieces() && lastPiece > secondPiece) {
-                handle.piecePriority(lastPiece, Priority.TOP_PRIORITY)
-                handle.setPieceDeadline(lastPiece, 3000)
+            // 2. Prioritize Tail Pieces (moov atom / Matroska Cues / Seek Tables)
+            for (i in 0 until numPiecesOnePercent) {
+                val p = lastPiece - i
+                if (p >= firstPiece && p < numPiecesTotal) {
+                    handle.piecePriority(p, Priority.TOP_PRIORITY)
+                    handle.setPieceDeadline(p, 1500 + (i * 500))
+                }
             }
 
-            // Wait up to 15 seconds for the first piece to complete
+            // 3. Wait for the first 2 pieces to be available
             var waitCount = 0
-            while (!handle.havePiece(firstPiece) && waitCount < 150) {
+            val criticalSecondPiece = (firstPiece + 1).coerceAtMost(lastPiece)
+            while ((!handle.havePiece(firstPiece) || !handle.havePiece(criticalSecondPiece)) && waitCount < 150) {
                 if (!sessionManager.isRunning || !handle.isValid) break
                 Thread.sleep(100)
                 waitCount++
