@@ -17,20 +17,18 @@ import ani.dantotsu.currActivity
 import ani.dantotsu.databinding.BottomSheetDirectTorrentBinding
 import ani.dantotsu.databinding.ItemTorrentFileBinding
 import ani.dantotsu.databinding.ItemTorrentFolderBinding
-import ani.dantotsu.media.Anime
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.media.Selected
+import ani.dantotsu.media.anime.Anime
 import ani.dantotsu.media.anime.Episode
 import ani.dantotsu.media.anime.ExoplayerView
-import ani.dantotsu.parsers.Video
+import ani.dantotsu.parsers.VideoContainer
 import ani.dantotsu.parsers.VideoExtractor
 import ani.dantotsu.parsers.VideoServer
 import ani.dantotsu.parsers.VideoType
-import ani.dantotsu.snackString
 import ani.dantotsu.toast
 import ani.dantotsu.util.Logger
-import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.data.torrentServer.model.FileStat
 import eu.kanade.tachiyomi.data.torrentServer.model.Torrent
@@ -48,7 +46,9 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
     private var initialUrl: String? = null
     private var loadedTorrent: Torrent? = null
-    private val treeItems = mutableListOf<TreeItem>()
+    private val folderItemsMap = mutableMapOf<String, MutableList<FileStat>>()
+    private val collapsedFolders = mutableSetOf<String>()
+    private val displayItems = mutableListOf<TreeItem>()
     private var torrentAdapter: TorrentTreeAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,15 +68,26 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        torrentAdapter = TorrentTreeAdapter(treeItems) { fileStat ->
-            onFileClicked(fileStat)
-        }
+        torrentAdapter = TorrentTreeAdapter(
+            items = displayItems,
+            onFolderClick = { folderName ->
+                if (folderName in collapsedFolders) {
+                    collapsedFolders.remove(folderName)
+                } else {
+                    collapsedFolders.add(folderName)
+                }
+                refreshDisplayList()
+            },
+            onFileClick = { fileStat ->
+                onFileClicked(fileStat)
+            }
+        )
 
         binding.torrentFilesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.torrentFilesRecyclerView.adapter = torrentAdapter
 
         binding.torrentLoadButton.setOnClickListener {
-            val url = binding.torrentInputEditText.text.toString().trim()
+            val url = binding.torrentInputEditText.text?.toString()?.trim().orEmpty()
             if (url.isNotBlank()) {
                 loadTorrent(url)
             }
@@ -106,7 +117,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     save = false
                 )
                 loadedTorrent = torrent
-                buildTreeItems(torrent)
+                parseTorrentFolders(torrent)
 
                 withContext(Dispatchers.Main) {
                     val b = _binding ?: return@withContext
@@ -115,7 +126,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     b.torrentInfoContainer.isVisible = true
                     b.torrentNameText.text = torrent.name ?: torrent.title ?: "Torrent Stream"
                     b.torrentSizeText.text = "Total Size: ${formatFileSize(torrent.torrent_size ?: 0L)} • ${torrent.file_stats?.size ?: 0} Files"
-                    torrentAdapter?.notifyDataSetChanged()
+                    refreshDisplayList()
                 }
             } catch (e: Exception) {
                 Logger.log("DirectTorrentBottomSheet error: ${e.message}")
@@ -129,96 +140,133 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun buildTreeItems(torrent: Torrent) {
-        treeItems.clear()
+    private fun parseTorrentFolders(torrent: Torrent) {
+        folderItemsMap.clear()
+        collapsedFolders.clear()
         val stats = torrent.file_stats ?: return
 
         val videoExtensions = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4v", ".ts")
         val videoFiles = stats.filter { stat ->
             val p = stat.path.lowercase()
             videoExtensions.any { p.endsWith(it) }
-        }.takeIf { it.isNotEmpty() } ?: stats
+        }.ifEmpty { stats }
 
-        val grouped = videoFiles.groupBy { stat ->
+        videoFiles.forEach { stat ->
             val norm = stat.path.replace('\\', '/')
-            if (norm.contains('/')) norm.substringBeforeLast('/') else ""
-        }
-
-        grouped.keys.sorted().forEach { folder ->
-            if (folder.isNotBlank()) {
-                treeItems.add(TreeItem.Folder(folder))
-            }
-            val filesInFolder = grouped[folder] ?: emptyList()
-            filesInFolder.sortedBy { it.path }.forEach { stat ->
-                val norm = stat.path.replace('\\', '/')
-                val fileName = if (norm.contains('/')) norm.substringAfterLast('/') else norm
-                treeItems.add(TreeItem.File(stat, fileName))
-            }
+            val folder = if (norm.contains('/')) norm.substringBeforeLast('/') else ""
+            folderItemsMap.getOrPut(folder) { mutableListOf() }.add(stat)
         }
     }
 
+    private fun refreshDisplayList() {
+        displayItems.clear()
+        folderItemsMap.keys.sorted().forEach { folder ->
+            val files = folderItemsMap[folder] ?: return@forEach
+            val folderTotalSize = files.sumOf { it.length }
+            val isCollapsed = folder in collapsedFolders
+
+            if (folder.isNotBlank()) {
+                displayItems.add(TreeItem.FolderItem(folder, files.size, folderTotalSize, isCollapsed))
+            }
+
+            if (!isCollapsed) {
+                files.sortedBy { it.path }.forEach { stat ->
+                    val norm = stat.path.replace('\\', '/')
+                    val fileName = if (norm.contains('/')) norm.substringAfterLast('/') else norm
+                    displayItems.add(TreeItem.FileItem(stat, fileName))
+                }
+            }
+        }
+        torrentAdapter?.notifyDataSetChanged()
+    }
+
     @SuppressLint("UnsafeOptInUsageError")
-    private fun onFileClicked(fileStat: FileStat) {
+    private fun onFileClicked(clickedFileStat: FileStat) {
         val torrent = loadedTorrent ?: return
         val torrentManager = Injekt.get<TorrentServerManager>()
-        val activity = activity ?: currActivity() ?: return
+        val currentAct = activity ?: currActivity() ?: return
 
+        val cleanTitle = clickedFileStat.path.replace('\\', '/').substringAfterLast('/')
         binding.torrentProgressBar.isVisible = true
         binding.torrentStatusText.isVisible = true
-        binding.torrentStatusText.text = "Pre-buffering ${fileStat.path.substringAfterLast('/')}..."
+        binding.torrentStatusText.text = "Pre-buffering $cleanTitle..."
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 torrentManager.activeTorrentHash = torrent.hash
-                val fileId = fileStat.id ?: 0
-                torrentManager.prebuffer(torrent.hash!!, fileId)
-                val streamUrl = torrentManager.getLink(torrent, fileId)
+                val clickedFileId = clickedFileStat.id ?: 0
+                torrentManager.prebuffer(torrent.hash ?: "", clickedFileId)
 
-                val cleanTitle = fileStat.path.replace('\\', '/').substringAfterLast('/')
-                val detectedEp = MediaNameAdapter.findEpisodeNumber(cleanTitle)?.toInt()?.toString() ?: "1"
+                val stats = torrent.file_stats ?: emptyList()
+                val videoExtensions = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4v", ".ts")
+                val videoFilesList = stats.filter { stat ->
+                    val p = stat.path.lowercase()
+                    videoExtensions.any { p.endsWith(it) }
+                }.ifEmpty { stats }
 
-                val media = Media().apply {
-                    id = abs((torrent.hash ?: cleanTitle).hashCode())
-                    name = torrent.name ?: torrent.title ?: cleanTitle
-                    userPreferredName = name
-                    selected = Selected().apply {
+                val allEpisodesMap = mutableMapOf<String, Episode>()
+                var clickedEpNumber = "1"
+
+                videoFilesList.forEachIndexed { index, stat ->
+                    val fCleanName = stat.path.replace('\\', '/').substringAfterLast('/')
+                    val epNum = MediaNameAdapter.findEpisodeNumber(fCleanName)?.let {
+                        if (it % 1 == 0f) it.toInt().toString() else it.toString()
+                    } ?: (index + 1).toString()
+
+                    if (stat.id == clickedFileId) {
+                        clickedEpNumber = epNum
+                    }
+
+                    val fId = stat.id ?: 0
+                    val sUrl = torrentManager.getLink(torrent, fId)
+                    val sEp = SEpisode.create().apply {
+                        name = fCleanName
+                        url = sUrl
+                        episode_number = epNum.toFloatOrNull() ?: (index + 1).toFloat()
+                        if (stat.path.replace('\\', '/').contains('/')) {
+                            scanlator = stat.path.replace('\\', '/').substringBeforeLast('/')
+                        }
+                    }
+                    val vid = ani.dantotsu.parsers.Video(
+                        quality = 1080,
+                        format = VideoType.CONTAINER,
+                        file = FileUrl(sUrl),
+                        size = (stat.length / (1024.0 * 1024.0))
+                    )
+                    val ext = object : VideoExtractor() {
+                        override val server = VideoServer(name = "Torrent Stream", embed = FileUrl(sUrl))
+                        override suspend fun extract(): VideoContainer = VideoContainer(videos = listOf(vid))
+                        init {
+                            videos = listOf(vid)
+                        }
+                    }
+                    val ep = Episode(
+                        number = epNum,
+                        link = sUrl,
+                        title = fCleanName,
+                        sEpisode = sEp
+                    ).apply {
+                        extractors = mutableListOf(ext)
+                        selectedExtractor = "Torrent Stream"
+                        selectedVideo = 0
+                    }
+                    allEpisodesMap[epNum] = ep
+                }
+
+                val media = Media(
+                    id = abs((torrent.hash ?: cleanTitle).hashCode()),
+                    name = torrent.name ?: torrent.title ?: cleanTitle,
+                    nameRomaji = torrent.name ?: torrent.title ?: cleanTitle,
+                    userPreferredName = torrent.name ?: torrent.title ?: cleanTitle,
+                    isAdult = false,
+                    anime = Anime(
+                        episodes = allEpisodesMap,
+                        selectedEpisode = clickedEpNumber
+                    )
+                ).also {
+                    it.selected = Selected(
                         source = "Torrent"
-                    }
-                    anime = Anime().apply {
-                        val sAnime = SAnime.create().apply {
-                            title = media.name ?: "Torrent Stream"
-                            url = torrent.hash ?: ""
-                        }
-                        val sEpisode = SEpisode.create().apply {
-                            name = cleanTitle
-                            url = streamUrl
-                            episode_number = detectedEp.toFloatOrNull() ?: 1f
-                        }
-                        val ep = Episode(
-                            number = detectedEp,
-                            link = streamUrl,
-                            title = cleanTitle,
-                            sEpisode = sEpisode
-                        )
-                        val video = Video(
-                            quality = 1080,
-                            format = VideoType.CONTAINER,
-                            file = FileUrl(streamUrl),
-                            extra = null
-                        )
-                        val extractor = object : VideoExtractor() {
-                            override val server = VideoServer(name = "Torrent Stream", embed = FileUrl(streamUrl))
-                            init {
-                                videos = listOf(video)
-                            }
-                        }
-                        ep.extractors = listOf(extractor)
-                        ep.selectedExtractor = "Torrent Stream"
-                        ep.selectedVideo = 0
-
-                        episodes = mutableMapOf(detectedEp to ep)
-                        selectedEpisode = detectedEp
-                    }
+                    )
                 }
 
                 withContext(Dispatchers.Main) {
@@ -227,7 +275,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     b.torrentStatusText.isVisible = false
                     ExoplayerView.media = media
                     ExoplayerView.initialized = true
-                    startActivity(Intent(activity, ExoplayerView::class.java))
+                    startActivity(Intent(currentAct, ExoplayerView::class.java))
                     dismissAllowingStateLoss()
                 }
             } catch (e: Exception) {
@@ -245,7 +293,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        binding.torrentFilesRecyclerView.adapter = null
+        _binding?.torrentFilesRecyclerView?.adapter = null
         torrentAdapter = null
         _binding = null
     }
@@ -270,19 +318,20 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
     }
 
     sealed class TreeItem {
-        data class Folder(val name: String) : TreeItem()
-        data class File(val stat: FileStat, val fileName: String) : TreeItem()
+        data class FolderItem(val name: String, val count: Int, val totalSize: Long, val isCollapsed: Boolean) : TreeItem()
+        data class FileItem(val stat: FileStat, val fileName: String) : TreeItem()
     }
 
     class TorrentTreeAdapter(
         private val items: List<TreeItem>,
-        private val onItemClick: (FileStat) -> Unit
+        private val onFolderClick: (String) -> Unit,
+        private val onFileClick: (FileStat) -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         override fun getItemViewType(position: Int): Int {
             return when (items[position]) {
-                is TreeItem.Folder -> 0
-                is TreeItem.File -> 1
+                is TreeItem.FolderItem -> 0
+                is TreeItem.FileItem -> 1
             }
         }
 
@@ -299,21 +348,26 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val item = items[position]) {
-                is TreeItem.Folder -> (holder as FolderViewHolder).bind(item)
-                is TreeItem.File -> (holder as FileViewHolder).bind(item, onItemClick)
+                is TreeItem.FolderItem -> (holder as FolderViewHolder).bind(item, onFolderClick)
+                is TreeItem.FileItem -> (holder as FileViewHolder).bind(item, onFileClick)
             }
         }
 
         override fun getItemCount(): Int = items.size
 
         class FolderViewHolder(private val binding: ItemTorrentFolderBinding) : RecyclerView.ViewHolder(binding.root) {
-            fun bind(folder: TreeItem.Folder) {
+            fun bind(folder: TreeItem.FolderItem, onClick: (String) -> Unit) {
                 binding.folderNameText.text = folder.name
+                binding.folderCountText.text = "${folder.count} files • ${formatFileSize(folder.totalSize)}"
+                binding.folderChevron.rotation = if (folder.isCollapsed) -90f else 0f
+                binding.root.setOnClickListener {
+                    onClick(folder.name)
+                }
             }
         }
 
         class FileViewHolder(private val binding: ItemTorrentFileBinding) : RecyclerView.ViewHolder(binding.root) {
-            fun bind(fileItem: TreeItem.File, onClick: (FileStat) -> Unit) {
+            fun bind(fileItem: TreeItem.FileItem, onClick: (FileStat) -> Unit) {
                 binding.fileNameText.text = fileItem.fileName
                 binding.fileSizeText.text = "(${formatFileSize(fileItem.stat.length)})"
                 binding.root.setOnClickListener {
