@@ -103,7 +103,7 @@ class SettingsAboutActivity : AppCompatActivity() {
                         type = 2,
                         name = getString(R.string.track_memory_leaks),
                         desc = getString(R.string.track_memory_leaks_desc),
-                        icon = R.drawable.ic_round_history_edu_24,
+                        icon = R.drawable.ic_round_history_24,
                         isChecked = PrefManager.getVal(PrefName.TrackMemoryLeaks),
                         switch = { isChecked, _ ->
                             PrefManager.setVal(PrefName.TrackMemoryLeaks, isChecked)
