@@ -236,10 +236,12 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        val alertDialog = ctx.customAlertDialog().apply {
+        var dialog: androidx.appcompat.app.AlertDialog? = null
+        ctx.customAlertDialog().apply {
             setTitle(getString(R.string.torrent_link_search_title))
             setCustomView(dialogView)
             setNegButton(R.string.cancel)
+            attach { dialog = it }
         }.show()
 
         val list = dialogView.tag as? android.widget.ListView
@@ -250,7 +252,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                 updateLinkedMediaUi()
                 toast(getString(R.string.torrent_linked_to, chosen.userPreferredName))
             }
-            alertDialog.dismiss()
+            dialog?.dismiss()
         }
     }
 
