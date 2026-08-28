@@ -521,6 +521,7 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
         model.watchSources?.get(selected.sourceIndex)?.showUserTextListener = null
         selected.sourceIndex = i
         selected.server = null
+        selected.scanlators = null
         model.saveSelected(media.id, selected)
         media.selected = selected
         return model.watchSources?.get(i)!!
@@ -674,9 +675,15 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
             PrefManager.setCustomVal("${media.id}_torrent_url", chosenUrl)
             val torrentIndex = model.watchSources?.names?.indexOf("Torrent") ?: -1
             if (torrentIndex != -1) {
+                media.selected!!.scanlators = null
                 media.selected!!.sourceIndex = torrentIndex
+                model.saveSelected(media.id, media.selected!!)
+                model.invalidateSource(torrentIndex)
+                headerAdapter.hiddenScanlators.clear()
+                headerAdapter.options = emptyList()
                 onSourceChange(torrentIndex)
-                loadEpisodes(torrentIndex, false)
+                headerAdapter.updateSelectedSource(torrentIndex)
+                loadEpisodes(torrentIndex, true)
                 toast(getString(R.string.play_via_torrent_magnet))
             }
         }
