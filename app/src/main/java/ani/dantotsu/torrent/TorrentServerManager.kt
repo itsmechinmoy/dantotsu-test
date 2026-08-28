@@ -157,11 +157,7 @@ class TorrentServerManager(private val context: Context) {
 
     fun isAvailable(andEnabled: Boolean = true): Boolean {
         if (android.os.Build.VERSION.SDK_INT < 28) return false
-        return if (andEnabled) {
-            PrefManager.getVal(PrefName.TorrentEnabled)
-        } else {
-            true
-        }
+        return true
     }
 
     fun addTorrent(
@@ -258,12 +254,14 @@ class TorrentServerManager(private val context: Context) {
             if (fileIndex < 0 || fileIndex >= fileStorage.numFiles()) return false
 
             val fileOffset = fileStorage.fileOffset(fileIndex)
+            val fileSize = fileStorage.fileSize(fileIndex)
             val pieceLength = torrentInfo.pieceLength().toLong()
             val firstPiece = (fileOffset / pieceLength).toInt()
+            val lastPiece = if (fileSize > 0) ((fileOffset + fileSize - 1) / pieceLength).toInt() else firstPiece
 
-            Logger.log("TorrentServerManager: Pre-buffering piece $firstPiece for file $fileIndex")
+            Logger.log("TorrentServerManager: Pre-buffering pieces [$firstPiece..${firstPiece + 1}] and last piece $lastPiece for file $fileIndex")
 
-            // Prioritize first piece
+            // Prioritize first piece (video header)
             handle.piecePriority(firstPiece, Priority.TOP_PRIORITY)
             handle.setPieceDeadline(firstPiece, 1000)
 
@@ -272,6 +270,12 @@ class TorrentServerManager(private val context: Context) {
             if (secondPiece < torrentInfo.numPieces()) {
                 handle.piecePriority(secondPiece, Priority.TOP_PRIORITY)
                 handle.setPieceDeadline(secondPiece, 2000)
+            }
+
+            // Prioritize last piece (moov atom / seek table at end of file, matching qBittorrent)
+            if (lastPiece < torrentInfo.numPieces() && lastPiece > secondPiece) {
+                handle.piecePriority(lastPiece, Priority.TOP_PRIORITY)
+                handle.setPieceDeadline(lastPiece, 3000)
             }
 
             // Wait up to 15 seconds for the first piece to complete
