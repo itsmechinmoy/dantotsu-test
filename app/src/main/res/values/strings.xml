@@ -1293,4 +1293,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
 
     <string name="torrent_folder_hint">Folder / Season</string>
     <string name="torrent_folder_all">All Folders</string>
+    <string name="torrent_unlinked">Unlinked</string>
+    <string name="torrent_enter_url_or_magnet">Please enter a magnet link or torrent URL</string>
+    <string name="torrent_pasted_clipboard">Pasted torrent from clipboard</string>
 </resources>
