@@ -68,6 +68,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
     private val currentFileList = mutableListOf<FileStat>()
     private var torrentAdapter: TorrentFileAdapter? = null
     private var searchJob: Job? = null
+    var onTorrentSelected: ((String) -> Unit)? = null
 
     // Activity launcher for local .torrent file picking
     private val filePickerLauncher = registerForActivityResult(
@@ -142,6 +143,11 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         binding.torrentLoadButton.setOnClickListener {
             val text = binding.torrentInputEditText.text?.toString()?.trim() ?: ""
             if (text.isNotBlank()) {
+                if (onTorrentSelected != null) {
+                    onTorrentSelected?.invoke(text)
+                    dismiss()
+                    return@setOnClickListener
+                }
                 loadTorrent(text)
             } else {
                 toast(getString(R.string.torrent_enter_url_or_magnet))
@@ -333,6 +339,11 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
             }
             val fileUrl = "file://${tmpFile.absolutePath}"
             binding.torrentInputEditText.setText(fileUrl)
+            if (onTorrentSelected != null) {
+                onTorrentSelected?.invoke(fileUrl)
+                dismiss()
+                return
+            }
             loadTorrent(fileUrl)
         } catch (e: Exception) {
             Logger.log("File pick error: ${e.message}")
@@ -392,12 +403,15 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
         val videoExtensions = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4v", ".ts")
         val videoFiles = stats.filter { stat ->
-            val p = stat.path.lowercase()
+            val p = stat.path.lowercase(Locale.ROOT)
             videoExtensions.any { p.endsWith(it) }
         }.ifEmpty { stats }
 
-        videoFiles.forEach { stat ->
-            val norm = stat.path.replace('\\', '/')
+        val relativePaths = ani.dantotsu.parsers.TorrentAnimeParser.stripCommonRootDirectory(videoFiles.map { it.path })
+
+        videoFiles.forEachIndexed { index, stat ->
+            val relPath = relativePaths.getOrElse(index) { stat.path }
+            val norm = relPath.replace('\\', '/')
             val folder = if (norm.contains('/')) norm.substringBeforeLast('/') else ""
             folderFilesMap.getOrPut(folder) { mutableListOf() }.add(stat)
         }
