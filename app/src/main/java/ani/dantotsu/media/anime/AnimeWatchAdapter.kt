@@ -220,6 +220,15 @@ class AnimeWatchAdapter(
             openSettings(fragment.requireContext(), CHANNEL_SUBSCRIPTION_CHECK)
         }
 
+        // Play via Torrent / Magnet Button
+        binding.mediaTorrentButton.setOnClickListener {
+            fragment.openDirectTorrent()
+        }
+        binding.mediaTorrentButton.setOnLongClickListener {
+            toast(fragment.getString(R.string.play_via_torrent_magnet))
+            true
+        }
+
         // Nested Button
         binding.mediaNestedButton.setOnClickListener {
             val dialogBinding = DialogLayoutBinding.inflate(fragment.layoutInflater)
