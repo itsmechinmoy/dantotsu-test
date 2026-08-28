@@ -658,6 +658,21 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
         model.onEpisodeClick(media, i, requireActivity().supportFragmentManager)
     }
 
+    fun openDirectTorrent() {
+        val clipboard = ContextCompat.getSystemService(requireContext(), android.content.ClipboardManager::class.java)
+        val clipText = clipboard?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()?.trim()
+        val torrentUrl = if (clipText != null && (
+                clipText.startsWith("magnet:?xt=", ignoreCase = true) ||
+                clipText.endsWith(".torrent", ignoreCase = true) ||
+                (clipText.startsWith("http", ignoreCase = true) && clipText.contains(".torrent", ignoreCase = true))
+            )) {
+            clipText
+        } else null
+
+        ani.dantotsu.torrent.DirectTorrentBottomSheet.newInstanceLinked(media, torrentUrl)
+            .show(parentFragmentManager, "DirectTorrentBottomSheet")
+    }
+
     fun onAnimeEpisodesDownload(episodesToDownload: ArrayList<String>) {
         activity?.let {
             if (!hasDirAccess(it)) {
