@@ -76,7 +76,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:background="@drawable/bg_circle_transparent"
+        android:background="@drawable/surface_rounded_bg"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="10dp">
