@@ -1,7 +1,8 @@
 package ani.dantotsu.torrent
 
 import android.annotation.SuppressLint
-import android.app.Activity
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -10,33 +11,37 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import ani.dantotsu.BottomSheetDialogFragment
-import ani.dantotsu.FileUrl
 import ani.dantotsu.R
 import ani.dantotsu.connections.anilist.Anilist
+import ani.dantotsu.connections.anilist.api.FuzzyDate
 import ani.dantotsu.currActivity
 import ani.dantotsu.databinding.BottomSheetDirectTorrentBinding
 import ani.dantotsu.databinding.ItemTorrentFileBinding
-import ani.dantotsu.databinding.ItemTorrentFolderBinding
 import ani.dantotsu.loadImage
+import ani.dantotsu.media.Anime
+import ani.dantotsu.media.Episode
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.media.Selected
-import ani.dantotsu.media.anime.Anime
-import ani.dantotsu.media.anime.Episode
+import ani.dantotsu.media.anime.AnimeWatchFragment
 import ani.dantotsu.media.anime.ExoplayerView
+import ani.dantotsu.parsers.FileUrl
 import ani.dantotsu.parsers.VideoContainer
 import ani.dantotsu.parsers.VideoExtractor
 import ani.dantotsu.parsers.VideoServer
 import ani.dantotsu.parsers.VideoType
+import ani.dantotsu.snackString
 import ani.dantotsu.toast
 import ani.dantotsu.util.Logger
 import ani.dantotsu.util.customAlertDialog
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.data.torrentServer.model.FileStat
 import eu.kanade.tachiyomi.data.torrentServer.model.Torrent
@@ -50,64 +55,51 @@ import uy.kohesive.injekt.api.get
 import java.util.Locale
 import kotlin.math.abs
 
-/**
- * Bottom sheet for playing a magnet link or .torrent file directly.
- *
- * Can be opened two ways:
- * 1. From Settings -> Torrent Settings (no linked media, user pastes any magnet)
- * 2. From an anime detail page via [newInstanceLinked] (media pre-linked for AniList/MAL tracking)
- *
- * When [linkedMedia] is set, progress is tracked against the real AniList/MAL entry.
- * When not set, the user can search and link any AniList anime from within the sheet.
- */
 class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
+
     private var _binding: BottomSheetDirectTorrentBinding? = null
     private val binding get() = _binding!!
 
     private var initialUrl: String? = null
-
-    // AniList media linked to this torrent session (real ID for tracking)
     private var linkedMedia: Media? = null
 
     private var loadedTorrent: Torrent? = null
-    private val folderItemsMap = mutableMapOf<String, MutableList<FileStat>>()
-    private val collapsedFolders = mutableSetOf<String>()
-    private val displayItems = mutableListOf<TreeItem>()
-    private var torrentAdapter: TorrentTreeAdapter? = null
+    private val folderFilesMap = mutableMapOf<String, MutableList<FileStat>>()
+    private val currentFileList = mutableListOf<FileStat>()
+    private var torrentAdapter: TorrentFileAdapter? = null
     private var searchJob: Job? = null
 
-    // Activity result launcher for .torrent file picker
-    private val torrentFilePicker = registerForActivityResult(
+    // Activity launcher for local .torrent file picking
+    private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val uri = result.data?.data ?: return@registerForActivityResult
-            handleTorrentFileUri(uri)
-        }
+        val uri = result.data?.data ?: return@registerForActivityResult
+        handleTorrentFileUri(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         initialUrl = arguments?.getString(ARG_URL)
-        // Restore pre-linked media passed from anime detail page
-        val preLinkedId = arguments?.getInt(ARG_MEDIA_ID, 0) ?: 0
-        val preLinkedIdMAL = arguments?.getInt(ARG_MEDIA_ID_MAL, 0)?.takeIf { it != 0 }
-        val preLinkedTitle = arguments?.getString(ARG_MEDIA_TITLE)
-        val preLinkedCover = arguments?.getString(ARG_MEDIA_COVER)
-        val preLinkedFormat = arguments?.getString(ARG_MEDIA_FORMAT)
-        val preLinkedEps = arguments?.getInt(ARG_MEDIA_EPISODES, 0) ?: 0
 
-        if (preLinkedId != 0 && preLinkedTitle != null) {
+        // Restore pre-linked Media if passed
+        val mId = arguments?.getInt(ARG_MEDIA_ID, -1) ?: -1
+        if (mId != -1) {
+            val title = arguments?.getString(ARG_MEDIA_TITLE) ?: ""
+            val cover = arguments?.getString(ARG_MEDIA_COVER) ?: ""
+            val malId = arguments?.getInt(ARG_MEDIA_ID_MAL, -1)
+            val format = arguments?.getString(ARG_MEDIA_FORMAT)
+            val eps = arguments?.getInt(ARG_MEDIA_EPISODES, 0)
             linkedMedia = Media(
-                id = preLinkedId,
-                idMAL = preLinkedIdMAL,
-                name = preLinkedTitle,
-                nameRomaji = preLinkedTitle,
-                userPreferredName = preLinkedTitle,
-                cover = preLinkedCover,
-                format = preLinkedFormat,
+                id = mId,
+                idMAL = if (malId != null && malId != -1) malId else null,
+                name = title,
+                nameRomaji = title,
+                userPreferredName = title,
+                cover = cover,
+                banner = cover,
+                format = format,
                 isAdult = false,
-                anime = Anime(totalEpisodes = preLinkedEps.takeIf { it > 0 })
+                anime = Anime(totalEpisodes = if (eps != null && eps > 0) eps else null)
             )
         }
     }
@@ -124,24 +116,39 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        torrentAdapter = TorrentTreeAdapter(
-            items = displayItems,
-            onFolderClick = { folderName ->
-                if (folderName in collapsedFolders) collapsedFolders.remove(folderName)
-                else collapsedFolders.add(folderName)
-                refreshDisplayList()
-            },
-            onFileClick = { fileStat -> onFileClicked(fileStat) }
-        )
-
+        // Setup File RecyclerView
+        torrentAdapter = TorrentFileAdapter(currentFileList) { clickedStat ->
+            onFileClicked(clickedStat)
+        }
         binding.torrentFilesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.torrentFilesRecyclerView.adapter = torrentAdapter
 
-        binding.torrentLoadButton.setOnClickListener {
-            val url = binding.torrentInputEditText.text?.toString()?.trim().orEmpty()
-            if (url.isNotBlank()) loadTorrent(url)
+        // Setup Linked Media UI
+        updateLinkedMediaUi()
+
+        // Link AniList Anime button
+        binding.torrentLinkAnilistButton.setOnClickListener {
+            if (linkedMedia != null) {
+                // Already linked -> offer unlinking
+                linkedMedia = null
+                updateLinkedMediaUi()
+                toast(getString(R.string.torrent_unlinked))
+            } else {
+                showAniListSearchDialog()
+            }
         }
 
+        // Load Button
+        binding.torrentLoadButton.setOnClickListener {
+            val text = binding.torrentInputEditText.text?.toString()?.trim() ?: ""
+            if (text.isNotBlank()) {
+                loadTorrent(text)
+            } else {
+                toast(getString(R.string.torrent_enter_url_or_magnet))
+            }
+        }
+
+        // File Picker Button
         binding.torrentFilePickerButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -151,120 +158,141 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     arrayOf("application/x-bittorrent", "application/octet-stream")
                 )
             }
-            torrentFilePicker.launch(intent)
+            filePickerLauncher.launch(intent)
         }
 
-        updateLinkRow()
-        binding.torrentLinkAnilistButton.setOnClickListener {
-            if (linkedMedia != null) unlinkMedia()
-            else showAnilistSearchDialog()
+        // IME Done
+        binding.torrentInputEditText.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                binding.torrentLoadButton.performClick()
+                true
+            } else false
         }
 
-        if (initialUrl?.isNotBlank() == true) {
-            val url = initialUrl!!
-            binding.torrentInputEditText.setText(url)
-            loadTorrent(url)
+        // Auto-load if initial URL was supplied, otherwise check clipboard
+        if (!initialUrl.isNullOrBlank()) {
+            binding.torrentInputEditText.setText(initialUrl)
+            loadTorrent(initialUrl!!)
         } else {
-            checkClipboardForTorrentLink()
+            checkClipboardForTorrent()
         }
     }
 
-    private fun checkClipboardForTorrentLink() {
-        try {
-            val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
-            val clip = clipboard.primaryClip?.getItemAt(0)?.text?.toString()?.trim() ?: return
-            if (clip.startsWith("magnet:?xt=", ignoreCase = true) ||
-                (clip.startsWith("http://", ignoreCase = true) && clip.contains(".torrent", ignoreCase = true)) ||
-                (clip.startsWith("https://", ignoreCase = true) && clip.contains(".torrent", ignoreCase = true))
+    // ── Clipboard Detection ────────────────────────────────────────────────
+
+    private fun checkClipboardForTorrent() {
+        val clipboard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            ?: return
+        val clip = clipboard.primaryClip ?: return
+        if (clip.itemCount > 0) {
+            val text = clip.getItemAt(0).text?.toString()?.trim() ?: return
+            if (text.startsWith("magnet:?xt=", ignoreCase = true) ||
+                (text.startsWith("http", ignoreCase = true) && text.contains(".torrent", ignoreCase = true))
             ) {
-                binding.torrentInputEditText.setText(clip)
+                binding.torrentInputEditText.setText(text)
+                snackString(getString(R.string.torrent_pasted_clipboard))
             }
-        } catch (e: Exception) {
-            Logger.log("Clipboard check error: ${e.message}")
         }
     }
 
-    // ── AniList / MAL Linking ──────────────────────────────────────────────
+    // ── AniList Link Header UI ─────────────────────────────────────────────
 
-    private fun updateLinkRow() {
+    private fun updateLinkedMediaUi() {
         val b = _binding ?: return
         val m = linkedMedia
         if (m != null) {
-            b.torrentLinkedMediaTitle.text = getString(R.string.torrent_linked_to, m.userPreferredName)
+            b.torrentLinkedMediaCover.isVisible = true
+            b.torrentLinkedMediaCover.loadImage(m.cover ?: m.banner ?: "")
+            b.torrentLinkedMediaTitle.text = m.userPreferredName
             b.torrentLinkedMediaSubtitle.isVisible = true
-            val eps = m.anime?.totalEpisodes?.let { " • $it eps" } ?: ""
-            b.torrentLinkedMediaSubtitle.text = "${m.format ?: ""}$eps".trimStart(' ', '•')
-            b.torrentLinkedMediaCover.isVisible = m.cover != null
-            m.cover?.let { b.torrentLinkedMediaCover.loadImage(it) }
+            val epCount = m.anime?.totalEpisodes?.let { "$it eps" } ?: ""
+            val fmt = m.format ?: ""
+            b.torrentLinkedMediaSubtitle.text = listOf(fmt, epCount).filter { it.isNotBlank() }.joinToString(" • ")
             b.torrentLinkAnilistButton.text = getString(R.string.torrent_unlink_button)
         } else {
+            b.torrentLinkedMediaCover.isVisible = false
             b.torrentLinkedMediaTitle.text = getString(R.string.torrent_link_anilist_hint)
             b.torrentLinkedMediaSubtitle.isVisible = false
-            b.torrentLinkedMediaCover.isVisible = false
             b.torrentLinkAnilistButton.text = getString(R.string.torrent_link_button)
         }
     }
 
-    private fun unlinkMedia() {
-        linkedMedia = null
-        updateLinkRow()
-    }
+    // ── Search & Link AniList Dialog ───────────────────────────────────────
 
-    /**
-     * Shows a search dialog that queries AniList by name and lets the user
-     * link this torrent session to a real AniList entry so progress tracking works.
-     */
-    private fun showAnilistSearchDialog() {
-        val ctx = context ?: return
-        var latestResults: List<Media> = emptyList()
-        var dialogSelectedMedia: Media? = null
+    private fun showAniListSearchDialog() {
+        val ctx = requireContext()
+        val searchResults = mutableListOf<Media>()
 
-        val dialogView = buildSearchDialogView(ctx) { query, onResults ->
+        val dialogView = buildSearchDialogView(ctx) { query, onResult ->
             searchJob?.cancel()
-            searchJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(400)
-                val results = withContext(Dispatchers.IO) {
-                    try {
-                        Anilist.query.searchAniManga(
-                            type = "ANIME",
-                            search = query,
-                            perPage = 10
-                        )?.results ?: emptyList()
-                    } catch (e: Exception) {
-                        Logger.log("AniList search error: ${e.message}")
-                        emptyList()
-                    }
+            searchJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                delay(300)
+                val results = searchAniManga(query)
+                withContext(Dispatchers.Main) {
+                    searchResults.clear()
+                    searchResults.addAll(results)
+                    onResult(results)
                 }
-                latestResults = results
-                onResults(results)
             }
         }
 
-        // Extract the ListView reference from the view tag so we can attach an item listener
-        val listView = dialogView.tag as? android.widget.ListView
-
-        listView?.setOnItemClickListener { _, _, position, _ ->
-            dialogSelectedMedia = latestResults.getOrNull(position)
-        }
-
-        requireActivity().customAlertDialog().apply {
+        val alertDialog = ctx.customAlertDialog().apply {
             setTitle(getString(R.string.torrent_link_search_title))
             setCustomView(dialogView)
-            setPosButton(R.string.ok) {
-                val picked = dialogSelectedMedia
-                if (picked != null) {
-                    linkedMedia = picked
-                    updateLinkRow()
-                    toast(getString(R.string.torrent_link_success))
-                }
+            setNegButton(R.string.cancel)
+        }.show()
+
+        val list = dialogView.tag as? android.widget.ListView
+        list?.setOnItemClickListener { _, _, position, _ ->
+            val chosen = searchResults.getOrNull(position)
+            if (chosen != null) {
+                linkedMedia = chosen
+                updateLinkedMediaUi()
+                toast(getString(R.string.torrent_linked_to, chosen.userPreferredName))
             }
-            setNegButton(R.string.cancel) { }
-            show()
+            alertDialog.dismiss()
+        }
+    }
+
+    private suspend fun searchAniManga(query: String): List<Media> {
+        return try {
+            val response = Anilist.query.search(
+                "ANIME",
+                query,
+                1,
+                15,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            )
+            response?.data?.page?.media?.mapNotNull { item ->
+                item?.let {
+                    Media(
+                        id = it.id,
+                        idMAL = it.idMal,
+                        name = it.title?.english ?: it.title?.romaji ?: it.title?.userPreferred ?: "",
+                        nameRomaji = it.title?.romaji ?: it.title?.userPreferred ?: "",
+                        userPreferredName = it.title?.userPreferred ?: it.title?.english ?: it.title?.romaji ?: "",
+                        cover = it.coverImage?.large ?: it.coverImage?.medium,
+                        banner = it.bannerImage,
+                        format = it.format?.name,
+                        isAdult = it.isAdult ?: false,
+                        anime = Anime(totalEpisodes = it.episodes)
+                    )
+                }
+            } ?: emptyList()
+        } catch (e: Exception) {
+            Logger.log("AniList search error: ${e.message}")
+            emptyList()
         }
     }
 
     private fun buildSearchDialogView(
-        ctx: android.content.Context,
+        ctx: Context,
         onQuery: (String, (List<Media>) -> Unit) -> Unit
     ): View {
         val container = android.widget.LinearLayout(ctx).apply {
@@ -290,7 +318,6 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
             adapter = resultAdapter
         }
         container.addView(resultsList)
-        // Tag the list so the caller can attach an item listener
         container.tag = resultsList
 
         searchEdit.addTextChangedListener(object : TextWatcher {
@@ -366,7 +393,8 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     bm.torrentNameText.text = torrent.name ?: torrent.title ?: "Torrent Stream"
                     bm.torrentSizeText.text =
                         "Total Size: ${formatFileSize(torrent.torrent_size ?: 0L)} • ${torrent.file_stats?.size ?: 0} Files"
-                    refreshDisplayList()
+
+                    setupFolderDropdown()
                 }
             } catch (e: Exception) {
                 Logger.log("DirectTorrentBottomSheet error: ${e.message}")
@@ -381,8 +409,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun parseTorrentFolders(torrent: Torrent) {
-        folderItemsMap.clear()
-        collapsedFolders.clear()
+        folderFilesMap.clear()
         val stats = torrent.file_stats ?: return
 
         val videoExtensions = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4v", ".ts")
@@ -394,30 +421,66 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         videoFiles.forEach { stat ->
             val norm = stat.path.replace('\\', '/')
             val folder = if (norm.contains('/')) norm.substringBeforeLast('/') else ""
-            folderItemsMap.getOrPut(folder) { mutableListOf() }.add(stat)
+            folderFilesMap.getOrPut(folder) { mutableListOf() }.add(stat)
         }
     }
 
-    private fun refreshDisplayList() {
-        displayItems.clear()
-        folderItemsMap.keys.sorted().forEach { folder ->
-            val files = folderItemsMap[folder] ?: return@forEach
-            val folderTotalSize = files.sumOf { it.length }
-            val isCollapsed = folder in collapsedFolders
+    private fun setupFolderDropdown() {
+        val b = _binding ?: return
+        val folderKeys = folderFilesMap.keys.toList()
 
-            if (folder.isNotBlank()) {
-                displayItems.add(TreeItem.FolderItem(folder, files.size, folderTotalSize, isCollapsed))
+        if (folderKeys.size > 1) {
+            b.torrentFolderDropdownContainer.visibility = View.VISIBLE
+            b.torrentFolderDropdownContainer.hint = getString(R.string.season)
+
+            val allText = getString(R.string.all_seasons)
+            val dropdownLabels = mutableListOf<String>()
+            val dropdownKeys = mutableListOf<String>()
+
+            // Option 0: All Folders
+            val totalCount = folderFilesMap.values.sumOf { it.size }
+            dropdownLabels.add("$allText ($totalCount files)")
+            dropdownKeys.add("__ALL__")
+
+            folderKeys.sorted().forEach { folder ->
+                val files = folderFilesMap[folder] ?: emptyList()
+                val label = if (folder.isBlank()) "Root (${files.size} files)" else "$folder (${files.size} files)"
+                dropdownLabels.add(label)
+                dropdownKeys.add(folder)
             }
-            if (!isCollapsed) {
-                files.sortedBy { it.path }.forEach { stat ->
-                    val norm = stat.path.replace('\\', '/')
-                    val fileName = if (norm.contains('/')) norm.substringAfterLast('/') else norm
-                    displayItems.add(TreeItem.FileItem(stat, fileName))
-                }
+
+            b.torrentFolderDropdown.setText(dropdownLabels[0], false)
+            val dropdownAdapter = ArrayAdapter(
+                requireContext(),
+                R.layout.item_dropdown,
+                dropdownLabels
+            )
+            b.torrentFolderDropdown.setAdapter(dropdownAdapter)
+
+            b.torrentFolderDropdown.setOnItemClickListener { _, _, position, _ ->
+                val selectedKey = dropdownKeys.getOrNull(position) ?: "__ALL__"
+                displayFilesForFolder(selectedKey)
             }
+
+            // Default display: first option (All files or First season)
+            displayFilesForFolder("__ALL__")
+        } else {
+            b.torrentFolderDropdownContainer.visibility = View.GONE
+            val singleKey = folderKeys.firstOrNull() ?: ""
+            displayFilesForFolder(singleKey)
         }
-        val newSize = displayItems.size
-        torrentAdapter?.notifyItemRangeChanged(0, newSize)
+    }
+
+    private fun displayFilesForFolder(folderKey: String) {
+        currentFileList.clear()
+        if (folderKey == "__ALL__") {
+            folderFilesMap.keys.sorted().forEach { k ->
+                folderFilesMap[k]?.let { currentFileList.addAll(it.sortedBy { f -> f.path }) }
+            }
+        } else {
+            folderFilesMap[folderKey]?.let { currentFileList.addAll(it.sortedBy { f -> f.path }) }
+        }
+        torrentAdapter?.notifyDataSetChanged()
     }
 
     // ── File Clicked: build episode map and launch ExoPlayer ───────────────
@@ -571,13 +634,13 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         fun newInstanceLinked(media: Media, url: String? = null): DirectTorrentBottomSheet =
             DirectTorrentBottomSheet().apply {
                 arguments = Bundle().apply {
+                    if (url != null) putString(ARG_URL, url)
                     putInt(ARG_MEDIA_ID, media.id)
                     media.idMAL?.let { putInt(ARG_MEDIA_ID_MAL, it) }
-                    putString(ARG_MEDIA_TITLE, media.userPreferredName ?: media.name)
-                    media.cover?.let { putString(ARG_MEDIA_COVER, it) }
+                    putString(ARG_MEDIA_TITLE, media.userPreferredName)
+                    putString(ARG_MEDIA_COVER, media.cover ?: media.banner ?: "")
                     media.format?.let { putString(ARG_MEDIA_FORMAT, it) }
                     media.anime?.totalEpisodes?.let { putInt(ARG_MEDIA_EPISODES, it) }
-                    if (url != null) putString(ARG_URL, url)
                 }
             }
 
@@ -594,57 +657,37 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    // ── Tree item types ────────────────────────────────────────────────────
+    // ── RecyclerView Adapter with Episode Cards ────────────────────────────
 
-    sealed class TreeItem {
-        data class FolderItem(val name: String, val count: Int, val totalSize: Long, val isCollapsed: Boolean) : TreeItem()
-        data class FileItem(val stat: FileStat, val fileName: String) : TreeItem()
-    }
-
-    // ── RecyclerView Adapter ────────────────────────────────────────────────
-
-    class TorrentTreeAdapter(
-        private val items: List<TreeItem>,
-        private val onFolderClick: (String) -> Unit,
+    class TorrentFileAdapter(
+        private val files: List<FileStat>,
         private val onFileClick: (FileStat) -> Unit
-    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    ) : RecyclerView.Adapter<TorrentFileAdapter.FileViewHolder>() {
 
-        override fun getItemViewType(position: Int): Int = when (items[position]) {
-            is TreeItem.FolderItem -> 0
-            is TreeItem.FileItem   -> 1
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
             val inflater = LayoutInflater.from(parent.context)
-            return if (viewType == 0)
-                FolderViewHolder(ItemTorrentFolderBinding.inflate(inflater, parent, false))
-            else
-                FileViewHolder(ItemTorrentFileBinding.inflate(inflater, parent, false))
+            return FileViewHolder(ItemTorrentFileBinding.inflate(inflater, parent, false))
         }
 
-        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-            when (val item = items[position]) {
-                is TreeItem.FolderItem -> (holder as FolderViewHolder).bind(item, onFolderClick)
-                is TreeItem.FileItem   -> (holder as FileViewHolder).bind(item, onFileClick)
-            }
+        override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
+            holder.bind(files[position], position, onFileClick)
         }
 
-        override fun getItemCount(): Int = items.size
+        override fun getItemCount(): Int = files.size
 
-        class FolderViewHolder(private val binding: ItemTorrentFolderBinding) : RecyclerView.ViewHolder(binding.root) {
-            fun bind(folder: TreeItem.FolderItem, onClick: (String) -> Unit) {
-                binding.folderNameText.text = folder.name
-                binding.folderCountText.text = "${folder.count} files • ${formatFileSize(folder.totalSize)}"
-                binding.folderChevron.rotation = if (folder.isCollapsed) -90f else 0f
-                binding.root.setOnClickListener { onClick(folder.name) }
-            }
-        }
+        class FileViewHolder(private val binding: ItemTorrentFileBinding) :
+            RecyclerView.ViewHolder(binding.root) {
 
-        class FileViewHolder(private val binding: ItemTorrentFileBinding) : RecyclerView.ViewHolder(binding.root) {
-            fun bind(fileItem: TreeItem.FileItem, onClick: (FileStat) -> Unit) {
-                binding.fileNameText.text = fileItem.fileName
-                binding.fileSizeText.text = "(${formatFileSize(fileItem.stat.length)})"
-                binding.root.setOnClickListener { onClick(fileItem.stat) }
+            fun bind(fileStat: FileStat, position: Int, onClick: (FileStat) -> Unit) {
+                val rawName = fileStat.path.replace('\\', '/').substringAfterLast('/')
+                val epNum = MediaNameAdapter.findEpisodeNumber(rawName)?.let {
+                    if (it % 1 == 0f) String.format(Locale.US, "%02d", it.toInt()) else it.toString()
+                } ?: String.format(Locale.US, "%02d", position + 1)
+
+                binding.fileEpisodeBadge.text = epNum
+                binding.fileNameText.text = rawName
+                binding.fileSizeText.text = formatFileSize(fileStat.length)
+                binding.torrentFileCard.setOnClickListener { onClick(fileStat) }
             }
         }
     }
