@@ -71,6 +71,19 @@ class AnimeWatchAdapter(
     var hiddenScanlators: MutableList<String> = mutableListOf()
     var scanlatorSelectionListener: ScanlatorSelectionListener? = null
 
+    fun updateSelectedSource(newIndex: Int) {
+        val b = _binding ?: return
+        if (newIndex in 0 until watchSources.names.size) {
+            b.mediaSource.setText(watchSources.names[newIndex], false)
+            watchSources[newIndex].apply {
+                this.selectDub = media.selected!!.preferDub
+                b.mediaSourceTitle.text = showUserText
+                b.animeSourceDubbedCont.isVisible = isDubAvailableSeparately()
+            }
+            setLanguageList(0, newIndex)
+        }
+    }
+
     interface ScanlatorSelectionListener {
         fun onScanlatorsSelected()
     }
