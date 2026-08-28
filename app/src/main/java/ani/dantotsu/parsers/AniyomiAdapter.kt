@@ -172,21 +172,40 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
             if (res.isEmpty()) return@withContext emptyList()
 
-            val sortedEpisodes = if (res[0].episode_number == -1f) {
-                // Find the number in the string and sort by that number
+            // Pre-process episodes: extract folder hierarchy for scanlator/season chips and detect true episode numbers
+            res.forEach { ep ->
+                val normalizedName = ep.name.replace('\\', '/')
+                if (normalizedName.contains('/')) {
+                    val parts = normalizedName.split('/').filter { it.isNotBlank() }
+                    if (parts.size > 1) {
+                        if (ep.scanlator.isNullOrBlank()) {
+                            ep.scanlator = parts.dropLast(1).joinToString(" / ")
+                        }
+                        ep.name = parts.last()
+                    }
+                }
+                val detected = MediaNameAdapter.findEpisodeNumber(ep.name)
+                    ?: MediaNameAdapter.findEpisodeNumber(ep.url)
+                if (detected != null && (ep.episode_number <= 0f || ep.episode_number == -1f)) {
+                    ep.episode_number = detected
+                }
+            }
+
+            val sortedEpisodes = if (res.all { it.episode_number > 0f }) {
+                res.sortedBy { it.episode_number }
+            } else if (res[0].episode_number == -1f) {
                 val sortedByStringNumber = res.sortedBy {
-                    val matchResult = MediaNameAdapter.findEpisodeNumber(it.name)
-                    val number = matchResult ?: Float.MAX_VALUE
-                    it.episode_number = number  // Store the found number in episode_number
+                    val number = it.episode_number.takeIf { n -> n > 0f }
+                        ?: MediaNameAdapter.findEpisodeNumber(it.name)
+                        ?: MediaNameAdapter.findEpisodeNumber(it.url)
+                        ?: Float.MAX_VALUE
+                    it.episode_number = number
                     number
                 }
-
-                // If there is no number, reverse the order and give them an incrementing number
                 var incrementingNumber = 1f
                 sortedByStringNumber.map {
                     if (it.episode_number == Float.MAX_VALUE) {
-                        it.episode_number =
-                            incrementingNumber++  // Update episode_number with the incrementing number
+                        it.episode_number = incrementingNumber++
                     }
                     it
                 }
@@ -194,25 +213,22 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 res.sortedBy { it.episode_number }
             } else {
                 var episodeCounter = 1f
-                // Group by season, sort within each season, and then renumber while keeping episode number 0 as is
-                val seasonGroups =
-                    res.groupBy { MediaNameAdapter.findSeasonNumber(it.name) ?: 0 }
-                seasonGroups.keys.sortedBy { it }
-                    .flatMap { season ->
-                        seasonGroups[season]?.sortedBy { it.episode_number }?.map { episode ->
-                            if (episode.episode_number != 0f) { // Skip renumbering for episode number 0
-                                val potentialNumber =
-                                    MediaNameAdapter.findEpisodeNumber(episode.name)
-                                if (potentialNumber != null) {
-                                    episode.episode_number = potentialNumber
-                                } else {
-                                    episode.episode_number = episodeCounter
-                                }
-                                episodeCounter++
+                val seasonGroups = res.groupBy { MediaNameAdapter.findSeasonNumber(it.name) ?: 0 }
+                seasonGroups.keys.sortedBy { it }.flatMap { season ->
+                    seasonGroups[season]?.sortedBy { it.episode_number }?.map { episode ->
+                        if (episode.episode_number <= 0f) {
+                            val potentialNumber = MediaNameAdapter.findEpisodeNumber(episode.name)
+                                ?: MediaNameAdapter.findEpisodeNumber(episode.url)
+                            if (potentialNumber != null) {
+                                episode.episode_number = potentialNumber
+                            } else {
+                                episode.episode_number = episodeCounter
                             }
-                            episode
-                        } ?: emptyList()
-                    }
+                            episodeCounter++
+                        }
+                        episode
+                    } ?: emptyList()
+                }
             }
             return@withContext sortedEpisodes.map { sEpisodeToEpisode(it) }
         } catch (e: Exception) {
