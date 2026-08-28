@@ -60,8 +60,6 @@ class TorrentServerManager(private val context: Context) {
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.announce_to_all_tiers.swigValue(), true)
 
             // 2. Mobile-Optimized Disk I/O & RAM Cache (Avoid OOM & reduce flash wear)
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.cache_size.swigValue(), 256) // 16 MB (256 * 64KB blocks)
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.cache_expiry.swigValue(), 60) // 60s TTL
             settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_queued_disk_bytes.swigValue(), 4 * 1024 * 1024) // 4 MB write-behind queue
             settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.aio_threads.swigValue(), 2) // 2 background I/O threads for mobile CPU
             settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.file_pool_size.swigValue(), 25) // Max 25 open FDs
