@@ -193,7 +193,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private var isFullscreen: Int = 0
     private var isPlayerPlaying = true
     private var changingServer = false
-    private var interacted = false
+    private var interacted = true
     private var pipEnabled = false
     private var aspectRatio = Rational(16, 9)
     private var isBuffering = true
@@ -923,7 +923,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         exoSubtitle.setOnClickListener { subClick() }
 
         val subConfigs = subtitleManager.buildSubtitleConfigurations(
-            ext.subtitles, ext.server.embed.url, video!!.file.url, hasExtSubtitles
+            ext.subtitles, ext.server.embed.url, video!!.file.url, hasExtSubtitles, subtitle?.language ?: lang
         )
 
         lifecycleScope.launch(Dispatchers.IO) { ext.onVideoPlayed(video) }
@@ -1233,9 +1233,13 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             isBuffering = true
         } else if (playbackState == ExoPlayer.STATE_ENDED) {
             progressManager.updateAniProgress(forceComplete = true)
-            if (PrefManager.getVal<Boolean>(PrefName.AutoPlay) && !interacted) {
-                progressManager.nextEpisode { i ->
-                    changeEpisode(currentEpisodeIndex + i)
+            if (PrefManager.getVal<Boolean>(PrefName.AutoPlay)) {
+                if (interacted) {
+                    progressManager.nextEpisode { i ->
+                        changeEpisode(currentEpisodeIndex + i)
+                    }
+                } else {
+                    toast(getString(R.string.autoplay_cancelled))
                 }
             }
         }
