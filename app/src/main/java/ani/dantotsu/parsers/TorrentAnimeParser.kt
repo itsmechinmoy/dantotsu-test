@@ -66,7 +66,9 @@ class TorrentAnimeParser : AnimeParser() {
     ): List<Episode> {
         val torrentManager = Injekt.get<TorrentServerManager>()
         try {
+            setUserText("Connecting to torrent peers...")
             torrentManager.start()
+            setUserText("Fetching metadata from torrent...")
             val torrent = torrentManager.addTorrent(
                 url = animeLink,
                 title = sAnime.title.ifBlank { "Torrent Stream" },
@@ -74,6 +76,7 @@ class TorrentAnimeParser : AnimeParser() {
                 data = "",
                 save = false
             )
+            setUserText("Torrent loaded: ${torrent.file_stats?.size ?: 0} files")
 
             val rawStats = torrent.file_stats ?: emptyList()
             val videoExtensions = listOf(".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4v", ".ts")
