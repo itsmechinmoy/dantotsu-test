@@ -166,13 +166,45 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:alpha="0.7"
             android:textSize="13sp"
             tools:text="Total Size: 45.2 GiB · 22 Files" />
+
+        <!-- Directory / Season Dropdown (Dantotsu native style) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/torrentFolderDropdownContainer"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:hint="@string/season"
+            android:visibility="gone"
+            app:boxCornerRadiusBottomEnd="8dp"
+            app:boxCornerRadiusBottomStart="8dp"
+            app:boxCornerRadiusTopEnd="8dp"
+            app:boxCornerRadiusTopStart="8dp"
+            app:boxStrokeColor="@color/text_input_layout_stroke_color"
+            app:hintAnimationEnabled="true"
+            app:startIconDrawable="@drawable/ic_round_folder_24">
+
+            <AutoCompleteTextView
+                android:id="@+id/torrentFolderDropdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:freezesText="false"
+                android:inputType="none"
+                android:padding="8dp"
+                android:textAllCaps="false"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="14sp"
+                tools:ignore="LabelFor,TextContrastCheck,DuplicateSpeakableTextCheck" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/torrentFilesRecyclerView"
             android:layout_width="match_parent"
-            android:layout_height="350dp"
+            android:layout_height="320dp"
             android:layout_marginTop="10dp"
             android:clipToPadding="false"
             android:scrollbars="vertical" />
