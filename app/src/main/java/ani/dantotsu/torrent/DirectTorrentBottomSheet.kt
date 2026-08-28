@@ -588,7 +588,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                 .toInt().coerceIn(0, units.size - 1)
             return String.format(
                 Locale.US, "%.1f %s",
-                bytes / kotlin.math.pow(1024.0, digitGroups.toDouble()),
+                bytes / java.lang.Math.pow(1024.0, digitGroups.toDouble()),
                 units[digitGroups]
             )
         }
