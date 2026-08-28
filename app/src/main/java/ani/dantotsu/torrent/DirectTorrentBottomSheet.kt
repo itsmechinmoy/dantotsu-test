@@ -236,7 +236,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        var dialog: androidx.appcompat.app.AlertDialog? = null
+        var dialog: android.app.AlertDialog? = null
         ctx.customAlertDialog().apply {
             setTitle(getString(R.string.torrent_link_search_title))
             setCustomView(dialogView)
