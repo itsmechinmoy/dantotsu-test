@@ -265,7 +265,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     )
                 ).also {
                     it.selected = Selected(
-                        source = "Torrent"
+                        server = "Torrent"
                     )
                 }
 
