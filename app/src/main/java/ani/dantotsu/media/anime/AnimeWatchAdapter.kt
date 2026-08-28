@@ -74,6 +74,14 @@ class AnimeWatchAdapter(
     fun updateSelectedSource(newIndex: Int) {
         val b = _binding ?: return
         if (newIndex in 0 until watchSources.names.size) {
+            val displayNames = watchSources.names.filter { it != "Local" }
+            b.mediaSource.setAdapter(
+                ArrayAdapter(
+                    fragment.requireContext(),
+                    R.layout.item_dropdown,
+                    displayNames
+                )
+            )
             b.mediaSource.setText(watchSources.names[newIndex], false)
             watchSources[newIndex].apply {
                 this.selectDub = media.selected!!.preferDub
@@ -148,15 +156,6 @@ class AnimeWatchAdapter(
             media.selected!!.sourceIndex.let { if (it >= watchSources.names.size) 0 else it }
         setLanguageList(media.selected!!.langIndex, source)
         updateScanlatorDropdown()
-        if (watchSources.names.isNotEmpty() && source in 0 until watchSources.names.size) {
-            binding.mediaSource.setText(watchSources.names[source])
-            watchSources[source].apply {
-                this.selectDub = media.selected!!.preferDub
-                binding.mediaSourceTitle.text = showUserText
-                showUserTextListener = { MainScope().launch { binding.mediaSourceTitle.text = it } }
-                binding.animeSourceDubbedCont.isVisible = isDubAvailableSeparately()
-            }
-        }
 
         val displayNames = watchSources.names.filter { it != "Local" }
         binding.mediaSource.setAdapter(
@@ -166,6 +165,16 @@ class AnimeWatchAdapter(
                 displayNames
             )
         )
+
+        if (watchSources.names.isNotEmpty() && source in 0 until watchSources.names.size) {
+            binding.mediaSource.setText(watchSources.names[source], false)
+            watchSources[source].apply {
+                this.selectDub = media.selected!!.preferDub
+                binding.mediaSourceTitle.text = showUserText
+                showUserTextListener = { MainScope().launch { binding.mediaSourceTitle.text = it } }
+                binding.animeSourceDubbedCont.isVisible = isDubAvailableSeparately()
+            }
+        }
         binding.mediaSourceTitle.isSelected = true
         binding.mediaSource.setOnItemClickListener { _, _, i, _ ->
             val actualIndex = watchSources.names.indexOf(displayNames[i])
