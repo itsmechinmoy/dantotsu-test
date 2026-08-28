@@ -18,6 +18,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.dantotsu.FileUrl
 import ani.dantotsu.R
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.api.FuzzyDate
@@ -25,14 +26,13 @@ import ani.dantotsu.currActivity
 import ani.dantotsu.databinding.BottomSheetDirectTorrentBinding
 import ani.dantotsu.databinding.ItemTorrentFileBinding
 import ani.dantotsu.loadImage
-import ani.dantotsu.media.Anime
-import ani.dantotsu.media.Episode
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaNameAdapter
 import ani.dantotsu.media.Selected
-import ani.dantotsu.media.anime.AnimeWatchFragment
+import ani.dantotsu.media.anime.Anime
+import ani.dantotsu.media.anime.Episode
 import ani.dantotsu.media.anime.ExoplayerView
-import ani.dantotsu.parsers.FileUrl
+import ani.dantotsu.parsers.Video
 import ani.dantotsu.parsers.VideoContainer
 import ani.dantotsu.parsers.VideoExtractor
 import ani.dantotsu.parsers.VideoServer
@@ -256,35 +256,11 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
     private suspend fun searchAniManga(query: String): List<Media> {
         return try {
-            val response = Anilist.query.search(
-                "ANIME",
-                query,
-                1,
-                15,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
+            val response = Anilist.query.searchAniManga(
+                type = "ANIME",
+                search = query
             )
-            response?.data?.page?.media?.mapNotNull { item ->
-                item?.let {
-                    Media(
-                        id = it.id,
-                        idMAL = it.idMal,
-                        name = it.title?.english ?: it.title?.romaji ?: it.title?.userPreferred ?: "",
-                        nameRomaji = it.title?.romaji ?: it.title?.userPreferred ?: "",
-                        userPreferredName = it.title?.userPreferred ?: it.title?.english ?: it.title?.romaji ?: "",
-                        cover = it.coverImage?.large ?: it.coverImage?.medium,
-                        banner = it.bannerImage,
-                        format = it.format?.name,
-                        isAdult = it.isAdult ?: false,
-                        anime = Anime(totalEpisodes = it.episodes)
-                    )
-                }
-            } ?: emptyList()
+            response?.results ?: emptyList()
         } catch (e: Exception) {
             Logger.log("AniList search error: ${e.message}")
             emptyList()
@@ -431,13 +407,21 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
         if (folderKeys.size > 1) {
             b.torrentFolderDropdownContainer.visibility = View.VISIBLE
-            b.torrentFolderDropdownContainer.hint = getString(R.string.season)
 
-            val allText = getString(R.string.all_seasons)
+            val hasSeasonKeyword = folderKeys.any {
+                it.contains("season", ignoreCase = true) ||
+                it.contains("series", ignoreCase = true) ||
+                it.matches(Regex(".*[sS]\\d+.*"))
+            }
+
+            val dropdownHint = if (hasSeasonKeyword) getString(R.string.season) else getString(R.string.torrent_folder_hint)
+            b.torrentFolderDropdownContainer.hint = dropdownHint
+
+            val allText = if (hasSeasonKeyword) getString(R.string.all_seasons) else getString(R.string.torrent_folder_all)
             val dropdownLabels = mutableListOf<String>()
             val dropdownKeys = mutableListOf<String>()
 
-            // Option 0: All Folders
+            // Option 0: All Folders / All Seasons
             val totalCount = folderFilesMap.values.sumOf { it.size }
             dropdownLabels.add("$allText ($totalCount files)")
             dropdownKeys.add("__ALL__")
@@ -531,7 +515,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                             scanlator = stat.path.replace('\\', '/').substringBeforeLast('/')
                         }
                     }
-                    val vid = ani.dantotsu.parsers.Video(
+                    val vid = Video(
                         quality = 1080,
                         format = VideoType.CONTAINER,
                         file = FileUrl(sUrl),
