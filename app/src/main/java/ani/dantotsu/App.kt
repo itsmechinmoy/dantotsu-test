@@ -94,8 +94,33 @@ class App : Application(), GraphProvider<AppGraph> {
 
         runCatching {
             leakcanary.LeakCanary.config = leakcanary.LeakCanary.config.copy(
-                retainedVisibleThreshold = 20
+                dumpHeap = false,
+                dumpHeapWhenDebugging = false
             )
+            leakcanary.AppWatcher.objectWatcher.addOnObjectRetainedListener {
+                if (PrefManager.getVal<Boolean>(PrefName.TrackMemoryLeaks)) {
+                    val count = PrefManager.getVal<Int>(PrefName.DailyLeakCount) + 1
+                    PrefManager.setVal(PrefName.DailyLeakCount, count)
+                    Logger.log("LEAK DETECTED: Object retained in memory. Total retained: ${leakcanary.AppWatcher.objectWatcher.retainedObjectCount}, daily count: $count")
+                }
+            }
+        }
+
+        val lastSummary = PrefManager.getVal<Long>(PrefName.LastLeakSummaryTimestamp)
+        val now = System.currentTimeMillis()
+        val oneDayMs = 24 * 60 * 60 * 1000L
+        if (lastSummary == 0L) {
+            PrefManager.setVal(PrefName.LastLeakSummaryTimestamp, now)
+        } else if (now - lastSummary >= oneDayMs) {
+            val dailyLeaks = PrefManager.getVal<Int>(PrefName.DailyLeakCount)
+            if (dailyLeaks > 0 && PrefManager.getVal<Boolean>(PrefName.TrackMemoryLeaks)) {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    val msg = getString(R.string.daily_leaks_summary, dailyLeaks)
+                    android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+                }, 3000)
+            }
+            PrefManager.setVal(PrefName.DailyLeakCount, 0)
+            PrefManager.setVal(PrefName.LastLeakSummaryTimestamp, now)
         }
 
         crashlytics.setCrashlyticsCollectionEnabled(!DisabledReports)
