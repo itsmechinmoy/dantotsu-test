@@ -12,6 +12,15 @@
     <string name="play_magnet_or_torrent">Play Torrent / Magnet</string>
     <string name="play_magnet_or_torrent_desc">Directly stream torrents and magnet links without downloading the full file</string>
     <string name="enter_magnet_link">Enter Magnet URL or Torrent link</string>
+    <string name="torrent_link_anilist_hint">Link to AniList/MAL entry for tracking (optional)</string>
+    <string name="torrent_link_button">Link</string>
+    <string name="torrent_unlink_button">Unlink</string>
+    <string name="torrent_link_search_title">Link Torrent to Anime</string>
+    <string name="torrent_link_search_hint">Search AniList…</string>
+    <string name="torrent_linked_to">Linked: %1$s</string>
+    <string name="torrent_link_success">Linked! Progress will sync to AniList/MAL.</string>
+    <string name="torrent_no_results">No results found.</string>
+    <string name="play_via_torrent_magnet">Play via Torrent / Magnet</string>
 
     <string name="repo" translatable="false">rebelonion/Dantotsu</string>
     <string name="preference_file_key" translatable="false">dantotsuprefs</string>
