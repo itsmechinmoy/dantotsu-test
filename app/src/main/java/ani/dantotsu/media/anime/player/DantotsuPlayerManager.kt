@@ -34,6 +34,7 @@ import androidx.media3.ui.PlayerView
 import ani.dantotsu.defaultHeaders
 import ani.dantotsu.media.anime.AudioFocusListener
 import ani.dantotsu.media.anime.VideoCache
+import ani.dantotsu.others.LanguageMapper
 import ani.dantotsu.parsers.Video
 import ani.dantotsu.parsers.VideoType
 import ani.dantotsu.settings.saving.PrefManager
@@ -77,7 +78,23 @@ class DantotsuPlayerManager(
     private val BACK_BUFFER_DURATION_MS = 15_000
 
     fun initTrackSelector() {
-        trackSelector = DefaultTrackSelector(activity)
+        val subLanguages = arrayOf(
+            "Albanian", "Arabic", "Bosnian", "Bulgarian", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English",
+            "Estonian", "Finnish", "French", "Georgian", "German", "Greek", "Hebrew", "Hindi", "Indonesian", "Irish",
+            "Italian", "Japanese", "Korean", "Lithuanian", "Luxembourgish", "Macedonian", "Mongolian", "Norwegian",
+            "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Serbian", "Slovak", "Slovenian", "Spanish",
+            "Turkish", "Ukrainian", "Urdu", "Vietnamese"
+        )
+        val langName = subLanguages.getOrNull(PrefManager.getVal<Int>(PrefName.SubLanguage)) ?: "English"
+        val langCode = LanguageMapper.getLanguageCode(langName)
+        val selector = DefaultTrackSelector(activity)
+        val params = selector.buildUponParameters()
+        if (langCode.isNotBlank() && !langCode.equals("all", ignoreCase = true)) {
+            params.setPreferredTextLanguage(langCode)
+        }
+        trackSelector = selector.apply {
+            parameters = params.build()
+        }
     }
 
     fun buildMediaSource(
