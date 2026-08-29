@@ -130,6 +130,7 @@ class EpisodeAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val ep = arr[position]
         val isTorrent = ep.extra?.containsKey("torrentHash") == true || ep.link.contains("127.0.0.1:8090")
         val title = if (isTorrent) {
             ep.title ?: ep.sEpisode?.name ?: ep.number
