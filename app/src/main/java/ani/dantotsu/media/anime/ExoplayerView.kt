@@ -1376,11 +1376,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 if (playerErrorRetryCount < MAX_PLAYER_ERROR_RETRIES) {
                     playerErrorRetryCount++
                     val savedPos = if (playerManager.isInitialized) player?.currentPosition?.takeIf { it > 0 } ?: playbackPosition else playbackPosition
-                    if (playerManager.isInitialized && player != null) {
-                        playerManager.mediaSource?.let { player.setMediaSource(it, savedPos) }
-                        player.prepare()
-                        player.play()
-                    }
+                    val currentParams = playerManager.exoPlayer?.playbackParameters ?: PlaybackParameters(1f)
+                    val fallbackExo = playerManager.buildExoplayer(savedPos, currentParams, this, forceDefaultRenderers = false)
+                    playerView.player = fallbackExo
                 } else {
                     playerErrorRetryCount = 0
                     toast("Source Format Error (${error.errorCodeName}) : ${error.message}")
