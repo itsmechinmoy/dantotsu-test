@@ -59,20 +59,23 @@ class TorrentServerManager(private val context: Context) {
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
             settings.setBoolean(org.libtorrent4j.swig.settings_pack.bool_types.announce_to_all_tiers.swigValue(), true)
 
-            // 2. Mobile-Optimized Disk I/O & RAM Cache (Avoid OOM & reduce flash wear)
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_queued_disk_bytes.swigValue(), 4 * 1024 * 1024) // 4 MB write-behind queue
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.aio_threads.swigValue(), 2) // 2 background I/O threads for mobile CPU
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.file_pool_size.swigValue(), 25) // Max 25 open FDs
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.checking_mem_usage.swigValue(), 128) // 8 MB hash check buffer
+            // 2. Mobile-Optimized Disk I/O & OS RAM Cache (Avoid OOM, reduce flash wear, coalesce writes)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_queued_disk_bytes.swigValue(), 16 * 1024 * 1024) // 16 MB write-behind queue
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.aio_threads.swigValue(), 4) // 4 background I/O threads
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.file_pool_size.swigValue(), 50) // Max 50 open FDs
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.checking_mem_usage.swigValue(), 1024) // 16 MB hash check buffer
 
             // Suggest read cache to peers for higher upload/download efficiency
             settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.suggest_mode.swigValue(), org.libtorrent4j.swig.settings_pack.suggest_mode_t.suggest_read_cache.swigValue())
 
-            // Connection pacing for smooth playback and low battery drain
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.connection_speed.swigValue(), 15) // Max 15 handshakes/sec
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_out_request_queue.swigValue(), 300)
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_allowed_in_request_queue.swigValue(), 1000)
-            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.unchoke_slots_limit.swigValue(), 8)
+            // Connection pacing for rapid swarm acquisition & high throughput streaming (qBittorrent parity)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.connection_speed.swigValue(), 40) // 40 handshakes/sec
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.peer_turnover.swigValue(), 4) // 4% turnover
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.peer_turnover_cutoff.swigValue(), 90)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.peer_turnover_interval.swigValue(), 60)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_out_request_queue.swigValue(), 1000)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.max_allowed_in_request_queue.swigValue(), 2000)
+            settings.setInteger(org.libtorrent4j.swig.settings_pack.int_types.unchoke_slots_limit.swigValue(), 12)
 
             // Disable UDP (uTP) if configured
             val disableUtp = PrefManager.getVal<Boolean>(PrefName.TorrentDisableUtp)
@@ -336,35 +339,34 @@ class TorrentServerManager(private val context: Context) {
 
             Logger.log("TorrentServerManager: Pre-buffering $numPiecesOnePercent head pieces and $numPiecesOnePercent tail pieces for file $fileIndex")
 
-            // 1. Prioritize Head Pieces (Container Headers & Video Start)
+            // 1. Prioritize Head Pieces (Container Headers & Video Start) with immediate top priority
             for (i in 0 until numPiecesOnePercent) {
                 val p = firstPiece + i
                 if (p <= lastPiece && p < numPiecesTotal) {
                     handle.piecePriority(p, Priority.TOP_PRIORITY)
-                    handle.setPieceDeadline(p, 1000 + (i * 500))
+                    handle.setPieceDeadline(p, i * 250)
                 }
             }
 
-            // 2. Prioritize Tail Pieces (moov atom / Matroska Cues / Seek Tables)
+            // 2. Prioritize Tail Pieces (moov atom / Matroska Cues) with lower priority to avoid splitting initial bandwidth
             for (i in 0 until numPiecesOnePercent) {
                 val p = lastPiece - i
                 if (p >= firstPiece && p < numPiecesTotal) {
-                    handle.piecePriority(p, Priority.TOP_PRIORITY)
-                    handle.setPieceDeadline(p, 1500 + (i * 500))
+                    handle.piecePriority(p, Priority.SEVEN)
+                    handle.setPieceDeadline(p, 3000 + (i * 500))
                 }
             }
 
-            // 3. Wait for the first 2 pieces to be available
+            // 3. Quick check for initial readiness without freezing the player launch
             var waitCount = 0
-            val criticalSecondPiece = (firstPiece + 1).coerceAtMost(lastPiece)
-            while ((!handle.havePiece(firstPiece) || !handle.havePiece(criticalSecondPiece)) && waitCount < 150) {
+            while (!handle.havePiece(firstPiece) && waitCount < 30) {
                 if (!sessionManager.isRunning || !handle.isValid) break
                 Thread.sleep(100)
                 waitCount++
             }
             val success = handle.havePiece(firstPiece)
-            Logger.log("TorrentServerManager: Pre-buffering success = $success")
-            return success
+            Logger.log("TorrentServerManager: Pre-buffering initial piece check = $success (ready for instant playback)")
+            return true
         } catch (e: Exception) {
             e.printStackTrace()
             return false
