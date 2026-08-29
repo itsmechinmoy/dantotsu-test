@@ -259,7 +259,8 @@ class TorrentServerManager(private val context: Context) {
                 handle = sessionManager.find(ti.infoHash())
             }
         } else {
-            val file = File(url)
+            val path = url.removePrefix("file://")
+            val file = File(path)
             if (file.exists()) {
                 val ti = TorrentInfo(file)
                 val p = Priority.array(Priority.IGNORE, ti.numFiles())
