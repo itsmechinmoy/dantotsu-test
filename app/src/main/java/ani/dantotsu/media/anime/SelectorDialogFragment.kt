@@ -546,6 +546,7 @@ class SelectorDialogFragment : BottomSheetDialogFragment() {
                         val activity = activity ?: currActivity()
                         launchIO {
                             try {
+                                ani.dantotsu.addons.torrent.TorrentServerService.start()
                                 torrentManager.start()
                                 val torrentHash = ep.extra?.get("torrentHash")
                                     ?: (if (url.contains("hash=")) url.substringAfter("hash=").substringBefore("&") else null)
