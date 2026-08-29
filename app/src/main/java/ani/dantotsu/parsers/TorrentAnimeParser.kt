@@ -129,12 +129,14 @@ class TorrentAnimeParser : AnimeParser() {
                 extraData["fileId"] = fileId.toString()
                 extraData["streamUrl"] = streamUrl
 
+                val sizeDesc = if (stat.length > 0) formatFileSize(stat.length) else null
+
                 val ep = Episode(
                     number = epNum,
                     link = streamUrl,
                     title = cleanFileName,
                     thumbnail = null,
-                    description = null,
+                    description = sizeDesc,
                     isFiller = false,
                     extra = extraData,
                     sEpisode = sEp
@@ -211,6 +213,18 @@ class TorrentAnimeParser : AnimeParser() {
             } else {
                 normalized
             }
+        }
+
+        fun formatFileSize(bytes: Long): String {
+            if (bytes <= 0) return "0 B"
+            val units = arrayOf("B", "KiB", "MiB", "GiB", "TiB")
+            val digitGroups = (kotlin.math.log10(bytes.toDouble()) / kotlin.math.log10(1024.0))
+                .toInt().coerceIn(0, units.size - 1)
+            return String.format(
+                java.util.Locale.US, "%.1f %s",
+                bytes / java.lang.Math.pow(1024.0, digitGroups.toDouble()),
+                units[digitGroups]
+            )
         }
     }
 }
