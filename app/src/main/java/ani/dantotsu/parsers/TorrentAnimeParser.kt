@@ -21,20 +21,30 @@ class TorrentAnimeParser : AnimeParser() {
     override val isNSFW = false
 
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
-        val torrentUrl = PrefManager.getCustomVal<String?>("${mediaObj.id}_torrent_url", null)
-            ?.takeIf { it.isNotBlank() } ?: return null
+        val saved = loadSavedShowResponse(mediaObj.id)
+        if (saved != null && saved.link.isNotBlank()) {
+            return saved
+        }
+
+        val torrentUrl = PrefManager.getNullableCustomVal("${mediaObj.id}_torrent_url", null, String::class.java)
+            ?.takeIf { it.isNotBlank() }
+            ?: PrefManager.getCustomVal("${mediaObj.id}_torrent_url", "")
+                .takeIf { it.isNotBlank() }
+            ?: return null
 
         val title = mediaObj.userPreferredName.ifBlank { mediaObj.mainName() }
         val sAnime = SAnime.create().apply {
             this.title = title
             this.url = torrentUrl
         }
-        return ShowResponse(
+        val response = ShowResponse(
             name = title,
             link = torrentUrl,
             coverUrl = FileUrl(mediaObj.cover ?: mediaObj.banner ?: ""),
             sAnime = sAnime
         )
+        saveShowResponse(mediaObj.id, response, true)
+        return response
     }
 
     override suspend fun search(query: String): List<ShowResponse> {
