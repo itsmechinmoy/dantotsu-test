@@ -147,9 +147,18 @@ class DantotsuPlayerManager(
         this.currentMediaItem = mediaItem
 
         val isContentUri = video.file.url.startsWith("content://")
+        val isLocalhostTorrent = runCatching {
+            val host = video.file.url.toUri().host
+            host == "127.0.0.1" || host == "localhost"
+        }.getOrDefault(false)
+
         val activeFactory = if (isContentUri) {
             val localDataSourceFactory = DefaultDataSource.Factory(activity)
             DefaultMediaSourceFactory(localDataSourceFactory, extractorsFactory)
+                .setSubtitleParserFactory(assParserFactory)
+        } else if (isLocalhostTorrent) {
+            // Direct upstream for localhost torrent streams - avoids double writing to flash via VideoCache
+            DefaultMediaSourceFactory(upstream, extractorsFactory)
                 .setSubtitleParserFactory(assParserFactory)
         } else {
             assMediaSourceFactory
@@ -221,7 +230,7 @@ class DantotsuPlayerManager(
         val isTorrentStream = mediaSource?.let {
             currentMediaItem?.localConfiguration?.uri?.host == "127.0.0.1"
         } == true
-        val targetBufferBytes = if (isTorrentStream) 64 * 1024 * 1024 else 32 * 1024 * 1024
+        val targetBufferBytes = if (isTorrentStream) 96 * 1024 * 1024 else 32 * 1024 * 1024
         val maxBufferMs = if (isTorrentStream) 90_000 else DEFAULT_MAX_BUFFER_MS
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(BACK_BUFFER_DURATION_MS, true)
@@ -232,7 +241,7 @@ class DantotsuPlayerManager(
                 BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
             )
             .setTargetBufferBytes(targetBufferBytes)
-            .setPrioritizeTimeOverSizeThresholds(false)
+            .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
         val useExtensionDecoder = !forceDefaultRenderers
