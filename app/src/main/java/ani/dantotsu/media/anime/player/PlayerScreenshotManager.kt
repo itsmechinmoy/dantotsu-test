@@ -15,9 +15,9 @@ import android.view.PixelCopy
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
+import android.media.MediaScannerConnection
 import androidx.media3.ui.PlayerView
 import ani.dantotsu.R
-import ani.dantotsu.scanFile
 import ani.dantotsu.snackString
 import ani.dantotsu.toast
 import ani.dantotsu.util.Logger
@@ -145,7 +145,7 @@ class PlayerScreenshotManager(
                 FileOutputStream(imageFile).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                 }
-                scanFile(imageFile.absolutePath, context)
+                MediaScannerConnection.scanFile(context, arrayOf(imageFile.absolutePath), arrayOf("image/png"), null)
                 Uri.fromFile(imageFile)
             }
         } catch (e: Exception) {
