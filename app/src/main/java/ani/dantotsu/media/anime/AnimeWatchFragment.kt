@@ -662,13 +662,20 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
     fun openDirectTorrent() {
         val clipboard = ContextCompat.getSystemService(requireContext(), android.content.ClipboardManager::class.java)
         val clipText = clipboard?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()?.trim()
-        val torrentUrl = if (clipText != null && (
+        val clipTorrentUrl = if (clipText != null && (
                 clipText.startsWith("magnet:?xt=", ignoreCase = true) ||
                 clipText.endsWith(".torrent", ignoreCase = true) ||
                 (clipText.startsWith("http", ignoreCase = true) && clipText.contains(".torrent", ignoreCase = true))
             )) {
             clipText
         } else null
+
+        // If no clipboard torrent, check if one is already saved for this media (shows info on re-click)
+        val savedUrl = PrefManager.getNullableCustomVal("${media.id}_torrent_url", null, String::class.java)
+            ?.takeIf { it.isNotBlank() }
+
+        // Prefer clipboard URL (allows replacing torrent), fall back to saved URL (shows existing torrent info)
+        val torrentUrl = clipTorrentUrl ?: savedUrl
 
         val sheet = ani.dantotsu.torrent.DirectTorrentBottomSheet.newInstanceLinked(media, torrentUrl)
         sheet.onTorrentSelected = { chosenUrl ->
