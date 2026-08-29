@@ -198,6 +198,7 @@ class TorrentHttpServer(
                 val buffer = ByteArray(128 * 1024) // 128KB buffer for high-throughput streaming
                 var fileChannel: RandomAccessFile? = null
                 var lastPrebufferedPiece = -1
+                var lastLookaheadPieces = 0
 
                 try {
                     while (currentPosition <= endByte) {
@@ -206,10 +207,23 @@ class TorrentHttpServer(
 
                         // Adaptive 20MB Rolling Lookahead Window (dynamic piece budget)
                         if (pieceIndex != lastPrebufferedPiece) {
+                            // If seek occurred (jump > 2 pieces away), deprioritize previous lookahead window
+                            if (lastPrebufferedPiece != -1 && kotlin.math.abs(pieceIndex - lastPrebufferedPiece) > 2) {
+                                for (p in lastPrebufferedPiece until (lastPrebufferedPiece + lastLookaheadPieces)) {
+                                    if (p < totalPieces && p != pieceIndex) {
+                                        try {
+                                            torrentHandle.resetPieceDeadline(p)
+                                            torrentHandle.piecePriority(p, Priority.DEFAULT)
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                            }
+
                             lastPrebufferedPiece = pieceIndex
                             val targetBufferBytes = 20L * 1024L * 1024L
                             val safePieceLen = pieceLength.coerceAtLeast(1L)
                             val lookaheadPieces = (targetBufferBytes / safePieceLen).toInt().coerceIn(4, 32)
+                            lastLookaheadPieces = lookaheadPieces
                             for (i in 0 until lookaheadPieces) {
                                 val nextPiece = pieceIndex + i
                                 if (nextPiece < totalPieces) {
