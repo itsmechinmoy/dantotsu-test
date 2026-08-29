@@ -230,7 +230,7 @@ class DantotsuPlayerManager(
             .setPrioritizeTimeOverSizeThresholds(false)
             .build()
 
-        val useExtensionDecoder = PrefManager.getVal<Boolean>(PrefName.UseAdditionalCodec) && !forceDefaultRenderers
+        val useExtensionDecoder = !forceDefaultRenderers
         val decoder = if (useExtensionDecoder) {
             DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
         } else {
