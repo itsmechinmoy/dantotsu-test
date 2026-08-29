@@ -675,6 +675,20 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
             PrefManager.setCustomVal("${media.id}_torrent_url", chosenUrl)
             val torrentIndex = model.watchSources?.names?.indexOf("Torrent") ?: -1
             if (torrentIndex != -1) {
+                val torrentParser = model.watchSources?.get(torrentIndex)
+                val title = media.userPreferredName.ifBlank { media.mainName() }
+                val sAnime = eu.kanade.tachiyomi.animesource.model.SAnime.create().apply {
+                    this.title = title
+                    this.url = chosenUrl
+                }
+                val showResponse = ani.dantotsu.parsers.ShowResponse(
+                    name = title,
+                    link = chosenUrl,
+                    coverUrl = ani.dantotsu.FileUrl(media.cover ?: media.banner ?: ""),
+                    sAnime = sAnime
+                )
+                torrentParser?.saveShowResponse(media.id, showResponse, true)
+
                 media.selected!!.scanlators = null
                 media.selected!!.sourceIndex = torrentIndex
                 model.saveSelected(media.id, media.selected!!)
@@ -683,7 +697,9 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                 headerAdapter.options = emptyList()
                 onSourceChange(torrentIndex)
                 headerAdapter.updateSelectedSource(torrentIndex)
-                loadEpisodes(torrentIndex, true)
+                lifecycleScope.launch(Dispatchers.IO) {
+                    model.overrideEpisodes(torrentIndex, showResponse, media.id)
+                }
                 toast(getString(R.string.play_via_torrent_magnet))
             }
         }
