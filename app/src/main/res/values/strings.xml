@@ -1296,4 +1296,10 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="torrent_unlinked">Unlinked</string>
     <string name="torrent_enter_url_or_magnet">Please enter a magnet link or torrent URL</string>
     <string name="torrent_pasted_clipboard">Pasted torrent from clipboard</string>
+    <string name="torrent_link_season_hint">Link %1$s to AniList entry</string>
+    <string name="torrent_link_season_button">Link Season</string>
+    <string name="torrent_unlink_season_button">Unlink Season</string>
+    <string name="torrent_unlink_all_button">Unlink All</string>
+    <string name="torrent_seasons_linked">%1$d seasons linked</string>
+    <string name="torrent_select_season_to_link">Select a season above to manage links</string>
 </resources>
