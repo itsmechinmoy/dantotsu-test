@@ -77,6 +77,7 @@ class TorrentAnimeParser : AnimeParser() {
         val torrentManager = Injekt.get<TorrentServerManager>()
         try {
             setUserText("Connecting to torrent peers...")
+            ani.dantotsu.addons.torrent.TorrentServerService.start()
             torrentManager.start()
             setUserText("Fetching metadata from torrent...")
             val torrent = torrentManager.addTorrent(
