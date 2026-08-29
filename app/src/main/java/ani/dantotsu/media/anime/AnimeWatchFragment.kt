@@ -431,7 +431,24 @@ class AnimeWatchFragment : Fragment(), AnimeWatchAdapter.ScanlatorSelectionListe
                     val appEp = PrefManager.getCustomVal<String?>(
                         "${media.id}_current_ep", ""
                     )?.let { MediaNameAdapter.findEpisodeNumber(it)?.toInt() ?: it.toIntOrNull() } ?: 1
-                    val targetEpNum = (if (anilistEp > appEp) anilistEp else appEp).toFloat()
+                    val appEpKey = arr.find { key ->
+                        val epObj = filteredEpisodes[key]
+                        MediaNameAdapter.findEpisodeNumber(key)?.toInt() == appEp ||
+                        (epObj?.number != null && MediaNameAdapter.findEpisodeNumber(epObj.number)?.toInt() == appEp)
+                    } ?: arr.getOrNull(appEp - 1)
+                    val appEpHasActiveProgress = appEpKey != null && run {
+                        val cleanNum = MediaNameAdapter.findEpisodeNumber(appEpKey)?.let {
+                            if (it % 1 == 0f) it.toInt().toString() else it.toString()
+                        }
+                        val curr = PrefManager.getNullableCustomVal("${media.id}_${appEpKey}", null, Long::class.java)
+                            ?: cleanNum?.let { PrefManager.getNullableCustomVal("${media.id}_${it}", null, Long::class.java) }
+                        val max = PrefManager.getNullableCustomVal("${media.id}_${appEpKey}_max", null, Long::class.java)
+                            ?: cleanNum?.let { PrefManager.getNullableCustomVal("${media.id}_${it}_max", null, Long::class.java) }
+                        if (curr != null && max != null && max > 0L) {
+                            (curr.toFloat() / max.toFloat()) < PrefManager.getVal<Float>(PrefName.WatchPercentage)
+                        } else false
+                    }
+                    val targetEpNum = if (anilistEp > appEp && !appEpHasActiveProgress) anilistEp.toFloat() else appEp.toFloat()
 
                     var targetIndex = arr.indexOfFirst { key ->
                         val epObj = filteredEpisodes[key]
