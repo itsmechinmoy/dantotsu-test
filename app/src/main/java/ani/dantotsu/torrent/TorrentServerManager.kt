@@ -100,7 +100,8 @@ class TorrentServerManager(private val context: Context) {
             // WiFi Only
             val wifiOnly = PrefManager.getVal<Boolean>(PrefName.TorrentWifiOnly)
             if (wifiOnly) {
-                settings.setString(org.libtorrent4j.swig.settings_pack.string_types.outgoing_interfaces.swigValue(), "wlan0")
+                val wifiInterface = getActiveWifiInterface() ?: "wlan0"
+                settings.setString(org.libtorrent4j.swig.settings_pack.string_types.outgoing_interfaces.swigValue(), wifiInterface)
             }
 
             // Download/Upload Limits (KB/s to B/s)
@@ -253,6 +254,11 @@ class TorrentServerManager(private val context: Context) {
                 handle = sessionManager.find(sha1)
                 waitTime++
             }
+            if (handle != null && handle.torrentFile() != null) {
+                val numFiles = handle.torrentFile()!!.numFiles()
+                val priorities = Priority.array(Priority.IGNORE, numFiles)
+                handle.prioritizeFiles(priorities)
+            }
         } else if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
             val tempFile = downloadTorrentFile(url)
             if (tempFile != null) {
@@ -323,6 +329,7 @@ class TorrentServerManager(private val context: Context) {
             val fileStorage = torrentInfo.files()
 
             if (fileIndex < 0 || fileIndex >= fileStorage.numFiles()) return false
+            handle.filePriority(fileIndex, Priority.TOP_PRIORITY)
 
             val fileOffset = fileStorage.fileOffset(fileIndex)
             val fileSize = fileStorage.fileSize(fileIndex)
@@ -444,5 +451,72 @@ class TorrentServerManager(private val context: Context) {
             e.printStackTrace()
         }
         return null
+    }
+
+    fun pauseActiveTorrent() {
+        try {
+            val hash = activeTorrentHash ?: return
+            val sha1 = Sha1Hash.parseHex(hash)
+            val handle = sessionManager.find(sha1)
+            if (handle != null && handle.isValid) {
+                handle.pause()
+                Logger.log("TorrentServerManager: Paused active torrent $hash")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun resumeActiveTorrent() {
+        try {
+            val hash = activeTorrentHash ?: return
+            val sha1 = Sha1Hash.parseHex(hash)
+            val handle = sessionManager.find(sha1)
+            if (handle != null && handle.isValid) {
+                handle.resume()
+                Logger.log("TorrentServerManager: Resumed active torrent $hash")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun pruneCache(maxSizeBytes: Long = 4L * 1024L * 1024L * 1024L) {
+        try {
+            val cacheDir = getTorrentCacheDir()
+            val files = cacheDir.listFiles() ?: return
+            var totalSize = files.sumOf { it.length() }
+            if (totalSize > maxSizeBytes) {
+                val sortedFiles = files.sortedBy { it.lastModified() }
+                for (file in sortedFiles) {
+                    if (totalSize <= maxSizeBytes) break
+                    val size = file.length()
+                    if (file.deleteRecursively()) {
+                        totalSize -= size
+                        Logger.log("TorrentServerManager: Pruned old torrent cache file ${file.name}")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun getActiveWifiInterface(): String? {
+        return try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces() ?: return null
+            while (interfaces.hasMoreElements()) {
+                val intf = interfaces.nextElement()
+                if (intf.isUp && !intf.isLoopback) {
+                    val name = intf.name.lowercase()
+                    if (name.startsWith("wlan") || name.startsWith("wifi") || name.startsWith("swlan")) {
+                        return intf.name
+                    }
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
     }
 }
