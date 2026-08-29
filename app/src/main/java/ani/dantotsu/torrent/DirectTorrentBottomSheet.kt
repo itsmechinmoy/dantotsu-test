@@ -61,7 +61,9 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
 
     private var initialUrl: String? = null
-    private var linkedMedia: Media? = null
+    private var defaultLinkedMedia: Media? = null
+    private val folderLinkedMediaMap = mutableMapOf<String, Media>()
+    private var currentSelectedFolderKey: String = "__ALL__"
 
     private var loadedTorrent: Torrent? = null
     private val folderFilesMap = mutableMapOf<String, MutableList<FileStat>>()
@@ -90,7 +92,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
             val malId = arguments?.getInt(ARG_MEDIA_ID_MAL, -1)
             val format = arguments?.getString(ARG_MEDIA_FORMAT)
             val eps = arguments?.getInt(ARG_MEDIA_EPISODES, 0)
-            linkedMedia = Media(
+            defaultLinkedMedia = Media(
                 id = mId,
                 idMAL = if (malId != null && malId != -1) malId else null,
                 name = title,
@@ -127,15 +129,28 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         // Setup Linked Media UI
         updateLinkedMediaUi()
 
-        // Link AniList Anime button
+        // Link AniList Anime button (supports global or per-season linking)
         binding.torrentLinkAnilistButton.setOnClickListener {
-            if (linkedMedia != null) {
-                // Already linked -> offer unlinking
-                linkedMedia = null
-                updateLinkedMediaUi()
-                toast(getString(R.string.torrent_unlinked))
+            val selectedFolder = currentSelectedFolderKey
+            val isSpecificFolder = selectedFolder != "__ALL__" && selectedFolder.isNotBlank()
+
+            if (isSpecificFolder) {
+                if (folderLinkedMediaMap.containsKey(selectedFolder)) {
+                    folderLinkedMediaMap.remove(selectedFolder)
+                    updateLinkedMediaUi()
+                    toast(getString(R.string.torrent_unlinked))
+                } else {
+                    showAniListSearchDialog(selectedFolder)
+                }
             } else {
-                showAniListSearchDialog()
+                if (defaultLinkedMedia != null || folderLinkedMediaMap.isNotEmpty()) {
+                    defaultLinkedMedia = null
+                    folderLinkedMediaMap.clear()
+                    updateLinkedMediaUi()
+                    toast(getString(R.string.torrent_unlinked))
+                } else {
+                    showAniListSearchDialog("__ALL__")
+                }
             }
         }
 
@@ -205,27 +220,64 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
     private fun updateLinkedMediaUi() {
         val b = _binding ?: return
-        val m = linkedMedia
-        if (m != null) {
-            b.torrentLinkedMediaCover.isVisible = true
-            b.torrentLinkedMediaCover.loadImage(m.cover ?: m.banner ?: "")
-            b.torrentLinkedMediaTitle.text = m.userPreferredName
-            b.torrentLinkedMediaSubtitle.isVisible = true
-            val epCount = m.anime?.totalEpisodes?.let { "$it eps" } ?: ""
-            val fmt = m.format ?: ""
-            b.torrentLinkedMediaSubtitle.text = listOf(fmt, epCount).filter { it.isNotBlank() }.joinToString(" • ")
-            b.torrentLinkAnilistButton.text = getString(R.string.torrent_unlink_button)
+        val selectedFolder = currentSelectedFolderKey
+        val isSpecificFolder = selectedFolder != "__ALL__" && selectedFolder.isNotBlank()
+
+        val folderMedia = if (isSpecificFolder) folderLinkedMediaMap[selectedFolder] else null
+
+        if (isSpecificFolder) {
+            if (folderMedia != null) {
+                b.torrentLinkedMediaCover.isVisible = true
+                b.torrentLinkedMediaCover.loadImage(folderMedia.cover ?: folderMedia.banner ?: "")
+                b.torrentLinkedMediaTitle.text = folderMedia.userPreferredName
+                b.torrentLinkedMediaSubtitle.isVisible = true
+                val epCount = folderMedia.anime?.totalEpisodes?.let { "$it eps" } ?: ""
+                val fmt = folderMedia.format ?: ""
+                b.torrentLinkedMediaSubtitle.text = listOf(selectedFolder, fmt, epCount).filter { it.isNotBlank() }.joinToString(" • ")
+                b.torrentLinkAnilistButton.text = getString(R.string.torrent_unlink_season_button)
+            } else if (defaultLinkedMedia != null) {
+                b.torrentLinkedMediaCover.isVisible = true
+                b.torrentLinkedMediaCover.loadImage(defaultLinkedMedia!!.cover ?: defaultLinkedMedia!!.banner ?: "")
+                b.torrentLinkedMediaTitle.text = "${defaultLinkedMedia!!.userPreferredName} (Global)"
+                b.torrentLinkedMediaSubtitle.isVisible = true
+                b.torrentLinkedMediaSubtitle.text = "$selectedFolder • Click Link to set specific season"
+                b.torrentLinkAnilistButton.text = getString(R.string.torrent_link_season_button)
+            } else {
+                b.torrentLinkedMediaCover.isVisible = false
+                b.torrentLinkedMediaTitle.text = getString(R.string.torrent_link_season_hint, selectedFolder)
+                b.torrentLinkedMediaSubtitle.isVisible = false
+                b.torrentLinkAnilistButton.text = getString(R.string.torrent_link_season_button)
+            }
         } else {
-            b.torrentLinkedMediaCover.isVisible = false
-            b.torrentLinkedMediaTitle.text = getString(R.string.torrent_link_anilist_hint)
-            b.torrentLinkedMediaSubtitle.isVisible = false
-            b.torrentLinkAnilistButton.text = getString(R.string.torrent_link_button)
+            // __ALL__ selected
+            if (defaultLinkedMedia != null) {
+                b.torrentLinkedMediaCover.isVisible = true
+                b.torrentLinkedMediaCover.loadImage(defaultLinkedMedia!!.cover ?: defaultLinkedMedia!!.banner ?: "")
+                b.torrentLinkedMediaTitle.text = defaultLinkedMedia!!.userPreferredName
+                b.torrentLinkedMediaSubtitle.isVisible = true
+                val epCount = defaultLinkedMedia!!.anime?.totalEpisodes?.let { "$it eps" } ?: ""
+                val fmt = defaultLinkedMedia!!.format ?: ""
+                val seasonOverrides = if (folderLinkedMediaMap.isNotEmpty()) " (${folderLinkedMediaMap.size} seasons configured)" else ""
+                b.torrentLinkedMediaSubtitle.text = listOf(fmt, epCount).filter { it.isNotBlank() }.joinToString(" • ") + seasonOverrides
+                b.torrentLinkAnilistButton.text = getString(R.string.torrent_unlink_all_button)
+            } else if (folderLinkedMediaMap.isNotEmpty()) {
+                b.torrentLinkedMediaCover.isVisible = false
+                b.torrentLinkedMediaTitle.text = getString(R.string.torrent_seasons_linked, folderLinkedMediaMap.size)
+                b.torrentLinkedMediaSubtitle.isVisible = true
+                b.torrentLinkedMediaSubtitle.text = getString(R.string.torrent_select_season_to_link)
+                b.torrentLinkAnilistButton.text = getString(R.string.torrent_unlink_all_button)
+            } else {
+                b.torrentLinkedMediaCover.isVisible = false
+                b.torrentLinkedMediaTitle.text = getString(R.string.torrent_link_anilist_hint)
+                b.torrentLinkedMediaSubtitle.isVisible = false
+                b.torrentLinkAnilistButton.text = getString(R.string.torrent_link_button)
+            }
         }
     }
 
     // ── Search & Link AniList Dialog ───────────────────────────────────────
 
-    private fun showAniListSearchDialog() {
+    private fun showAniListSearchDialog(targetFolder: String = "__ALL__") {
         val ctx = requireContext()
         val searchResults = mutableListOf<Media>()
 
@@ -243,8 +295,13 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         }
 
         var dialog: android.app.AlertDialog? = null
+        val titleText = if (targetFolder != "__ALL__" && targetFolder.isNotBlank()) {
+            getString(R.string.torrent_link_search_title) + " ($targetFolder)"
+        } else {
+            getString(R.string.torrent_link_search_title)
+        }
         ctx.customAlertDialog().apply {
-            setTitle(getString(R.string.torrent_link_search_title))
+            setTitle(titleText)
             setCustomView(dialogView)
             setNegButton(R.string.cancel)
             attach { dialog = it }
@@ -254,9 +311,15 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
         list?.setOnItemClickListener { _, _, position, _ ->
             val chosen = searchResults.getOrNull(position)
             if (chosen != null) {
-                linkedMedia = chosen
-                updateLinkedMediaUi()
-                toast(getString(R.string.torrent_linked_to, chosen.userPreferredName))
+                if (targetFolder == "__ALL__") {
+                    defaultLinkedMedia = chosen
+                    updateLinkedMediaUi()
+                    toast(getString(R.string.torrent_linked_to, chosen.userPreferredName))
+                } else {
+                    folderLinkedMediaMap[targetFolder] = chosen
+                    updateLinkedMediaUi()
+                    toast(getString(R.string.torrent_linked_to, "${chosen.userPreferredName} ($targetFolder)"))
+                }
             }
             dialog?.dismiss()
         }
@@ -460,15 +523,21 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
             b.torrentFolderDropdown.setOnItemClickListener { _, _, position, _ ->
                 val selectedKey = dropdownKeys.getOrNull(position) ?: "__ALL__"
+                currentSelectedFolderKey = selectedKey
                 displayFilesForFolder(selectedKey)
+                updateLinkedMediaUi()
             }
 
             // Default display: first option (All files or First season)
+            currentSelectedFolderKey = "__ALL__"
             displayFilesForFolder("__ALL__")
+            updateLinkedMediaUi()
         } else {
             b.torrentFolderDropdownContainer.visibility = View.GONE
             val singleKey = folderKeys.firstOrNull() ?: ""
+            currentSelectedFolderKey = singleKey
             displayFilesForFolder(singleKey)
+            updateLinkedMediaUi()
         }
     }
 
@@ -511,10 +580,23 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     videoExtensions.any { p.endsWith(it) }
                 }.ifEmpty { stats }
 
+                val relativePaths = ani.dantotsu.parsers.TorrentAnimeParser.stripCommonRootDirectory(videoFilesList.map { it.path })
+                val clickedIdx = videoFilesList.indexOf(clickedFileStat).coerceAtLeast(0)
+                val clickedRelPath = relativePaths.getOrElse(clickedIdx) { clickedFileStat.path }
+                val norm = clickedRelPath.replace('\\', '/')
+                val clickedFolder = if (norm.contains('/')) norm.substringBeforeLast('/') else ""
+
+                // Scoped files: if clicked inside a multi-season folder, scope the episode playlist to that season
+                val scopedFiles = if (clickedFolder.isNotBlank() && folderFilesMap.containsKey(clickedFolder)) {
+                    folderFilesMap[clickedFolder] ?: videoFilesList
+                } else {
+                    videoFilesList
+                }
+
                 val allEpisodesMap = mutableMapOf<String, Episode>()
                 var clickedEpNumber = "1"
 
-                videoFilesList.forEachIndexed { index, stat ->
+                scopedFiles.forEachIndexed { index, stat ->
                     val fCleanName = stat.path.replace('\\', '/').substringAfterLast('/')
                     val epNum = MediaNameAdapter.findEpisodeNumber(fCleanName)?.let {
                         if (it % 1 == 0f) it.toInt().toString() else it.toString()
@@ -528,7 +610,9 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                         name = fCleanName
                         url = sUrl
                         episode_number = epNum.toFloatOrNull() ?: (index + 1).toFloat()
-                        if (stat.path.replace('\\', '/').contains('/')) {
+                        if (clickedFolder.isNotBlank()) {
+                            scanlator = clickedFolder
+                        } else if (stat.path.replace('\\', '/').contains('/')) {
                             scanlator = stat.path.replace('\\', '/').substringBeforeLast('/')
                         }
                     }
@@ -556,9 +640,9 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     allEpisodesMap[epNum] = ep
                 }
 
-                // If the user linked a real AniList entry, use that Media so
-                // updateProgress() in PlayerProgressManager fires with a valid ID.
-                val linked = linkedMedia
+                // If the user linked a real AniList entry (specific season or global), use that Media so
+                // updateProgress() in PlayerProgressManager updates progress for the specific season.
+                val linked = (if (clickedFolder.isNotBlank()) folderLinkedMediaMap[clickedFolder] else null) ?: defaultLinkedMedia
                 val media = if (linked != null) {
                     linked.copy(
                         anime = (linked.anime ?: Anime()).copy(
@@ -568,11 +652,12 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
                     ).also { it.selected = Selected(server = "Torrent") }
                 } else {
                     // No link — synthetic ID. AniList/MAL tracking is a no-op.
+                    val seasonTitle = if (clickedFolder.isNotBlank()) "${torrent.name ?: torrent.title ?: cleanTitle} - $clickedFolder" else (torrent.name ?: torrent.title ?: cleanTitle)
                     Media(
-                        id = abs((torrent.hash ?: cleanTitle).hashCode()),
-                        name = torrent.name ?: torrent.title ?: cleanTitle,
-                        nameRomaji = torrent.name ?: torrent.title ?: cleanTitle,
-                        userPreferredName = torrent.name ?: torrent.title ?: cleanTitle,
+                        id = kotlin.math.abs((torrent.hash ?: cleanTitle).hashCode() + clickedFolder.hashCode()),
+                        name = seasonTitle,
+                        nameRomaji = seasonTitle,
+                        userPreferredName = seasonTitle,
                         isAdult = false,
                         anime = Anime(
                             episodes = allEpisodesMap,
