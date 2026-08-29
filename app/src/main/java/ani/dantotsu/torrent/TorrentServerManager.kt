@@ -355,11 +355,11 @@ class TorrentServerManager(private val context: Context) {
                 }
             }
 
-            // 2. Prioritize Tail Pieces (moov atom / Matroska Cues) with lower priority to avoid splitting initial bandwidth
+            // 2. Prioritize Tail Pieces (moov atom / Matroska Cues) with default priority to avoid splitting initial bandwidth
             for (i in 0 until numPiecesOnePercent) {
                 val p = lastPiece - i
                 if (p >= firstPiece && p < numPiecesTotal) {
-                    handle.piecePriority(p, Priority.SEVEN)
+                    handle.piecePriority(p, Priority.DEFAULT)
                     handle.setPieceDeadline(p, 3000 + (i * 500))
                 }
             }
