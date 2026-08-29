@@ -1302,4 +1302,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="torrent_unlink_all_button">Unlink All</string>
     <string name="torrent_seasons_linked">%1$d seasons linked</string>
     <string name="torrent_select_season_to_link">Select a season above to manage links</string>
+    <string name="screenshot">Screenshot</string>
+    <string name="screenshot_saved">Screenshot saved to Pictures/Dantotsu</string>
+    <string name="video_not_ready">Video not ready</string>
 </resources>
