@@ -363,6 +363,7 @@ class DirectTorrentBottomSheet : BottomSheetDialogFragment() {
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
+                ani.dantotsu.addons.torrent.TorrentServerService.start()
                 torrentManager.start()
                 val torrent = torrentManager.addTorrent(
                     url = url,
