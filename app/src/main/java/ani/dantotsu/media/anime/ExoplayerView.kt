@@ -81,7 +81,9 @@ import ani.dantotsu.media.anime.player.PlayerCastManager
 import ani.dantotsu.media.anime.player.PlayerDiscordManager
 import ani.dantotsu.media.anime.player.PlayerGestureManager
 import ani.dantotsu.media.anime.player.PlayerProgressManager
+import ani.dantotsu.media.anime.player.PlayerScreenshotManager
 import ani.dantotsu.media.anime.player.PlayerSubtitleManager
+import ani.dantotsu.shareImage
 import ani.dantotsu.others.IdMappers
 import ani.dantotsu.others.LanguageMapper
 import ani.dantotsu.others.Xubtitle
@@ -153,6 +155,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private lateinit var exoPrev: ImageButton
     private lateinit var exoSkipOpEd: ImageButton
     private lateinit var exoPip: ImageButton
+    private lateinit var exoScreenshot: ImageButton
+    private lateinit var screenshotManager: PlayerScreenshotManager
     private lateinit var exoBrightness: Slider
     private lateinit var exoVolume: Slider
     private lateinit var exoBrightnessCont: View
@@ -319,6 +323,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         exoBrightnessCont = playerView.findViewById(R.id.exo_brightness_cont)
         exoVolumeCont = playerView.findViewById(R.id.exo_volume_cont)
         exoPip = playerView.findViewById(R.id.exo_pip)
+        exoScreenshot = playerView.findViewById(R.id.exo_screenshot)
         exoSkipOpEd = playerView.findViewById(R.id.exo_skip_op_ed)
         exoSkip = playerView.findViewById(R.id.exo_skip)
         skipTimeButton = playerView.findViewById(R.id.exo_skip_timestamp)
@@ -350,6 +355,22 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         progressManager = PlayerProgressManager(
             this, model, { playerManager.exoPlayer }, { playerManager.isInitialized }
         )
+        screenshotManager = PlayerScreenshotManager(this, playerView)
+        exoScreenshot.setOnClickListener {
+            val title = media.userPreferredName.ifBlank { media.mainName() }
+            val epNum = if (this::episode.isInitialized) episode.number else (media.anime?.selectedEpisode ?: "1")
+            screenshotManager.takeScreenshot(title, epNum)
+        }
+        exoScreenshot.setOnLongClickListener {
+            val title = media.userPreferredName.ifBlank { media.mainName() }
+            val epNum = if (this::episode.isInitialized) episode.number else (media.anime?.selectedEpisode ?: "1")
+            screenshotManager.takeScreenshot(title, epNum) { bitmap, _ ->
+                if (bitmap != null) {
+                    shareImage("$title - Episode $epNum", bitmap, this)
+                }
+            }
+            true
+        }
 
         castManager = PlayerCastManager(this, playerView) { isPlaying ->
             isPlayerPlaying = isPlaying
