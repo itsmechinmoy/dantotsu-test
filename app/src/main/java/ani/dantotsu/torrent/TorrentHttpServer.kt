@@ -173,14 +173,14 @@ class TorrentHttpServer(
                             "Content-Type: $contentType\r\n" +
                             "Content-Length: $contentSize\r\n" +
                             "Content-Range: bytes $startByte-$endByte/$fileSize\r\n" +
-                            "Connection: close\r\n" +
+                            "Connection: keep-alive\r\n" +
                             "Access-Control-Allow-Origin: *\r\n\r\n"
                 } else {
                     "HTTP/1.1 200 OK\r\n" +
                             "Accept-Ranges: bytes\r\n" +
                             "Content-Type: $contentType\r\n" +
                             "Content-Length: $fileSize\r\n" +
-                            "Connection: close\r\n" +
+                            "Connection: keep-alive\r\n" +
                             "Access-Control-Allow-Origin: *\r\n\r\n"
                 }
 
@@ -204,14 +204,18 @@ class TorrentHttpServer(
                         val torrentByteOffset = fileOffset + currentPosition
                         val pieceIndex = (torrentByteOffset / pieceLength).toInt()
 
-                        // Sliding Read-Ahead Window: Pre-buffer the next 12 pieces ahead with staggered deadlines
+                        // Adaptive 20MB Rolling Lookahead Window (dynamic piece budget)
                         if (pieceIndex != lastPrebufferedPiece) {
                             lastPrebufferedPiece = pieceIndex
-                            for (i in 0..12) {
+                            val targetBufferBytes = 20L * 1024L * 1024L
+                            val safePieceLen = pieceLength.coerceAtLeast(1L)
+                            val lookaheadPieces = (targetBufferBytes / safePieceLen).toInt().coerceIn(4, 32)
+                            for (i in 0 until lookaheadPieces) {
                                 val nextPiece = pieceIndex + i
                                 if (nextPiece < totalPieces) {
                                     torrentHandle.piecePriority(nextPiece, Priority.TOP_PRIORITY)
-                                    torrentHandle.setPieceDeadline(nextPiece, 1000 + (i * 400))
+                                    val deadlineMs = if (i == 0) 0 else (150 + i * 150)
+                                    torrentHandle.setPieceDeadline(nextPiece, deadlineMs)
                                 }
                             }
                         }
@@ -224,10 +228,6 @@ class TorrentHttpServer(
                             if (!loggedWait) {
                                 Logger.log("TorrentHttpServer: Waiting for piece $pieceIndex at position $currentPosition...")
                                 loggedWait = true
-                            }
-                            if (waitCount % 40 == 0) {
-                                torrentHandle.piecePriority(pieceIndex, Priority.TOP_PRIORITY)
-                                torrentHandle.setPieceDeadline(pieceIndex, 500)
                             }
                             Thread.sleep(50)
                             waitCount++
