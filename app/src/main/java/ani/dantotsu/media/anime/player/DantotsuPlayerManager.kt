@@ -218,15 +218,20 @@ class DantotsuPlayerManager(
     ): ExoPlayer {
         releaseExoPlayer()
 
+        val isTorrentStream = mediaSource?.let {
+            currentMediaItem?.localConfiguration?.uri?.host == "127.0.0.1"
+        } == true
+        val targetBufferBytes = if (isTorrentStream) 64 * 1024 * 1024 else 32 * 1024 * 1024
+        val maxBufferMs = if (isTorrentStream) 90_000 else DEFAULT_MAX_BUFFER_MS
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(BACK_BUFFER_DURATION_MS, true)
             .setBufferDurationsMs(
                 DEFAULT_MIN_BUFFER_MS,
-                DEFAULT_MAX_BUFFER_MS,
+                maxBufferMs,
                 BUFFER_FOR_PLAYBACK_MS,
                 BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
             )
-            .setTargetBufferBytes(32 * 1024 * 1024)
+            .setTargetBufferBytes(targetBufferBytes)
             .setPrioritizeTimeOverSizeThresholds(false)
             .build()
 
