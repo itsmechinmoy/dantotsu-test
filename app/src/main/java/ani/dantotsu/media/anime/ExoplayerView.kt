@@ -1544,6 +1544,13 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             try {
                 extractor?.onVideoStopped(video)
             } catch (_: Exception) {}
+            try {
+                val torrentManager = uy.kohesive.injekt.Injekt.get<ani.dantotsu.torrent.TorrentServerManager>()
+                if (torrentManager.isRunning()) {
+                    torrentManager.pauseActiveTorrent()
+                    torrentManager.pruneCache()
+                }
+            } catch (_: Exception) {}
         }
         aniSkipManager.stopTracking()
         progressManager.stopTracking()
