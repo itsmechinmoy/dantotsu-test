@@ -1291,6 +1291,20 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             discordManager.updatePresence(media, episode, playerManager.exoPlayer, isPlayerPlaying)
             if (isPlayerPlaying) playerManager.exoPlayer?.play()
+            // Re-apply subtitle track selection after seek. ExoPlayer may invalidate track
+            // group overrides when seeking into unbuffered regions of HLS/DASH streams, causing
+            // subtitles to vanish until the user manually re-selects them from the menu.
+            val player = playerManager.exoPlayer ?: return
+            val activeId = subtitleManager.activeSubtitleId
+            val activeName = subtitleManager.activeSubtitleDisplayName
+            if (activeId != null || activeName != null) {
+                val tracks = player.currentTracks
+                // Set only pendingSubtitleLabel (not pendingTrackId) so checkTracksForPendingSubtitles
+                // silently re-applies the selection without showing a "Subtitle loaded" snack.
+                subtitleManager.pendingTrackId = null
+                subtitleManager.pendingSubtitleLabel = activeName ?: activeId
+                subtitleManager.checkTracksForPendingSubtitles(tracks)
+            }
         }
     }
 
