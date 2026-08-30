@@ -17,12 +17,16 @@ import kotlinx.serialization.json.contentOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 object CarouselLogoResolver {
+    private const val NO_LOGO = ""
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
-    private val cache = ConcurrentHashMap<String, String?>()
+    private val cache = ConcurrentHashMap<String, String>()
 
     suspend fun resolve(media: Media): String? = withContext(Dispatchers.IO) {
         val cacheKey = "${media.id}:${media.idMAL}"
-        if (cache.containsKey(cacheKey)) return@withContext cache[cacheKey]
+        val cached = cache[cacheKey]
+        if (cached != null) {
+            return@withContext if (cached == NO_LOGO) null else cached
+        }
 
         var logo: String? = null
 
@@ -46,7 +50,7 @@ object CarouselLogoResolver {
             }
         }
 
-        cache[cacheKey] = logo
+        cache[cacheKey] = logo ?: NO_LOGO
         logo
     }
 
