@@ -129,22 +129,26 @@
 
             <LinearLayout
                 android:id="@+id/itemCompactTitleContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:paddingStart="8dp"
+                android:paddingEnd="0dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
                     android:minHeight="28dp">
 
                     <TextView
                         android:id="@+id/itemCompactTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="start|center_vertical"
+                        android:layout_gravity="bottom|start"
                         android:ellipsize="end"
                         android:fontFamily="@font/poppins_bold"
                         android:maxLines="3"
@@ -155,12 +159,10 @@
 
                     <ImageView
                         android:id="@+id/itemCompactLogo"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="start|center_vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="bottom|start"
                         android:adjustViewBounds="true"
-                        android:maxHeight="44dp"
-                        android:maxWidth="200dp"
                         android:scaleType="fitStart"
                         android:visibility="gone"
                         tools:ignore="ContentDescription" />
