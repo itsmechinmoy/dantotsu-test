@@ -135,17 +135,36 @@
                 android:orientation="vertical"
                 android:padding="8dp">
 
-                <TextView
-                    android:id="@+id/itemCompactTitle"
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="@font/poppins_bold"
-                    android:maxLines="3"
-                    android:textSize="16dp"
-                    android:transitionName="mediaTitle"
-                    tools:ignore="SpUsage"
-                    tools:text="@string/slogan" />
+                    android:minHeight="28dp">
+
+                    <TextView
+                        android:id="@+id/itemCompactTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="start|center_vertical"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/poppins_bold"
+                        android:maxLines="3"
+                        android:textSize="16dp"
+                        android:transitionName="mediaTitle"
+                        tools:ignore="SpUsage"
+                        tools:text="@string/slogan" />
+
+                    <ImageView
+                        android:id="@+id/itemCompactLogo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="start|center_vertical"
+                        android:adjustViewBounds="true"
+                        android:maxHeight="44dp"
+                        android:maxWidth="200dp"
+                        android:scaleType="fitStart"
+                        android:visibility="gone"
+                        tools:ignore="ContentDescription" />
+                </FrameLayout>
 
                 <TextView
                     android:id="@+id/itemCompactStatus"
