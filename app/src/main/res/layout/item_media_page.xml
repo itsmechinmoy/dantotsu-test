@@ -160,8 +160,8 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:adjustViewBounds="true"
-                        android:maxHeight="52dp"
-                        android:maxWidth="260dp"
+                        android:maxHeight="68dp"
+                        android:maxWidth="320dp"
                         android:scaleType="fitCenter"
                         android:visibility="gone"
                         tools:ignore="ContentDescription" />
