@@ -355,6 +355,13 @@ class MediaAdaptor(
         titleView: android.widget.TextView,
         logoView: ImageView
     ) {
+        val clearLogoEnabled: Boolean = PrefManager.getVal(PrefName.CarouselClearLogo)
+        if (!clearLogoEnabled) {
+            titleView.visibility = View.VISIBLE
+            logoView.visibility = View.GONE
+            return
+        }
+
         val currentId = media.id
         logoView.tag = currentId
 
