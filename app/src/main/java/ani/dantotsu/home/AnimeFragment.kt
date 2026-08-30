@@ -233,8 +233,10 @@ class AnimeFragment : Fragment() {
                     animePageAdapter.updateHeight()
                     model.getTrending().observe(viewLifecycleOwner) {
                         if (it != null) {
-                            scope.launch(Dispatchers.IO) {
-                                CarouselLogoResolver.preload(it)
+                            if (PrefManager.getVal(PrefName.CarouselClearLogo)) {
+                                scope.launch(Dispatchers.IO) {
+                                    CarouselLogoResolver.preload(it)
+                                }
                             }
                             animePageAdapter.updateTrending(
                                 MediaAdaptor(
