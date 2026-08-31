@@ -1945,12 +1945,12 @@ Page(page:$page,perPage:50) {
         return executeQuery(query, force = true)
     }
 
-    suspend fun getMediaCharacters(mediaId: Int, page: Int = 1): Query.CharacterDetailsResponse? {
+    suspend fun getMediaCharacters(mediaId: Int, page: Int = 1): Query.Media? {
         val query = """{Media(id:$mediaId){characters(sort:[ROLE,FAVOURITES_DESC],page:$page,perPage:25){pageInfo{hasNextPage currentPage}edges{role voiceActors{id name{userPreferred}image{medium large}languageV2}node{id name{userPreferred}image{medium large}isFavourite}}}}}"""
         return executeQuery(query, force = true)
     }
 
-    suspend fun getMediaStaff(mediaId: Int, page: Int = 1): Query.AuthorDetailsResponse? {
+    suspend fun getMediaStaff(mediaId: Int, page: Int = 1): Query.Media? {
         val query = """{Media(id:$mediaId){staff(sort:[RELEVANCE,ID],page:$page,perPage:25){pageInfo{hasNextPage currentPage}edges{role node{id name{userPreferred}image{medium large}}}}}}"""
         return executeQuery(query, force = true)
     }
