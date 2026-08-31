@@ -315,7 +315,7 @@ fun fullMediaInformation(id: Int) = """
       }
     }
     ${standardMediaInformation()}
-    source
+    source(version: 3)
     duration
     season
     seasonYear
