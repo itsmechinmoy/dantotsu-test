@@ -1954,4 +1954,28 @@ Page(page:$page,perPage:50) {
         val query = """{Media(id:$mediaId){staff(sort:[RELEVANCE,ID],page:$page,perPage:25){pageInfo{hasNextPage currentPage}edges{role node{id name{userPreferred}image{medium large}}}}}}"""
         return executeQuery(query, force = true)
     }
+
+    suspend fun getUserRawBio(userId: Int): String? {
+        val query = """{User(id:$userId){about(asHtml:false)}}"""
+        val res = executeQuery<UserBioResponse>(query, force = true)
+        return res?.data?.user?.about
+    }
+}
+
+@kotlinx.serialization.Serializable
+data class UserBioResponse(
+    @kotlinx.serialization.SerialName("data")
+    val data: Data? = null
+) : java.io.Serializable {
+    @kotlinx.serialization.Serializable
+    data class Data(
+        @kotlinx.serialization.SerialName("User")
+        val user: BioUser? = null
+    ) : java.io.Serializable {
+        @kotlinx.serialization.Serializable
+        data class BioUser(
+            @kotlinx.serialization.SerialName("about")
+            val about: String? = null
+        ) : java.io.Serializable
+    }
 }
