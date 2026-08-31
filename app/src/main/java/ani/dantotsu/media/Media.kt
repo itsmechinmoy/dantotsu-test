@@ -138,7 +138,33 @@ data class Media(
             totalVolumes = apiMedia.volumes
         ) else null,
         format = apiMedia.format?.toString(),
-    )
+    ) {
+        apiMedia.studios?.nodes?.let { nodes ->
+            if (nodes.isNotEmpty()) {
+                val studioNode = nodes.firstOrNull { it.isAnimationStudio == true } ?: nodes[0]
+                this.anime?.mainStudio = Studio(
+                    id = studioNode.id.toString(),
+                    name = studioNode.name ?: "N/A",
+                    isFavourite = studioNode.isFavourite ?: false,
+                    favourites = studioNode.favourites ?: 0,
+                    imageUrl = null
+                )
+            }
+        }
+        apiMedia.producers?.nodes?.let { nodes ->
+            if (nodes.isNotEmpty()) {
+                this.anime?.producers = ArrayList(nodes.map {
+                    Studio(
+                        id = it.id.toString(),
+                        name = it.name ?: "N/A",
+                        isFavourite = it.isFavourite ?: false,
+                        favourites = it.favourites ?: 0,
+                        imageUrl = null
+                    )
+                })
+            }
+        }
+    }
 
     constructor(mediaList: MediaList) : this(mediaList.media!!) {
         this.userProgress = mediaList.progress
