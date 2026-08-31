@@ -85,7 +85,7 @@
                 android:layout_gravity="center_vertical"
                 android:layout_marginEnd="6dp"
                 android:padding="6dp"
-                android:src="@drawable/ic_round_edit_24"
+                android:src="@drawable/ic_round_edit_note_24"
                 android:visibility="gone"
                 app:tint="?attr/colorOnBackground"
                 tools:ignore="ContentDescription" />
