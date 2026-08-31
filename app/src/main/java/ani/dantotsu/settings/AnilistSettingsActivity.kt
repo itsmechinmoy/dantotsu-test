@@ -73,7 +73,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     anilistMutations.updateSettings(titleLanguage = selectedLanguage)
                     Anilist.titleLanguage = selectedLanguage
-                    restartApp()
+                    snackString(R.string.success)
                 }
                 settingsAnilistTitleLanguage.clearFocus()
             }
@@ -97,7 +97,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     anilistMutations.updateSettings(staffNameLanguage = selectedLanguage)
                     Anilist.staffNameLanguage = selectedLanguage
-                    restartApp()
+                    snackString(R.string.success)
                 }
                 settingsAnilistStaffLanguage.clearFocus()
             }
@@ -115,7 +115,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     anilistMutations.updateSettings(activityMergeTime = selectedApiTime)
                     Anilist.activityMergeTime = selectedApiTime
-                    restartApp()
+                    snackString(R.string.success)
                 }
                 settingsAnilistActivityMergeTime.clearFocus()
             }
@@ -139,7 +139,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     anilistMutations.updateSettings(scoreFormat = selectedFormat)
                     Anilist.scoreFormat = selectedFormat
-                    restartApp()
+                    snackString(R.string.success)
                 }
                 settingsAnilistScoreFormat.clearFocus()
             }
@@ -156,7 +156,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     anilistMutations.updateSettings(rowOrder = selectedApiOrder)
                     Anilist.rowOrder = selectedApiOrder
-                    restartApp()
+                    snackString(R.string.success)
                 }
                 settingsAnilistRowOrder.clearFocus()
             }
@@ -194,7 +194,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     anilistMutations.updateSettings(timezone = apiTimezone)
                     Anilist.timezone = apiTimezone
-                    restartApp()
+                    snackString(R.string.success)
                 }
                 settingsAnilistTimezone.clearFocus()
             }
@@ -214,7 +214,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                             lifecycleScope.launch {
                                 anilistMutations.updateSettings(airingNotifications = isChecked)
                                 Anilist.airingNotifications = isChecked
-                                restartApp()
+                                snackString(R.string.success)
                             }
                         }
                     ),
@@ -228,7 +228,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                             lifecycleScope.launch {
                                 anilistMutations.updateSettings(displayAdultContent = isChecked)
                                 Anilist.adult = isChecked
-                                restartApp()
+                                snackString(R.string.success)
                             }
                         }
                     ),
@@ -242,6 +242,19 @@ class AnilistSettingsActivity : AppCompatActivity() {
         binding.settingsRecyclerView2.adapter = SettingsAdapter(
             arrayListOf(
                 Settings(
+                    type = 1,
+                    name = getString(R.string.edit_bio),
+                    desc = "Update your AniList profile bio and 'About Me' description",
+                    icon = R.drawable.ic_round_edit_24,
+                    onClick = {
+                        startActivity(
+                            Intent(this, ani.dantotsu.util.ActivityMarkdownCreator::class.java).apply {
+                                putExtra("type", "bio")
+                            }
+                        )
+                    }
+                ),
+                Settings(
                     type = 2,
                     name = getString(R.string.restrict_messages),
                     desc = getString(R.string.restrict_messages_desc),
@@ -251,7 +264,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                         lifecycleScope.launch {
                             anilistMutations.updateSettings(restrictMessagesToFollowing = isChecked)
                             Anilist.restrictMessagesToFollowing = isChecked
-                            restartApp()
+                            snackString(R.string.success)
                         }
                     }
                 ),
