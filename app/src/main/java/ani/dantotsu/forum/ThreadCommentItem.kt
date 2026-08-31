@@ -34,14 +34,14 @@ class ThreadCommentItem(
         viewBinding.commentTime.text = comment.createdAt?.let { ActivityItemBuilder.getDateTime(it) } ?: ""
         viewBinding.commentBody.text = comment.comment?.replace(Regex("<[^>]*>"), "")?.trim() ?: ""
 
-        val likeColor = ContextCompat.getColor(context, R.color.like_color)
+        val likeColor = ContextCompat.getColor(context, R.color.yt_red)
         val notLikeColor = ContextCompat.getColor(context, R.color.bg_opp)
         viewBinding.commentLikeIcon.setColorFilter(if (comment.isLiked == true) likeColor else notLikeColor)
         viewBinding.commentLikeCount.text = (comment.likeCount ?: 0).toString()
 
         viewBinding.commentLikeButton.setOnClickListener {
             scope.launch(Dispatchers.IO) {
-                val success = Anilist.mutation.toggleLike(comment.id, "THREAD_COMMENT")
+                val success = Anilist.mutation.toggleLike(comment.id, "THREAD_COMMENT") != null
                 withContext(Dispatchers.Main) {
                     if (success) {
                         comment.isLiked = !(comment.isLiked ?: false)
