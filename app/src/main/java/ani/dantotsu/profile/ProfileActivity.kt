@@ -168,6 +168,28 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
                                     true
                                 }
 
+                                R.id.action_block_user -> {
+                                    if (user.id == Anilist.userid) {
+                                        snackString("Cannot block yourself")
+                                        return@setOnMenuItemClickListener true
+                                    }
+                                    ani.dantotsu.util.customAlertDialog().apply {
+                                        setTitle(R.string.warning)
+                                        setMessage("Toggle block status for ${user.name}?")
+                                        setPosButton(R.string.ok) {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                val success = Anilist.mutation.toggleBlock(user.id)
+                                                withContext(Dispatchers.Main) {
+                                                    snackString(if (success) "Updated block status" else "Failed to update block status")
+                                                }
+                                            }
+                                        }
+                                        setNegButton(R.string.cancel)
+                                        show()
+                                    }
+                                    true
+                                }
+
                                 else -> false
                             }
                         }
