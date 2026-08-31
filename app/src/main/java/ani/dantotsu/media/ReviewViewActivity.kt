@@ -26,6 +26,7 @@ import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.toast
 import ani.dantotsu.util.AniMarkdown
+import ani.dantotsu.util.customAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,7 +70,7 @@ class ReviewViewActivity : AppCompatActivity() {
 
             binding.reviewDelete.visibility = View.VISIBLE
             binding.reviewDelete.setOnClickListener {
-                ani.dantotsu.util.customAlertDialog().apply {
+                customAlertDialog().apply {
                     setTitle(R.string.delete)
                     setMessage(getString(R.string.delete_review_confirm))
                     setPosButton(R.string.delete) {
