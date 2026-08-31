@@ -49,7 +49,48 @@ class ReviewViewActivity : AppCompatActivity() {
         review = intent.getSerializableExtra("review") as Query.Review
         binding.userName.text = review.user?.name
         binding.userAvatar.loadImage(review.user?.avatar?.medium)
-        binding.userTime.text = ActivityItemBuilder.getDateTime(review.createdAt)
+        val isOwnReview = review.user?.id == Anilist.userid
+        if (isOwnReview) {
+            binding.reviewEdit.visibility = View.VISIBLE
+            binding.reviewEdit.setOnClickListener {
+                startActivity(
+                    Intent(this, ani.dantotsu.util.ActivityMarkdownCreator::class.java).apply {
+                        putExtra("type", "review")
+                        putExtra("edit", review.id)
+                        putExtra("mediaId", review.mediaId)
+                        putExtra("summary", review.summary)
+                        putExtra("score", review.score)
+                        putExtra("private", review.private)
+                        putExtra("other", review.body)
+                    }
+                )
+                finish()
+            }
+
+            binding.reviewDelete.visibility = View.VISIBLE
+            binding.reviewDelete.setOnClickListener {
+                ani.dantotsu.util.customAlertDialog().apply {
+                    setTitle(R.string.delete)
+                    setMessage(getString(R.string.delete_review_confirm))
+                    setPosButton(R.string.delete) {
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val success = Anilist.mutation.deleteReview(review.id)
+                            withContext(Dispatchers.Main) {
+                                if (success) {
+                                    toast("Review deleted")
+                                    finish()
+                                } else {
+                                    toast("Failed to delete review")
+                                }
+                            }
+                        }
+                    }
+                    setNegButton(R.string.cancel)
+                    show()
+                }
+            }
+        }
+
         binding.userContainer.setOnClickListener {
             startActivity(
                 Intent(this, ProfileActivity::class.java)
