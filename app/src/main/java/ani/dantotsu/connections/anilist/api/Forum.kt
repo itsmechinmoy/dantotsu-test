@@ -2,11 +2,12 @@ package ani.dantotsu.connections.anilist.api
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class ForumThreadsResponse(
     @SerialName("data")
-    val data: Data
+    val data: Data? = null
 ) : java.io.Serializable {
     @Serializable
     data class Data(
@@ -20,12 +21,12 @@ data class ForumThreadsResponse(
 @Serializable
 data class ThreadCommentsResponse(
     @SerialName("data")
-    val data: Data
+    val data: Data? = null
 ) : java.io.Serializable {
     @Serializable
     data class Data(
         @SerialName("Page")
-        val page: ThreadCommentsPage
+        val page: ThreadCommentsPage? = null
     ) : java.io.Serializable
 }
 
@@ -46,9 +47,37 @@ data class ThreadCommentsPage(
 ) : java.io.Serializable
 
 @Serializable
+data class ThreadUser(
+    @SerialName("id") val id: Int = 0,
+    @SerialName("name") val name: String? = null,
+    @SerialName("avatar") val avatar: UserAvatar? = null,
+    @SerialName("bannerImage") val bannerImage: String? = null,
+) : java.io.Serializable
+
+@Serializable
+data class ThreadMedia(
+    @SerialName("id") val id: Int = 0,
+    @SerialName("title") val title: ThreadMediaTitle? = null,
+    @SerialName("coverImage") val coverImage: ThreadMediaCoverImage? = null,
+) : java.io.Serializable
+
+@Serializable
+data class ThreadMediaTitle(
+    @SerialName("userPreferred") val userPreferred: String? = null,
+    @SerialName("romaji") val romaji: String? = null,
+    @SerialName("english") val english: String? = null,
+) : java.io.Serializable
+
+@Serializable
+data class ThreadMediaCoverImage(
+    @SerialName("medium") val medium: String? = null,
+    @SerialName("large") val large: String? = null,
+) : java.io.Serializable
+
+@Serializable
 data class ForumThread(
     @SerialName("id")
-    val id: Int,
+    val id: Int = 0,
     @SerialName("title")
     val title: String? = null,
     @SerialName("body")
@@ -76,25 +105,25 @@ data class ForumThread(
     @SerialName("siteUrl")
     val siteUrl: String? = null,
     @SerialName("user")
-    val user: User? = null,
+    val user: ThreadUser? = null,
     @SerialName("categories")
     val categories: List<ThreadCategory>? = null,
     @SerialName("mediaCategories")
-    val mediaCategories: List<Media>? = null
+    val mediaCategories: List<ThreadMedia>? = null
 ) : java.io.Serializable
 
 @Serializable
 data class ThreadCategory(
     @SerialName("id")
-    val id: Int,
+    val id: Int = 0,
     @SerialName("name")
-    val name: String
+    val name: String? = null
 ) : java.io.Serializable
 
 @Serializable
 data class ThreadComment(
     @SerialName("id")
-    val id: Int,
+    val id: Int = 0,
     @SerialName("userId")
     val userId: Int? = null,
     @SerialName("threadId")
@@ -114,7 +143,7 @@ data class ThreadComment(
     @SerialName("siteUrl")
     val siteUrl: String? = null,
     @SerialName("user")
-    val user: User? = null,
+    val user: ThreadUser? = null,
     @SerialName("childComments")
-    val childComments: List<ThreadComment>? = null
+    val childComments: JsonElement? = null
 ) : java.io.Serializable
