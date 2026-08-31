@@ -416,10 +416,37 @@ fun fullMediaInformation(id: Int) = """
     }
     recommendations(sort: RATING_DESC) {
       nodes {
+        id
+        rating
+        userRating
         mediaRecommendation {
           ${standardMediaInformation()}
         }
+        user {
+          id
+          name
+        }
       }
+    }
+    stats {
+      scoreDistribution {
+        score
+        amount
+      }
+      statusDistribution {
+        status
+        amount
+      }
+    }
+    rankings {
+      id
+      rank
+      type
+      format
+      year
+      season
+      allTime
+      context
     }
     externalLinks {
       id
