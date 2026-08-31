@@ -292,7 +292,9 @@ class AnilistQueries {
                         }
                         if (fetchedMedia.recommendations != null) {
                             media.recommendations = arrayListOf()
+                            media.recommendationList = arrayListOf()
                             fetchedMedia.recommendations?.nodes?.forEach { i ->
+                                media.recommendationList?.add(i)
                                 i.mediaRecommendation?.apply {
                                     media.recommendations?.add(
                                         Media(this)
@@ -300,6 +302,8 @@ class AnilistQueries {
                                 }
                             }
                         }
+                        media.stats = fetchedMedia.stats
+                        media.rankings = fetchedMedia.rankings
                         if (fetchedMedia.reviews?.nodes != null) {
                             media.review = fetchedMedia.reviews!!.nodes as ArrayList<Query.Review>
                         }
@@ -1915,5 +1919,39 @@ Page(page:$page,perPage:50) {
             AnilistMutations.FavType.STUDIO -> res?.data?.user?.favourites?.studios?.nodes?.any { it.id == id }
                 ?: false
         }
+    }
+
+    suspend fun getThreads(
+        categoryId: Int? = null,
+        mediaCategoryId: Int? = null,
+        search: String? = null,
+        sort: String = "ID_DESC",
+        page: Int = 1
+    ): ani.dantotsu.connections.anilist.api.ForumThreadsResponse? {
+        val categoryArg = if (categoryId != null) ", categoryId: $categoryId" else ""
+        val mediaCategoryArg = if (mediaCategoryId != null) ", mediaCategoryId: $mediaCategoryId" else ""
+        val searchArg = if (!search.isNullOrBlank()) ", search: \"$search\"" else ""
+        val query = """{Page(page:$page,perPage:25){pageInfo{hasNextPage currentPage}threads(sort:[$sort] $categoryArg $mediaCategoryArg $searchArg){id title body userId replyCount viewCount isLocked isSticky isSubscribed isLiked likeCount createdAt updatedAt siteUrl user{id name avatar{medium large}bannerImage}categories{id name}mediaCategories{id title{userPreferred}coverImage{medium}}}}}"""
+        return executeQuery(query, force = true)
+    }
+
+    suspend fun getThreadDetails(threadId: Int): ani.dantotsu.connections.anilist.api.ForumThreadsResponse? {
+        val query = """{Thread(id:$threadId){id title body userId replyCount viewCount isLocked isSticky isSubscribed isLiked likeCount createdAt updatedAt siteUrl user{id name avatar{medium large}bannerImage}categories{id name}mediaCategories{id title{userPreferred}coverImage{medium}}}}"""
+        return executeQuery(query, force = true)
+    }
+
+    suspend fun getThreadComments(threadId: Int, page: Int = 1): ani.dantotsu.connections.anilist.api.ThreadCommentsResponse? {
+        val query = """{Page(page:$page,perPage:25){pageInfo{hasNextPage currentPage}threadComments(threadId:$threadId){id userId threadId comment isLocked isLiked likeCount createdAt updatedAt siteUrl user{id name avatar{medium large}bannerImage}childComments}}}"""
+        return executeQuery(query, force = true)
+    }
+
+    suspend fun getMediaCharacters(mediaId: Int, page: Int = 1): Query.CharacterDetailsResponse? {
+        val query = """{Media(id:$mediaId){characters(sort:[ROLE,FAVOURITES_DESC],page:$page,perPage:25){pageInfo{hasNextPage currentPage}edges{role voiceActors{id name{userPreferred}image{medium large}languageV2}node{id name{userPreferred}image{medium large}isFavourite}}}}}"""
+        return executeQuery(query, force = true)
+    }
+
+    suspend fun getMediaStaff(mediaId: Int, page: Int = 1): Query.AuthorDetailsResponse? {
+        val query = """{Media(id:$mediaId){staff(sort:[RELEVANCE,ID],page:$page,perPage:25){pageInfo{hasNextPage currentPage}edges{role node{id name{userPreferred}image{medium large}}}}}}"""
+        return executeQuery(query, force = true)
     }
 }
