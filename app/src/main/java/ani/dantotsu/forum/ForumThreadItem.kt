@@ -25,7 +25,13 @@ class ForumThreadItem(
         viewBinding.threadCategory.text = categoryName
 
         viewBinding.threadTitle.text = thread.title ?: ""
-        viewBinding.threadBodyPreview.text = thread.body?.replace(Regex("<[^>]*>|\\[[^\\]]*\\]"), " ")?.trim() ?: ""
+        val previewText = thread.body
+            ?.replace(Regex("!\\[[^\\]]*\\]\\([^)]*\\)|img\\d*\\([^)]*\\)|youtube\\([^)]*\\)|webm\\([^)]*\\)"), "")
+            ?.replace(Regex("<[^>]*>"), " ")
+            ?.replace(Regex("\\[([^\\]]+)\\]\\([^)]*\\)"), "$1")
+            ?.replace(Regex("[*~_`#]"), "")
+            ?.trim() ?: ""
+        viewBinding.threadBodyPreview.text = previewText
 
         viewBinding.threadReplyCount.text = (thread.replyCount ?: 0).toString()
         viewBinding.threadViewCount.text = (thread.viewCount ?: 0).toString()
