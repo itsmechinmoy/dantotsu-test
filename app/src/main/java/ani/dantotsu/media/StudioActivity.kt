@@ -60,20 +60,20 @@ class StudioActivity : AppCompatActivity() {
         var isFav = false
         binding.studioFav.visibility = if (ani.dantotsu.connections.anilist.Anilist.token != null) View.VISIBLE else View.GONE
         scope.launch(Dispatchers.IO) {
-            val studioId = studio?.id ?: return@launch
+            val studioId = studio?.id?.toIntOrNull() ?: return@launch
             isFav = ani.dantotsu.connections.anilist.Anilist.query.isUserFav(
                 ani.dantotsu.connections.anilist.AnilistMutations.FavType.STUDIO,
                 studioId
             )
             withContext(Dispatchers.Main) {
                 binding.studioFavIcon.setColorFilter(
-                    if (isFav) ContextCompat.getColor(this@StudioActivity, R.color.like_color)
+                    if (isFav) ContextCompat.getColor(this@StudioActivity, R.color.yt_red)
                     else ContextCompat.getColor(this@StudioActivity, R.color.bg_opp)
                 )
             }
         }
         binding.studioFav.setOnClickListener {
-            val studioId = studio?.id ?: return@setOnClickListener
+            val studioId = studio?.id?.toIntOrNull() ?: return@setOnClickListener
             scope.launch(Dispatchers.IO) {
                 val success = ani.dantotsu.connections.anilist.Anilist.mutation.toggleFav(
                     ani.dantotsu.connections.anilist.AnilistMutations.FavType.STUDIO,
@@ -83,7 +83,7 @@ class StudioActivity : AppCompatActivity() {
                     if (success) {
                         isFav = !isFav
                         binding.studioFavIcon.setColorFilter(
-                            if (isFav) ContextCompat.getColor(this@StudioActivity, R.color.like_color)
+                            if (isFav) ContextCompat.getColor(this@StudioActivity, R.color.yt_red)
                             else ContextCompat.getColor(this@StudioActivity, R.color.bg_opp)
                         )
                         ani.dantotsu.snackString(if (isFav) "Added to favorites" else "Removed from favorites")
