@@ -170,7 +170,7 @@ class AnilistQueries {
                         val fetchedMedia = response?.data?.media ?: return
                         val user = response?.data?.page
                         media.isFav = fetchedMedia.isFavourite ?: false
-                        media.source = fetchedMedia.source?.toString()
+                        media.source = fetchedMedia.source?.toString()?.replace("_", " ")?.lowercase()?.split(" ")?.joinToString(" ") { it.replaceFirstChar(Char::titlecase) }
                         media.countryOfOrigin = fetchedMedia.countryOfOrigin
                         media.format = fetchedMedia.format?.toString()
                         media.cover = fetchedMedia.coverImage?.large ?: media.cover
