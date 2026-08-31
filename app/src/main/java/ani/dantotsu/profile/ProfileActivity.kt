@@ -39,6 +39,7 @@ import ani.dantotsu.snackString
 import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.toast
+import ani.dantotsu.util.customAlertDialog
 import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -173,7 +174,7 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
                                         snackString("Cannot block yourself")
                                         return@setOnMenuItemClickListener true
                                     }
-                                    ani.dantotsu.util.customAlertDialog().apply {
+                                    customAlertDialog().apply {
                                         setTitle(R.string.warning)
                                         setMessage("Toggle block status for ${user.name}?")
                                         setPosButton(R.string.ok) {
