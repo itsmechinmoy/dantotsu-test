@@ -168,6 +168,25 @@ class ThreadViewActivity : AppCompatActivity() {
             loadWithOverviewMode = true
             useWideViewPort = true
         }
+        binding.threadWebView.setInitialScale(1)
+        binding.threadWebView.setBackgroundColor(
+            ContextCompat.getColor(
+                this,
+                android.R.color.transparent
+            )
+        )
+        binding.threadWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        binding.threadWebView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                binding.threadWebView.setBackgroundColor(
+                    ContextCompat.getColor(
+                        this@ThreadViewActivity,
+                        android.R.color.transparent
+                    )
+                )
+            }
+        }
         val styledHtml = AniMarkdown.getFullAniHTML(
             t.body ?: "",
             ContextCompat.getColor(this, R.color.bg_opp)
