@@ -1202,16 +1202,22 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="filter_activity_subtitle">Choose what type of activities to show</string>
     <string name="filter_by_type">Filter by type</string>
     <string name="all">All</string>
+    <string name="text">Text Posts</string>
     <string name="anime_progress">Anime Progress</string>
     <string name="manga_progress">Manga Progress</string>
+    <string name="all_progress">All Progress</string>
     <string name="messages">Messages</string>
-    <string name="text">Text</string>
+    <string name="pinned">Pinned</string>
+    <string name="subscribed_activities">Subscribed</string>
     <string name="apply_filters">Apply Filters</string>
     <string name="no_anime_progress">No anime progress activities</string>
     <string name="no_manga_progress">No manga progress activities</string>
+    <string name="no_all_progress">No list progress activities</string>
     <string name="no_status_activities">No status activities</string>
     <string name="no_messages">No messages</string>
-    <string name="no_text_activities">No text activities</string>
+    <string name="no_text_activities">No text posts</string>
+    <string name="no_pinned_activities">No pinned activities</string>
+    <string name="no_subscribed_activities">No subscribed activities</string>
 
     <string name="show_logcat">Show Logcat</string>
     <string name="show_crash_report">Show Crash Report</string>
