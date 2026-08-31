@@ -5,6 +5,7 @@ import android.content.Intent
 import android.view.View
 import androidx.core.content.ContextCompat
 import ani.dantotsu.R
+import ani.dantotsu.buildMarkwon
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.anilist.api.ThreadComment
 import ani.dantotsu.databinding.ItemThreadCommentBinding
@@ -12,6 +13,7 @@ import ani.dantotsu.loadImage
 import ani.dantotsu.profile.activity.ActivityItemBuilder
 import ani.dantotsu.snackString
 import ani.dantotsu.util.ActivityMarkdownCreator
+import ani.dantotsu.util.AniMarkdown
 import ani.dantotsu.util.customAlertDialog
 import com.xwray.groupie.GroupieAdapter
 import com.xwray.groupie.viewbinding.BindableItem
@@ -32,7 +34,9 @@ class ThreadCommentItem(
         viewBinding.commentAvatar.loadImage(comment.user?.avatar?.medium)
         viewBinding.commentAuthor.text = comment.user?.name ?: "Unknown"
         viewBinding.commentTime.text = comment.createdAt?.let { ActivityItemBuilder.getDateTime(it) } ?: ""
-        viewBinding.commentBody.text = comment.comment?.replace(Regex("<[^>]*>"), "")?.trim() ?: ""
+        val markwon = buildMarkwon(context, false, anilist = true)
+        val html = AniMarkdown.getBasicAniHTML(comment.comment ?: "")
+        markwon.setMarkdown(viewBinding.commentBody, html)
 
         val likeColor = ContextCompat.getColor(context, R.color.yt_red)
         val notLikeColor = ContextCompat.getColor(context, R.color.bg_opp)
