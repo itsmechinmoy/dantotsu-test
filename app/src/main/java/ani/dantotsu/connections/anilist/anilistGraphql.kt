@@ -56,7 +56,7 @@ fun characterInformation(includeMediaInfo: Boolean) = """
           id
           idMal
           isAdult
-          status
+          status(version: 2)
           chapters
           episodes
           nextAiringEpisode { episode }
@@ -98,7 +98,7 @@ fun studioInformation(page: Int, perPage: Int) = """
           id
           idMal
           isAdult
-          status
+          status(version: 2)
           chapters
           episodes
           nextAiringEpisode { episode }
@@ -163,7 +163,7 @@ fun staffInformation(page: Int, perPage: Int) = """
           id
           idMal
           isAdult
-          status
+          status(version: 2)
           chapters
           episodes
           nextAiringEpisode { episode }
@@ -393,7 +393,7 @@ fun fullMediaInformation(id: Int) = """
     }
     relations {
       edges {
-        relationType(version: 2)
+        relationType(version: 3)
         node {
           ${standardMediaInformation()}
         }
