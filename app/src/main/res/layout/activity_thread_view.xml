@@ -100,7 +100,7 @@
                         android:id="@+id/threadAuthorAvatar"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
-                        app:shapeAppearanceOverlay="@style/roundedImageViewRounded"
+                        app:shapeAppearanceOverlay="@style/roundedImageView"
                         tools:srcCompat="@drawable/ic_round_person_24" />
 
                     <LinearLayout
@@ -209,6 +209,6 @@
         app:backgroundTint="?attr/colorPrimary"
         app:icon="@drawable/ic_round_reply_24"
         app:iconTint="?attr/colorOnPrimary"
-        app:textColor="?attr/colorOnPrimary" />
+        android:textColor="?attr/colorOnPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
