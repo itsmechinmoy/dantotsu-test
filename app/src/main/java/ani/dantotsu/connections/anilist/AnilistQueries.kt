@@ -370,11 +370,23 @@ class AnilistQueries {
                                     )
                                 }
                             }
+                            if (media.anime.mainStudio == null) {
+                                fetchedMedia.producers?.nodes?.firstOrNull { it.isAnimationStudio == true }?.let { studioNode ->
+                                    media.anime.mainStudio = Studio(
+                                        studioNode.id.toString(),
+                                        studioNode.name ?: "N/A",
+                                        studioNode.isFavourite ?: false,
+                                        studioNode.favourites ?: 0,
+                                        null
+                                    )
+                                }
+                            }
 
-                            // Map non-main studios (isMain: false) as producers
+                            // Map non-main studios (isMain: false) as producers, excluding mainStudio
                             fetchedMedia.producers?.nodes?.apply {
-                                if (isNotEmpty()) {
-                                    media.anime.producers = map {
+                                val remaining = filter { it.id.toString() != media.anime.mainStudio?.id }
+                                if (remaining.isNotEmpty()) {
+                                    media.anime.producers = remaining.map {
                                         Studio(
                                             it.id.toString(),
                                             it.name ?: "N/A",
