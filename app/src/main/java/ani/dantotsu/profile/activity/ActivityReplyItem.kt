@@ -103,16 +103,24 @@ class ActivityReplyItem(
         }
         binding.activityDelete.isVisible = reply.userId == Anilist.userid
         binding.activityDelete.setOnClickListener {
-            scope.launch {
-                val res = Anilist.mutation.deleteActivityReply(reply.id)
-                withContext(Dispatchers.Main) {
-                    if (res) {
-                        snackString("Deleted")
-                        parentAdapter.remove(this@ActivityReplyItem)
-                    } else {
-                        snackString("Failed to delete")
+            ani.dantotsu.util.customAlertDialog().apply {
+                setTitle(R.string.delete)
+                setMessage(context.getString(R.string.delete_reply_confirm))
+                setPosButton(R.string.delete) {
+                    scope.launch {
+                        val res = Anilist.mutation.deleteActivityReply(reply.id)
+                        withContext(Dispatchers.Main) {
+                            if (res) {
+                                snackString("Deleted")
+                                parentAdapter.remove(this@ActivityReplyItem)
+                            } else {
+                                snackString("Failed to delete")
+                            }
+                        }
                     }
                 }
+                setNegButton(R.string.cancel)
+                show()
             }
         }
 
