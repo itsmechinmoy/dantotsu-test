@@ -6,118 +6,45 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class User(
-    // The id of the user
-    @SerialName("id") var id: Int,
-
-    // The name of the user
-    @SerialName("name") var name: String?,
-
-    // The bio written by user (Markdown)
-    //    @SerialName("about") var about: String?,
-
-    // The user's avatar images
-    @SerialName("avatar") var avatar: UserAvatar?,
-
-    // The user's banner images
-    @SerialName("bannerImage") var bannerImage: String?,
-
-    // If the authenticated user if following this user
-    @SerialName("isFollowing") var isFollowing: Boolean?,
-
-    // If this user if following the authenticated user
-    @SerialName("isFollower") var isFollower: Boolean?,
-
-    // If the user is blocked by the authenticated user
-    //    @SerialName("isBlocked") var isBlocked: Boolean?,
-
-    // FIXME: No documentation is provided for "Json"
-    // @SerialName("bans") var bans: Json?,
-
-    // The user's general options
-    @SerialName("options") var options: UserOptions?,
-
-    // The user's media list options
-    @SerialName("mediaListOptions") var mediaListOptions: MediaListOptions?,
-
-    // The users favourites
-    @SerialName("favourites") var favourites: Favourites?,
-
-    // The users anime & manga list statistics
-    @SerialName("statistics") var statistics: UserStatisticTypes?,
-
-    // The number of unread notifications the user has
-    @SerialName("unreadNotificationCount") var unreadNotificationCount: Int?,
-
-    // The url for the user page on the AniList website
-    //    @SerialName("siteUrl") var siteUrl: String?,
-
-    // The donation tier of the user
-    //    @SerialName("donatorTier") var donatorTier: Int?,
-
-    // Custom donation badge text
-    //    @SerialName("donatorBadge") var donatorBadge: String?,
-
-    // The user's moderator roles if they are a site moderator
-    // @SerialName("moderatorRoles") var moderatorRoles: List<ModRole>?,
-
-    // When the user's account was created. (Does not exist for accounts created before 2020)
-    //    @SerialName("createdAt") var createdAt: Int?,
-
-    // When the user's data was last updated
-    //    @SerialName("updatedAt") var updatedAt: Int?,
-
-    // The user's previously used names.
-    // @SerialName("previousNames") var previousNames: List<UserPreviousName>?,
-
+    @SerialName("id") var id: Int = 0,
+    @SerialName("name") var name: String? = null,
+    @SerialName("about") var about: String? = null,
+    @SerialName("avatar") var avatar: UserAvatar? = null,
+    @SerialName("bannerImage") var bannerImage: String? = null,
+    @SerialName("isFollowing") var isFollowing: Boolean? = null,
+    @SerialName("isFollower") var isFollower: Boolean? = null,
+    @SerialName("isBlocked") var isBlocked: Boolean? = null,
+    @SerialName("options") var options: UserOptions? = null,
+    @SerialName("mediaListOptions") var mediaListOptions: MediaListOptions? = null,
+    @SerialName("favourites") var favourites: Favourites? = null,
+    @SerialName("statistics") var statistics: UserStatisticTypes? = null,
+    @SerialName("unreadNotificationCount") var unreadNotificationCount: Int? = null,
+    @SerialName("siteUrl") var siteUrl: String? = null,
 ) : java.io.Serializable
 
 @Serializable
 data class UserOptions(
-    // The language the user wants to see media titles in
-    @SerialName("titleLanguage") var titleLanguage: UserTitleLanguage?,
-
-    // Whether the user has enabled viewing of 18+ content
-    @SerialName("displayAdultContent") var displayAdultContent: Boolean?,
-
-    // Whether the user receives notifications when a show they are watching aires
-    @SerialName("airingNotifications") var airingNotifications: Boolean?,
-    //
-    // Profile highlight color (blue, purple, pink, orange, red, green, gray)
-    @SerialName("profileColor") var profileColor: String?,
-    //
-    //    // Notification options
-    //    // @SerialName("notificationOptions") var notificationOptions: List<NotificationOption>?,
-    //
-    // The user's timezone offset (Auth user only)
-    @SerialName("timezone") var timezone: String?,
-    //
-    // Minutes between activity for them to be merged together. 0 is Never, Above 2 weeks (20160 mins) is Always.
-    @SerialName("activityMergeTime") var activityMergeTime: Int?,
-    //
-    // The language the user wants to see staff and character names in
-    @SerialName("staffNameLanguage") var staffNameLanguage: UserStaffNameLanguage?,
-    //
-    // Whether the user only allow messages from users they follow
-    @SerialName("restrictMessagesToFollowing") var restrictMessagesToFollowing: Boolean?,
-
-    // The list activity types the user has disabled from being created from list updates
-    // @SerialName("disabledListActivity") var disabledListActivity: List<ListActivityOption>?,
-)
+    @SerialName("titleLanguage") var titleLanguage: UserTitleLanguage? = null,
+    @SerialName("displayAdultContent") var displayAdultContent: Boolean? = null,
+    @SerialName("airingNotifications") var airingNotifications: Boolean? = null,
+    @SerialName("profileColor") var profileColor: String? = null,
+    @SerialName("timezone") var timezone: String? = null,
+    @SerialName("activityMergeTime") var activityMergeTime: Int? = null,
+    @SerialName("staffNameLanguage") var staffNameLanguage: UserStaffNameLanguage? = null,
+    @SerialName("restrictMessagesToFollowing") var restrictMessagesToFollowing: Boolean? = null,
+) : java.io.Serializable
 
 @Serializable
 data class UserAvatar(
-    // The avatar of user at its largest size
-    @SerialName("large") var large: String?,
-
-    // The avatar of user at medium size
-    @SerialName("medium") var medium: String?,
+    @SerialName("large") var large: String? = null,
+    @SerialName("medium") var medium: String? = null,
 ) : java.io.Serializable
 
 @Serializable
 data class UserStatisticTypes(
-    @SerialName("anime") var anime: UserStatistics?,
-    @SerialName("manga") var manga: UserStatistics?
-)
+    @SerialName("anime") var anime: UserStatistics? = null,
+    @SerialName("manga") var manga: UserStatistics? = null
+) : java.io.Serializable
 
 @Serializable
 enum class UserTitleLanguage {
@@ -235,4 +162,3 @@ data class MediaListTypeOptions(
     //    // If advanced scoring is enabled
     //    @SerialName("advancedScoringEnabled") var advancedScoringEnabled: Boolean?,
 )
-
