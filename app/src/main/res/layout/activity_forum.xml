@@ -152,7 +152,7 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:contentDescription="@string/create_thread"
-        android:src="@drawable/ic_round_edit_24"
+        android:src="@drawable/ic_round_edit_note_24"
         app:backgroundTint="?attr/colorPrimary"
         app:tint="?attr/colorOnPrimary" />
 
