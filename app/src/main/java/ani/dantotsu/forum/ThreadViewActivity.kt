@@ -16,12 +16,12 @@ import ani.dantotsu.databinding.ActivityThreadViewBinding
 import ani.dantotsu.initActivity
 import ani.dantotsu.loadImage
 import ani.dantotsu.navBarHeight
-import ani.dantotsu.others.AniMarkdown
 import ani.dantotsu.profile.activity.ActivityItemBuilder
 import ani.dantotsu.snackString
 import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.util.ActivityMarkdownCreator
+import ani.dantotsu.util.AniMarkdown
 import ani.dantotsu.util.customAlertDialog
 import com.xwray.groupie.GroupieAdapter
 import kotlinx.coroutines.Dispatchers
@@ -119,14 +119,14 @@ class ThreadViewActivity : AppCompatActivity() {
         isSubscribed = t.isSubscribed ?: false
         binding.threadSubscribe.alpha = if (isSubscribed) 1.0f else 0.5f
 
-        val likeColor = ContextCompat.getColor(this, R.color.like_color)
+        val likeColor = ContextCompat.getColor(this, R.color.yt_red)
         val notLikeColor = ContextCompat.getColor(this, R.color.bg_opp)
         binding.threadLikeIcon.setColorFilter(if (t.isLiked == true) likeColor else notLikeColor)
         binding.threadLikeCount.text = (t.likeCount ?: 0).toString()
 
         binding.threadLikeButton.setOnClickListener {
             lifecycleScope.launch(Dispatchers.IO) {
-                val success = Anilist.mutation.toggleLike(t.id, "THREAD")
+                val success = Anilist.mutation.toggleLike(t.id, "THREAD") != null
                 withContext(Dispatchers.Main) {
                     if (success) {
                         t.isLiked = !(t.isLiked ?: false)
