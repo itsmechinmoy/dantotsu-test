@@ -915,6 +915,9 @@ class MediaInfoFragment : Fragment() {
                         )
                         root.tag = "dynamic_view"
                         parent.addView(root)
+                    }
+                }
+
                 if (!media.recommendations.isNullOrEmpty() && !offline) {
                     ItemTitleRecyclerBinding.inflate(
                         LayoutInflater.from(context),
