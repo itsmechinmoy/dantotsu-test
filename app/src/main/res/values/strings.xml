@@ -903,7 +903,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="anilist_notification_filters">Filter Notifications</string>
     <string name="anilist_notifications_checking_time">Anilist notifications update frequency : %1$s</string>
     <string name="comment_notification_checking_time">Comment notifications update frequency : %1$s</string>
-    <string name="activities">Activities</string>
+    <string name="activities">Activities &amp; Forums</string>
     <string name="enable_rpc">Enable Discord RPC</string>
     <string name="enable_rpc_desc">Display your taste to plebs on Discord!</string>
 
@@ -1215,7 +1215,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="no_all_progress">No list progress activities</string>
     <string name="no_status_activities">No status activities</string>
     <string name="no_messages">No messages</string>
-    <string name="no_text_activities">No text posts</string>
+    <string name="no_text_activities">No text activities</string>
     <string name="no_pinned_activities">No pinned activities</string>
     <string name="no_subscribed_activities">No subscribed activities</string>
 
