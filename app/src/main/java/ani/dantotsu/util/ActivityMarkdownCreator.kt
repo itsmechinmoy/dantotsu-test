@@ -131,6 +131,18 @@ class ActivityMarkdownCreator : AppCompatActivity() {
                 text = it.toString()
             }
         }
+        if (type == "bio" && text.isBlank()) {
+            launchIO {
+                val currentBio = Anilist.userid?.let { Anilist.query.getUserRawBio(it) } ?: ""
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (currentBio.isNotBlank() && !isFinishing) {
+                        text = currentBio
+                        binding.editText.setText(currentBio)
+                        binding.editText.setSelection(currentBio.length)
+                    }
+                }
+            }
+        }
         previewMarkdown(false)
 
         binding.markdownCreatorBack.setOnClickListener {
