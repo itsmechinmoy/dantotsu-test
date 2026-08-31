@@ -88,7 +88,7 @@ class ForumActivity : AppCompatActivity() {
             }
             customAlertDialog().apply {
                 setTitle(R.string.search)
-                setView(input)
+                setCustomView(input)
                 setPosButton(R.string.search) {
                     currentSearch = input.text.toString().trim().ifBlank { null }
                     loadThreads(true)
