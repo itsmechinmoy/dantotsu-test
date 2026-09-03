@@ -121,6 +121,17 @@ object SettingsRegistry {
         )
         list.add(
             SearchableSetting(
+                title = context.getString(R.string.download_wifi_only),
+                desc = context.getString(R.string.download_wifi_only_desc),
+                icon = R.drawable.lan_24,
+                category = context.getString(R.string.common),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.common)}",
+                targetActivity = SettingsCommonActivity::class.java,
+                highlightKey = context.getString(R.string.download_wifi_only)
+            )
+        )
+        list.add(
+            SearchableSetting(
                 title = context.getString(R.string.app_lock),
                 desc = context.getString(R.string.app_lock_desc),
                 icon = R.drawable.ic_round_lock_open_24,
