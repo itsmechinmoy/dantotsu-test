@@ -63,6 +63,7 @@ enum class PrefName(val data: Pref) {
     EnableSocks5Proxy(Pref(Location.General, Boolean::class, false)),
     ProxyAuthEnabled(Pref(Location.General, Boolean::class, false)),
     AniMangaSearchDirect(Pref(Location.General, Boolean::class, true)),
+    DownloadWifiOnly(Pref(Location.General, Boolean::class, false)),
 
     //User Interface
     EpisodeMetadataSource(Pref(Location.UI, Int::class, 0)),
