@@ -38,6 +38,17 @@ object SettingsRegistry {
                 highlightKey = context.getString(R.string.oled_theme_variant)
             )
         )
+        list.add(
+            SearchableSetting(
+                title = context.getString(R.string.use_system_font),
+                desc = context.getString(R.string.use_system_font_desc),
+                icon = R.drawable.ic_round_font_size_24,
+                category = context.getString(R.string.theme),
+                breadcrumbs = "${context.getString(R.string.settings)} > ${context.getString(R.string.theme)}",
+                targetActivity = SettingsThemeActivity::class.java,
+                highlightKey = context.getString(R.string.use_system_font)
+            )
+        )
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) {
             list.add(
                 SearchableSetting(
