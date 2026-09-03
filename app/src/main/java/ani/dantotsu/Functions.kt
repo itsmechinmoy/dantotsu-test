@@ -570,6 +570,23 @@ fun isOnline(context: Context): Boolean {
     } ?: false
 }
 
+fun isWifiConnected(context: Context): Boolean {
+    val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+    return tryWith {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork ?: return@tryWith false
+            val cap = connectivityManager.getNetworkCapabilities(network) ?: return@tryWith false
+            cap.hasTransport(TRANSPORT_WIFI) || cap.hasTransport(TRANSPORT_ETHERNET) || cap.hasTransport(TRANSPORT_WIFI_AWARE)
+        } else {
+            @Suppress("DEPRECATION")
+            connectivityManager.activeNetworkInfo?.run {
+                isConnected && (type == ConnectivityManager.TYPE_WIFI || type == ConnectivityManager.TYPE_ETHERNET)
+            } ?: false
+        }
+    } ?: false
+}
+
 fun startMainActivity(activity: Activity, bundle: Bundle? = null) {
     activity.finishAffinity()
     activity.startActivity(
