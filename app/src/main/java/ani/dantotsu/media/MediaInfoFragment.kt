@@ -47,6 +47,7 @@ import ani.dantotsu.px
 import ani.dantotsu.setSafeOnClickListener
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
+import ani.dantotsu.toast
 import ani.dantotsu.media.mangaupdates.MangaAnimeUtil
 import ani.dantotsu.util.Logger
 import com.xwray.groupie.GroupieAdapter
@@ -836,6 +837,89 @@ class MediaInfoFragment : Fragment() {
                                     )
                                 }
                             }
+                            root.tag = "dynamic_view"
+                            parent.addView(root)
+                        }
+                    }
+
+                    if (!offline) {
+                        val isAnimeMedia = media.anime != null
+                        ItemQuelsBinding.inflate(
+                            LayoutInflater.from(context),
+                            parent,
+                            false
+                        ).apply {
+                            if (isAnimeMedia) {
+                                mediaInfoPrequel.visibility = View.VISIBLE
+                                mediaInfoPrequelTitle.text = getString(R.string.watch_order)
+                                mediaInfoPrequelImage.loadImage(media.banner ?: media.cover)
+                                mediaInfoPrequel.setSafeOnClickListener {
+                                    if (!isAdded || context == null) return@setSafeOnClickListener
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        val watchOrder = model.getWatchOrder(media.userPreferredName.ifEmpty { media.mainName() })
+                                        withContext(Dispatchers.Main) {
+                                            if (!isAdded || context == null) return@withContext
+                                            if (watchOrder.isEmpty()) {
+                                                toast(getString(R.string.no_watch_order_found))
+                                                return@withContext
+                                            }
+                                            if (childFragmentManager.findFragmentByTag("watch_order") == null) {
+                                                MediaContentBottomSheet.newWatchOrderInstance(
+                                                    getString(R.string.watch_order),
+                                                    watchOrder
+                                                ).show(childFragmentManager, "watch_order")
+                                            }
+                                        }
+                                    }
+                                }
+
+                                mediaInfoSequel.visibility = View.VISIBLE
+                                mediaInfoSequelTitle.text = getString(R.string.news)
+                                mediaInfoSequelImage.loadImage(media.banner ?: media.cover)
+                                mediaInfoSequel.setSafeOnClickListener {
+                                    if (!isAdded || context == null) return@setSafeOnClickListener
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        val news = model.getAnimeNews(media)
+                                        withContext(Dispatchers.Main) {
+                                            if (!isAdded || context == null) return@withContext
+                                            if (news.isEmpty()) {
+                                                toast(getString(R.string.no_news_found))
+                                                return@withContext
+                                            }
+                                            if (childFragmentManager.findFragmentByTag("news") == null) {
+                                                MediaContentBottomSheet.newNewsInstance(
+                                                    getString(R.string.news),
+                                                    news
+                                                ).show(childFragmentManager, "news")
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                mediaInfoPrequel.visibility = View.VISIBLE
+                                mediaInfoPrequelTitle.text = getString(R.string.news)
+                                mediaInfoPrequelImage.loadImage(media.banner ?: media.cover)
+                                mediaInfoPrequel.setSafeOnClickListener {
+                                    if (!isAdded || context == null) return@setSafeOnClickListener
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        val news = model.getMangaNovelNews(media)
+                                        withContext(Dispatchers.Main) {
+                                            if (!isAdded || context == null) return@withContext
+                                            if (news.isEmpty()) {
+                                                toast(getString(R.string.no_news_found))
+                                                return@withContext
+                                            }
+                                            if (childFragmentManager.findFragmentByTag("news") == null) {
+                                                MediaContentBottomSheet.newNewsInstance(
+                                                    getString(R.string.news),
+                                                    news
+                                                ).show(childFragmentManager, "news")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             root.tag = "dynamic_view"
                             parent.addView(root)
                         }
