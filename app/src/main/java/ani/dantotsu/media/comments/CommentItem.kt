@@ -391,6 +391,11 @@ class CommentItem(
         return Pair(color, level)
     }
 
+    private fun extractEpisodeTag(text: String): String? {
+        val regex = Regex("""(?:\bep(?:isode)?|\be)\.?\s*(\d+)""", RegexOption.IGNORE_CASE)
+        return regex.find(text)?.groupValues?.getOrNull(1)
+    }
+
     private fun applyTimestampHighlighting(textView: android.widget.TextView) {
         val currentText = textView.text ?: return
         val spannable = if (currentText is Spannable) currentText else SpannableStringBuilder(currentText)
@@ -406,8 +411,8 @@ class CommentItem(
             val start = match.range.first
             val end = match.range.last + 1
 
-            val existingSpans = spannable.getSpans(start, end, ClickableSpan::class.java)
-            if (existingSpans.isNotEmpty()) continue
+            val existingUrlSpans = spannable.getSpans(start, end, android.text.style.URLSpan::class.java)
+            if (existingUrlSpans.isNotEmpty()) continue
 
             val hours = match.groups[1]?.value?.toLongOrNull() ?: 0L
             val minutes = match.groups[2]?.value?.toLongOrNull() ?: 0L
@@ -416,19 +421,32 @@ class CommentItem(
 
             val clickableSpan = object : ClickableSpan() {
                 override fun onClick(widget: View) {
-                    commentsFragment.onTimestampClicked(comment.tag?.toString(), timestampMs)
+                    val spoiler = spannable.getSpans(start, end, ani.dantotsu.others.SpoilerPlugin.RedditSpoilerSpan::class.java).firstOrNull()
+                    if (spoiler != null && !spoiler.revealed) {
+                        spoiler.setRevealed(true)
+                        widget.postInvalidateOnAnimation()
+                    } else {
+                        val fallbackTag = extractEpisodeTag(comment.content)
+                        commentsFragment.onTimestampClicked(comment.tag?.toString() ?: fallbackTag, timestampMs)
+                    }
                 }
 
                 override fun updateDrawState(ds: TextPaint) {
                     super.updateDrawState(ds)
-                    ds.color = primaryColor
-                    ds.isUnderlineText = true
+                    val spoiler = spannable.getSpans(start, end, ani.dantotsu.others.SpoilerPlugin.RedditSpoilerSpan::class.java).firstOrNull()
+                    if (spoiler != null && !spoiler.revealed) {
+                        ds.bgColor = Color.DKGRAY
+                        ds.color = Color.DKGRAY
+                        ds.isUnderlineText = false
+                    } else {
+                        ds.color = primaryColor
+                        ds.typeface = Typeface.create(ds.typeface, Typeface.BOLD)
+                        ds.isUnderlineText = true
+                    }
                 }
             }
 
             spannable.setSpan(clickableSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            spannable.setSpan(ForegroundColorSpan(primaryColor), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            spannable.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
 
         textView.text = spannable
