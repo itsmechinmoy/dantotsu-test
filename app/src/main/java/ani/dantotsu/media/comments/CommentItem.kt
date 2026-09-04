@@ -400,7 +400,7 @@ class CommentItem(
         val matches = timestampRegex.findAll(textStr).toList()
         if (matches.isEmpty()) return
 
-        val primaryColor = textView.context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val primaryColor = textView.context.getThemeColor(androidx.appcompat.R.attr.colorPrimary)
 
         for (match in matches) {
             val start = match.range.first
