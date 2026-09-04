@@ -856,7 +856,7 @@ class MediaInfoFragment : Fragment() {
                                 mediaInfoPrequel.setSafeOnClickListener {
                                     if (!isAdded || context == null) return@setSafeOnClickListener
                                     lifecycleScope.launch(Dispatchers.IO) {
-                                        val watchOrder = model.getWatchOrder(media.userPreferredName.ifEmpty { media.mainName() })
+                                        val watchOrder = model.getWatchOrder(media)
                                         withContext(Dispatchers.Main) {
                                             if (!isAdded || context == null) return@withContext
                                             if (watchOrder.isEmpty()) {
@@ -875,7 +875,7 @@ class MediaInfoFragment : Fragment() {
 
                                 mediaInfoSequel.visibility = View.VISIBLE
                                 mediaInfoSequelTitle.text = getString(R.string.news)
-                                mediaInfoSequelImage.loadImage(media.banner ?: media.cover)
+                                mediaInfoSequelImage.loadImage(media.cover ?: media.banner)
                                 mediaInfoSequel.setSafeOnClickListener {
                                     if (!isAdded || context == null) return@setSafeOnClickListener
                                     lifecycleScope.launch(Dispatchers.IO) {
