@@ -13,6 +13,7 @@ import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.databinding.BottomSheetRecyclerBinding
 import ani.dantotsu.databinding.ItemMediaContentBinding
+import ani.dantotsu.others.getSerialized
 import org.jsoup.parser.Parser
 import java.io.Serializable
 
@@ -45,23 +46,11 @@ class MediaContentBottomSheet : BottomSheetDialogFragment() {
 
         if (mode == MODE_WATCH_ORDER) {
             val items: ArrayList<MediaDetailsViewModel.WatchOrderItem> =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    arguments?.getSerializable(ARG_ITEMS, ArrayList::class.java) as? ArrayList<MediaDetailsViewModel.WatchOrderItem>
-                } else {
-                    @Suppress("DEPRECATION")
-                    arguments?.getSerializable(ARG_ITEMS) as? ArrayList<MediaDetailsViewModel.WatchOrderItem>
-                } ?: arrayListOf()
-
+                arguments?.getSerialized(ARG_ITEMS) ?: arrayListOf()
             binding.repliesRecyclerView.adapter = WatchOrderAdapter(items)
         } else {
             val items: ArrayList<MediaDetailsViewModel.NewsItem> =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    arguments?.getSerializable(ARG_ITEMS, ArrayList::class.java) as? ArrayList<MediaDetailsViewModel.NewsItem>
-                } else {
-                    @Suppress("DEPRECATION")
-                    arguments?.getSerializable(ARG_ITEMS) as? ArrayList<MediaDetailsViewModel.NewsItem>
-                } ?: arrayListOf()
-
+                arguments?.getSerialized(ARG_ITEMS) ?: arrayListOf()
             binding.repliesRecyclerView.adapter = NewsAdapter(items)
         }
     }
