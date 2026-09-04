@@ -76,7 +76,8 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginStart="8dp"
-            android:src="@drawable/ic_round_arrow_forward_ios_24"
+            android:rotation="180"
+            app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
             app:tint="?android:attr/textColorSecondary"
             tools:ignore="ContentDescription" />
 
