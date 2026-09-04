@@ -1120,4 +1120,111 @@ class MediaDetailsViewModel : ViewModel() {
             }
         }
     }
+
+    // Watch Order and News integration
+    data class WatchOrderItem(
+        val id: String,
+        val anilistId: String,
+        val image: String,
+        val name: String,
+        val relationType: String
+    ) : java.io.Serializable
+
+    data class NewsItem(
+        val title: String,
+        val url: String,
+        val date: java.util.Date?
+    ) : java.io.Serializable
+
+    suspend fun getWatchOrder(name: String): List<WatchOrderItem> {
+        return tryWithSuspend {
+            val encodedTerm = java.net.URLEncoder.encode(name, "UTF-8")
+            val searchUrl = "https://chiaki.site/?/tools/autocomplete_series&term=$encodedTerm"
+            val headers = mapOf(
+                "Referer" to "https://chiaki.site/?/tools/watch_order",
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "X-Requested-With" to "XMLHttpRequest"
+            )
+            val res = org.jsoup.Jsoup.connect(searchUrl)
+                .headers(headers)
+                .ignoreContentType(true)
+                .execute()
+                .body()
+            val json = org.json.JSONArray(res)
+            if (json.length() == 0) return@tryWithSuspend emptyList()
+            val firstId = json.getJSONObject(0).getString("id")
+
+            val orderUrl = "https://chiaki.site/?/tools/watch_order/id/$firstId"
+            val doc = org.jsoup.Jsoup.connect(orderUrl)
+                .headers(headers)
+                .get()
+            val rows = doc.select("table > tbody > tr")
+            rows.mapNotNull { row ->
+                val title = row.select("td > span.wo_title").text().trim()
+                if (title.isEmpty() || title == "Unknown title") return@mapNotNull null
+                val anilistId = row.attr("data-anilist-id")
+                val relationType = row.select("td > div.wo_relation").text().trim()
+                val id = row.attr("data-id").ifEmpty { firstId }
+                WatchOrderItem(id, anilistId, "", title, relationType)
+            }
+        } ?: emptyList()
+    }
+
+    suspend fun getAnimeNews(media: Media): List<NewsItem> {
+        return tryWithSuspend {
+            val malId = media.idMAL ?: media.id
+            val res = org.jsoup.Jsoup.connect("https://kuroiru.co/api/anime/$malId")
+                .ignoreContentType(true)
+                .execute()
+                .body()
+            val root = org.json.JSONObject(res)
+            val newsArr = root.optJSONArray("news") ?: return@tryWithSuspend emptyList()
+            val result = mutableListOf<NewsItem>()
+            for (i in 0 until newsArr.length()) {
+                val itemObj = newsArr.getJSONObject(i)
+                val timeMs = itemObj.optLong("time", 0L)
+                result.add(
+                    NewsItem(
+                        title = itemObj.optString("title", ""),
+                        url = itemObj.optString("link", ""),
+                        date = if (timeMs > 0) java.util.Date(timeMs * 1000) else null
+                    )
+                )
+            }
+            result.sortByDescending { it.date }
+            result
+        } ?: emptyList()
+    }
+
+    suspend fun getMangaNovelNews(media: Media): List<NewsItem> {
+        return tryWithSuspend {
+            val seriesData = MangaAnimeUtil.getSeriesFromMedia(media) ?: return@tryWithSuspend emptyList()
+            if (seriesData.isEmpty()) return@tryWithSuspend emptyList()
+            val bakaId = seriesData[0].id ?: return@tryWithSuspend emptyList()
+            val res = org.jsoup.Jsoup.connect("https://api.mangabaka.org/v1/series/$bakaId/news")
+                .ignoreContentType(true)
+                .execute()
+                .body()
+            val root = org.json.JSONObject(res)
+            val newsArr = root.optJSONArray("data") ?: return@tryWithSuspend emptyList()
+            val result = mutableListOf<NewsItem>()
+            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+            for (i in 0 until newsArr.length()) {
+                val itemObj = newsArr.getJSONObject(i)
+                val pubAt = itemObj.optString("published_at", "")
+                val date = if (pubAt.isNotEmpty()) {
+                    runCatching { dateFormat.parse(pubAt) }.getOrNull()
+                } else null
+                result.add(
+                    NewsItem(
+                        title = itemObj.optString("title", ""),
+                        url = itemObj.optString("url", ""),
+                        date = date
+                    )
+                )
+            }
+            result.sortByDescending { it.date }
+            result
+        } ?: emptyList()
+    }
 }
