@@ -123,7 +123,13 @@ class MediaContentBottomSheet : BottomSheetDialogFragment() {
         binding.repliesRecyclerView.adapter = adapter
         val currentIndex = items.indexOfFirst { it.isCurrent }
         if (currentIndex != -1) {
-            binding.repliesRecyclerView.scrollToPosition(currentIndex)
+            val layoutManager = binding.repliesRecyclerView.layoutManager as? LinearLayoutManager
+            layoutManager?.scrollToPositionWithOffset(currentIndex, 0)
+            binding.repliesRecyclerView.post {
+                if (_binding == null) return@post
+                (binding.repliesRecyclerView.layoutManager as? LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(currentIndex, 0)
+            }
         }
     }
 
@@ -221,17 +227,14 @@ class MediaContentBottomSheet : BottomSheetDialogFragment() {
                 holder.binding.watchOrderDot2.visibility = View.GONE
             }
 
-            // Metadata: Score
-            val score = item.rating.trim()
-            if (score.isNotEmpty() && score != "0" && score != "N/A") {
-                holder.binding.watchOrderScoreContainer.visibility = View.VISIBLE
-                holder.binding.watchOrderScore.text = score
-            } else {
-                holder.binding.watchOrderScoreContainer.visibility = View.GONE
-            }
+
 
             // Click listener
             holder.binding.watchOrderCard.setOnClickListener {
+                if (item.isCurrent) {
+                    dismissAllowingStateLoss()
+                    return@setOnClickListener
+                }
                 val anilistId = item.anilistId.toIntOrNull()
                 if (anilistId != null && anilistId != 0) {
                     val intent = Intent(requireContext(), MediaDetailsActivity::class.java).apply {
