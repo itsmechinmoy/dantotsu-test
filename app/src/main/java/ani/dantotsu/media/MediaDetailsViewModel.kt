@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ani.dantotsu.R
 import ani.dantotsu.client
+import ani.dantotsu.okHttpClient
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.mal.MAL
 import ani.dantotsu.currContext
@@ -1284,103 +1285,181 @@ class MediaDetailsViewModel : ViewModel() {
                     media.idMAL = malId
                 }
             }
-            if (malId == null || malId == 0) return@tryWithSuspend emptyList()
+            val targetId = malId?.takeIf { it != 0 } ?: media.id.takeIf { it != 0 } ?: return@tryWithSuspend emptyList()
 
-            val headers = mapOf(
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept" to "application/json, text/plain, */*"
-            )
+            fun fetchKuroiruNews(id: Int): List<NewsItem> {
+                val req = okhttp3.Request.Builder()
+                    .url("https://kuroiru.co/api/anime/$id")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                    .header("Accept", "application/json, text/plain, */*")
+                    .build()
+                val jsonStr = runCatching {
+                    okHttpClient.newCall(req).execute().use { response ->
+                        if (response.isSuccessful) response.body?.string() else null
+                    }
+                }.getOrNull() ?: return emptyList()
 
-            var res: String? = runCatching {
-                client.get("https://kuroiru.co/api/anime/$malId", headers = headers).text
-            }.getOrNull()
+                val root = org.json.JSONObject(jsonStr)
+                val newsArr = root.optJSONArray("news") ?: return emptyList()
+                val list = mutableListOf<NewsItem>()
+                for (i in 0 until newsArr.length()) {
+                    val itemObj = newsArr.getJSONObject(i)
+                    val timeMs = itemObj.optLong("time", 0L)
+                    val rawTitle = itemObj.optString("title", "")
+                    val title = org.jsoup.parser.Parser.unescapeEntities(rawTitle, false)
+                    val link = itemObj.optString("link", "")
+                    if (title.isNotEmpty() && link.isNotEmpty()) {
+                        list.add(
+                            NewsItem(
+                                title = title,
+                                url = link,
+                                date = if (timeMs > 0) java.util.Date(timeMs * 1000L) else null
+                            )
+                        )
+                    }
+                }
+                return list
+            }
 
-            if (res == null) {
+            var result = fetchKuroiruNews(targetId)
+            if (result.isEmpty()) {
                 val candidateIds = mutableListOf<Int>()
                 media.prequel?.idMAL?.let { candidateIds.add(it) }
                 media.relations?.forEach { rel ->
                     rel.idMAL?.let { candidateIds.add(it) }
                 }
                 for (candId in candidateIds) {
-                    if (candId != malId && candId != 0) {
-                        res = runCatching {
-                            client.get("https://kuroiru.co/api/anime/$candId", headers = headers).text
-                        }.getOrNull()
-                        if (res != null) break
+                    if (candId != targetId && candId != 0) {
+                        result = fetchKuroiruNews(candId)
+                        if (result.isNotEmpty()) break
                     }
                 }
             }
 
-            if (res == null) return@tryWithSuspend emptyList()
-
-            val root = org.json.JSONObject(res)
-            val newsArr = root.optJSONArray("news") ?: return@tryWithSuspend emptyList()
-            val result = mutableListOf<NewsItem>()
-            for (i in 0 until newsArr.length()) {
-                val itemObj = newsArr.getJSONObject(i)
-                val timeMs = itemObj.optLong("time", 0L)
-                val rawTitle = itemObj.optString("title", "")
-                val title = org.jsoup.parser.Parser.unescapeEntities(rawTitle, false)
-                val link = itemObj.optString("link", "")
-                if (title.isNotEmpty() && link.isNotEmpty()) {
-                    result.add(
-                        NewsItem(
-                            title = title,
-                            url = link,
-                            date = if (timeMs > 0) java.util.Date(timeMs * 1000) else null
-                        )
-                    )
-                }
-            }
-            result.sortByDescending { it.date }
-            result
+            result.sortedByDescending { it.date }
         } ?: emptyList()
     }
 
     suspend fun getMangaNovelNews(media: Media): List<NewsItem> {
         return tryWithSuspend {
-            val headers = mapOf(
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept" to "application/json, text/plain, */*"
-            )
             val bakaBase = "https://api.mangabaka.org/v1"
-            var bakaId: Int? = null
-
-            if (media.id != 0) {
-                runCatching {
-                    val res = client.get("$bakaBase/source/anilist/${media.id}", headers = headers).text
-                    val root = org.json.JSONObject(res)
-                    val seriesArr = root.optJSONObject("data")?.optJSONArray("series")
-                    if (seriesArr != null && seriesArr.length() > 0) {
-                        bakaId = seriesArr.getJSONObject(0).optInt("id")
-                    }
+            fun getBakaId(): Int? {
+                if (media.id != 0) {
+                    val id = runCatching {
+                        val req = okhttp3.Request.Builder()
+                            .url("$bakaBase/source/anilist/${media.id}")
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                            .header("Accept", "application/json, text/plain, */*")
+                            .build()
+                        okHttpClient.newCall(req).execute().use { resp ->
+                            if (resp.isSuccessful) {
+                                val body = resp.body?.string() ?: return@use null
+                                val root = org.json.JSONObject(body)
+                                val seriesArr = root.optJSONObject("data")?.optJSONArray("series")
+                                if (seriesArr != null && seriesArr.length() > 0) {
+                                    seriesArr.getJSONObject(0).optInt("id")
+                                } else null
+                            } else null
+                        }
+                    }.getOrNull()
+                    if (id != null && id != 0) return id
                 }
+
+                if (media.idMAL != null && media.idMAL != 0) {
+                    val id = runCatching {
+                        val req = okhttp3.Request.Builder()
+                            .url("$bakaBase/source/my-anime-list/${media.idMAL}")
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                            .header("Accept", "application/json, text/plain, */*")
+                            .build()
+                        okHttpClient.newCall(req).execute().use { resp ->
+                            if (resp.isSuccessful) {
+                                val body = resp.body?.string() ?: return@use null
+                                val root = org.json.JSONObject(body)
+                                val seriesArr = root.optJSONObject("data")?.optJSONArray("series")
+                                if (seriesArr != null && seriesArr.length() > 0) {
+                                    seriesArr.getJSONObject(0).optInt("id")
+                                } else null
+                            } else null
+                        }
+                    }.getOrNull()
+                    if (id != null && id != 0) return id
+                }
+
+                val titleToSearch = media.userPreferredName.ifEmpty { media.name ?: "" }
+                if (titleToSearch.isNotEmpty()) {
+                    val encodedTitle = java.net.URLEncoder.encode(titleToSearch, "UTF-8")
+                    val id = runCatching {
+                        val req = okhttp3.Request.Builder()
+                            .url("$bakaBase/series/search?q=$encodedTitle")
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                            .header("Accept", "application/json, text/plain, */*")
+                            .build()
+                        okHttpClient.newCall(req).execute().use { resp ->
+                            if (resp.isSuccessful) {
+                                val body = resp.body?.string() ?: return@use null
+                                val root = org.json.JSONObject(body)
+                                val seriesArr = root.optJSONArray("data")
+                                if (seriesArr != null && seriesArr.length() > 0) {
+                                    seriesArr.getJSONObject(0).optInt("id")
+                                } else null
+                            } else null
+                        }
+                    }.getOrNull()
+                    if (id != null && id != 0) return id
+                }
+
+                return null
             }
 
-            if (bakaId == null && media.idMAL != null && media.idMAL != 0) {
-                runCatching {
-                    val res = client.get("$bakaBase/source/my-anime-list/${media.idMAL}", headers = headers).text
-                    val root = org.json.JSONObject(res)
-                    val seriesArr = root.optJSONObject("data")?.optJSONArray("series")
-                    if (seriesArr != null && seriesArr.length() > 0) {
-                        bakaId = seriesArr.getJSONObject(0).optInt("id")
-                    }
+            val bakaId = getBakaId() ?: return@tryWithSuspend emptyList()
+
+            val req = okhttp3.Request.Builder()
+                .url("$bakaBase/series/$bakaId/news")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                .header("Accept", "application/json, text/plain, */*")
+                .build()
+
+            val jsonStr = runCatching {
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) resp.body?.string() else null
                 }
-            }
+            }.getOrNull() ?: return@tryWithSuspend emptyList()
 
-            if (bakaId == null || bakaId == 0) return@tryWithSuspend emptyList()
-
-            val res = client.get("$bakaBase/series/$bakaId/news", headers = headers).text
-            val root = org.json.JSONObject(res)
+            val root = org.json.JSONObject(jsonStr)
             val newsArr = root.optJSONArray("data") ?: return@tryWithSuspend emptyList()
             val result = mutableListOf<NewsItem>()
-            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+
+            fun parseDate(dateStr: String): java.util.Date? {
+                if (dateStr.isEmpty()) return null
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    val instantDate = runCatching {
+                        java.util.Date(java.time.Instant.parse(dateStr).toEpochMilli())
+                    }.getOrNull()
+                    if (instantDate != null) return instantDate
+                }
+                val formats = listOf(
+                    "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    "yyyy-MM-dd"
+                )
+                for (fmt in formats) {
+                    val parsed = runCatching {
+                        val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US).apply {
+                            timeZone = java.util.TimeZone.getTimeZone("UTC")
+                        }
+                        sdf.parse(dateStr)
+                    }.getOrNull()
+                    if (parsed != null) return parsed
+                }
+                return null
+            }
+
             for (i in 0 until newsArr.length()) {
                 val itemObj = newsArr.getJSONObject(i)
                 val pubAt = itemObj.optString("published_at", "")
-                val date = if (pubAt.isNotEmpty()) {
-                    runCatching { dateFormat.parse(pubAt) }.getOrNull()
-                } else null
+                val date = parseDate(pubAt)
                 val rawTitle = itemObj.optString("title", "")
                 val title = org.jsoup.parser.Parser.unescapeEntities(rawTitle, false)
                 val url = itemObj.optString("url", "")
