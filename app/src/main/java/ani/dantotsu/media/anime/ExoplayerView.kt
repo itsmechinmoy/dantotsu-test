@@ -276,6 +276,9 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         lateinit var media: Media
         var targetStartPosition: Long? = null
         private const val MAX_PLAYER_ERROR_RETRIES = 1
+        const val ACTION_PIP_REWIND = "ani.dantotsu.PIP_REWIND"
+        const val ACTION_PIP_PLAY_PAUSE = "ani.dantotsu.PIP_PLAY_PAUSE"
+        const val ACTION_PIP_SKIP = "ani.dantotsu.PIP_SKIP"
     }
 
     override fun onAttachedToWindow() {
@@ -1720,11 +1723,5 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             pipReceiver = null
         }
         super.onDestroy()
-    }
-
-    companion object {
-        const val ACTION_PIP_REWIND = "ani.dantotsu.PIP_REWIND"
-        const val ACTION_PIP_PLAY_PAUSE = "ani.dantotsu.PIP_PLAY_PAUSE"
-        const val ACTION_PIP_SKIP = "ani.dantotsu.PIP_SKIP"
     }
 }
