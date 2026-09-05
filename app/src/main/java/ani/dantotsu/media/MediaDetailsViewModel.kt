@@ -1277,24 +1277,11 @@ class MediaDetailsViewModel : ViewModel() {
                 malId = ani.dantotsu.others.IdMappers.getMalId(media.id)
             }
             if (malId == null || malId == 0) {
-                runCatching {
-                    val query = "query{Media(id:${media.id}){idMal}}"
-                    val headers = mapOf(
-                        "Content-Type" to "application/json",
-                        "Accept" to "application/json",
-                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                    )
-                    val resp = client.post(
-                        "https://graphql.anilist.co",
-                        headers = headers,
-                        data = org.json.JSONObject().put("query", query).toString()
-                    ).text
-                    val resolvedMal = org.json.JSONObject(resp)
-                        .optJSONObject("data")?.optJSONObject("Media")?.optInt("idMal", 0)
-                    if (resolvedMal != null && resolvedMal != 0) {
-                        malId = resolvedMal
-                        media.idMAL = resolvedMal
-                    }
+                malId = runCatching {
+                    Anilist.query.getMedia(media.id)?.idMAL
+                }.getOrNull()
+                if (malId != null && malId != 0) {
+                    media.idMAL = malId
                 }
             }
             if (malId == null || malId == 0) return@tryWithSuspend emptyList()
