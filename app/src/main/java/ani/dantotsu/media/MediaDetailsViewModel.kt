@@ -9,6 +9,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ani.dantotsu.R
+import ani.dantotsu.client
 import ani.dantotsu.connections.anilist.Anilist
 import ani.dantotsu.connections.mal.MAL
 import ani.dantotsu.currContext
@@ -1127,7 +1128,12 @@ class MediaDetailsViewModel : ViewModel() {
         val anilistId: String,
         val image: String,
         val name: String,
-        val relationType: String
+        val relationType: String,
+        val isCurrent: Boolean = false,
+        val airDate: String = "",
+        val mediaType: String = "",
+        val episodes: String = "",
+        val rating: String = ""
     ) : java.io.Serializable
 
     data class NewsItem(
@@ -1151,12 +1157,7 @@ class MediaDetailsViewModel : ViewModel() {
                 val searchName = media.userPreferredName.ifEmpty { media.mainName() }
                 val encodedTerm = java.net.URLEncoder.encode(searchName, "UTF-8")
                 val searchUrl = "https://chiaki.site/?/tools/autocomplete_series&term=$encodedTerm"
-                val res = org.jsoup.Jsoup.connect(searchUrl)
-                    .headers(headers)
-                    .ignoreContentType(true)
-                    .timeout(15000)
-                    .execute()
-                    .body()
+                val res = client.get(searchUrl, headers = headers).text
                 val json = org.json.JSONArray(res)
                 if (json.length() > 0) {
                     targetId = json.getJSONObject(0).opt("id")?.toString()
@@ -1166,60 +1167,97 @@ class MediaDetailsViewModel : ViewModel() {
             if (targetId == null) return@tryWithSuspend emptyList()
 
             val orderUrl = "https://chiaki.site/?/tools/watch_order/id/$targetId"
-            val doc = org.jsoup.Jsoup.connect(orderUrl)
-                .headers(headers)
-                .timeout(15000)
-                .get()
+            val html = client.get(orderUrl, headers = headers).text
+            val doc = org.jsoup.Jsoup.parse(html)
 
             val rows = doc.select("tr[data-id]")
-            rows.mapNotNull { row ->
+            val relationsMap = media.relations?.associateBy { it.id.toString() } ?: emptyMap()
+
+            // Parse relations relative to targetId from data-related JSON attribute
+            val targetRow = rows.find { it.attr("data-id") == targetId }
+            val targetRelatedJson = targetRow?.attr("data-related") ?: "{}"
+            val relatedMap = try {
+                val jsonObj = org.json.JSONObject(targetRelatedJson)
+                val map = mutableMapOf<String, String>()
+                jsonObj.keys().forEach { key ->
+                    map[key] = jsonObj.getString(key)
+                }
+                map
+            } catch (_: Exception) {
+                emptyMap<String, String>()
+            }
+
+            rows.mapIndexedNotNull { index, row ->
                 val title = row.select("span.wo_title").text().trim()
                     .ifEmpty { row.select(".wo_title").text().trim() }
-                if (title.isEmpty() || title.equals("Unknown title", ignoreCase = true)) return@mapNotNull null
-                val anilistId = row.attr("data-anilist-id")
-                val relationType = row.select(".wo_relation").text().trim()
+                if (title.isEmpty() || title.equals("Unknown title", ignoreCase = true)) return@mapIndexedNotNull null
+
                 val id = row.attr("data-id").ifEmpty { targetId }
-                WatchOrderItem(id, anilistId, "", title, relationType)
-            }
-        } ?: emptyList()
-    }
-
-    suspend fun getWatchOrder(name: String): List<WatchOrderItem> {
-        return tryWithSuspend {
-            val headers = mapOf(
-                "Referer" to "https://chiaki.site/?/tools/watch_order",
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "X-Requested-With" to "XMLHttpRequest"
-            )
-            val encodedTerm = java.net.URLEncoder.encode(name, "UTF-8")
-            val searchUrl = "https://chiaki.site/?/tools/autocomplete_series&term=$encodedTerm"
-            val res = org.jsoup.Jsoup.connect(searchUrl)
-                .headers(headers)
-                .ignoreContentType(true)
-                .timeout(15000)
-                .execute()
-                .body()
-            val json = org.json.JSONArray(res)
-            if (json.length() == 0) return@tryWithSuspend emptyList()
-            val firstId = json.getJSONObject(0).opt("id")?.toString() ?: return@tryWithSuspend emptyList()
-
-            val orderUrl = "https://chiaki.site/?/tools/watch_order/id/$firstId"
-            val doc = org.jsoup.Jsoup.connect(orderUrl)
-                .headers(headers)
-                .timeout(15000)
-                .get()
-            val rows = doc.select("tr[data-id]")
-            rows.mapNotNull { row ->
-                val title = row.select("span.wo_title").text().trim()
-                    .ifEmpty { row.select(".wo_title").text().trim() }
-                if (title.isEmpty() || title.equals("Unknown title", ignoreCase = true)) return@mapNotNull null
                 val anilistId = row.attr("data-anilist-id")
-                val relationType = row.select(".wo_relation").text().trim()
-                val id = row.attr("data-id").ifEmpty { firstId }
-                WatchOrderItem(id, anilistId, "", title, relationType)
+
+                // 1. Cover image from style background-image
+                val style = row.select("div.wo_avatar_big").attr("style")
+                val imgMatch = Regex("""url\(['"]?([^'")]+)['"]?\)""").find(style)
+                var imageUrl = imgMatch?.groupValues?.get(1)?.let { path ->
+                    when {
+                        path.startsWith("http") -> path
+                        path.startsWith("/") -> "https://chiaki.site$path"
+                        else -> "https://chiaki.site/$path"
+                    }
+                } ?: ""
+
+                if (imageUrl.isEmpty()) {
+                    if (anilistId == media.id.toString()) {
+                        imageUrl = media.cover ?: ""
+                    } else if (relationsMap.containsKey(anilistId)) {
+                        imageUrl = relationsMap[anilistId]?.cover ?: ""
+                    }
+                }
+
+                // 2. Metadata text: Air Date | Media Type | Episodes | Rating
+                val metaText = row.select("span.uk-text-muted.uk-text-small").text().trim()
+                    .ifEmpty { row.select(".wo_meta").text().trim() }
+                val parts = metaText.split('|').map { it.trim() }
+                val airDate = if (parts.isNotEmpty()) parts[0] else ""
+                val format = if (parts.size > 1) parts[1] else ""
+                val eps = if (parts.size > 2) parts[2] else ""
+                val rating = if (parts.size > 3) parts[3] else row.select("span.wo_rating").text().trim()
+
+                // 3. Is current anime
+                val isCurrent = (anilistId.isNotEmpty() && anilistId == media.id.toString()) ||
+                        (id.isNotEmpty() && id == media.idMAL?.toString())
+
+                // 4. Relation type
+                val relationType = when {
+                    isCurrent -> "Selected"
+                    relatedMap.containsKey(id) -> relatedMap[id]!!
+                    relationsMap.containsKey(anilistId) -> {
+                        relationsMap[anilistId]?.relation?.replace("_", " ")?.lowercase()
+                            ?.split(" ")?.joinToString(" ") { it.replaceFirstChar(Char::titlecase) } ?: ""
+                    }
+                    index == 0 -> "Main Story"
+                    format.equals("TV", ignoreCase = true) -> "Sequel"
+                    format.equals("OVA", ignoreCase = true) || format.equals("Special", ignoreCase = true) -> "Side Story"
+                    format.equals("Movie", ignoreCase = true) -> "Movie"
+                    else -> format.ifEmpty { "Entry" }
+                }
+
+                WatchOrderItem(
+                    id = id,
+                    anilistId = anilistId,
+                    image = imageUrl,
+                    name = title,
+                    relationType = relationType,
+                    isCurrent = isCurrent,
+                    airDate = airDate,
+                    mediaType = format,
+                    episodes = eps,
+                    rating = rating
+                )
             }
         } ?: emptyList()
     }
+
 
     suspend fun getAnimeNews(media: Media): List<NewsItem> {
         return tryWithSuspend {
@@ -1227,15 +1265,11 @@ class MediaDetailsViewModel : ViewModel() {
                 ?: ani.dantotsu.others.IdMappers.getMalId(media.id)
                 ?: media.id
             val headers = mapOf(
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept" to "application/json"
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept" to "application/json, text/plain, */*",
+                "Referer" to "https://kuroiru.co/"
             )
-            val res = org.jsoup.Jsoup.connect("https://kuroiru.co/api/anime/$malId")
-                .headers(headers)
-                .ignoreContentType(true)
-                .timeout(15000)
-                .execute()
-                .body()
+            val res = client.get("https://kuroiru.co/api/anime/$malId", headers = headers).text
             val root = org.json.JSONObject(res)
             val newsArr = root.optJSONArray("news") ?: return@tryWithSuspend emptyList()
             val result = mutableListOf<NewsItem>()
@@ -1266,15 +1300,10 @@ class MediaDetailsViewModel : ViewModel() {
             if (seriesData.isEmpty()) return@tryWithSuspend emptyList()
             val bakaId = seriesData[0].id ?: return@tryWithSuspend emptyList()
             val headers = mapOf(
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept" to "application/json"
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept" to "application/json, text/plain, */*"
             )
-            val res = org.jsoup.Jsoup.connect("https://api.mangabaka.org/v1/series/$bakaId/news")
-                .headers(headers)
-                .ignoreContentType(true)
-                .timeout(15000)
-                .execute()
-                .body()
+            val res = client.get("https://api.mangabaka.org/v1/series/$bakaId/news", headers = headers).text
             val root = org.json.JSONObject(res)
             val newsArr = root.optJSONArray("data") ?: return@tryWithSuspend emptyList()
             val result = mutableListOf<NewsItem>()
@@ -1285,7 +1314,8 @@ class MediaDetailsViewModel : ViewModel() {
                 val date = if (pubAt.isNotEmpty()) {
                     runCatching { dateFormat.parse(pubAt) }.getOrNull()
                 } else null
-                val title = itemObj.optString("title", "")
+                val rawTitle = itemObj.optString("title", "")
+                val title = org.jsoup.parser.Parser.unescapeEntities(rawTitle, false)
                 val url = itemObj.optString("url", "")
                 if (title.isNotEmpty() && url.isNotEmpty()) {
                     result.add(
