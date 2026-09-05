@@ -841,119 +841,93 @@ class MediaInfoFragment : Fragment() {
                             parent.addView(root)
                         }
                     }
+                }
 
-                    if (!offline) {
-                        val isAnimeMedia = media.anime != null
-                        ItemQuelsBinding.inflate(
-                            LayoutInflater.from(context),
-                            parent,
-                            false
-                        ).apply {
-                            if (isAnimeMedia) {
-                                mediaInfoPrequel.visibility = View.VISIBLE
-                                mediaInfoPrequelTitle.text = getString(R.string.watch_order)
-                                mediaInfoPrequelImage.loadImage(media.banner ?: media.cover)
-                                mediaInfoPrequel.setSafeOnClickListener {
-                                    if (!isAdded || context == null) return@setSafeOnClickListener
-                                    lifecycleScope.launch(Dispatchers.IO) {
-                                        val watchOrder = model.getWatchOrder(media)
-                                        withContext(Dispatchers.Main) {
-                                            if (!isAdded || context == null) return@withContext
-                                            if (watchOrder.isEmpty()) {
-                                                toast(getString(R.string.no_watch_order_found))
-                                                return@withContext
-                                            }
-                                            if (childFragmentManager.findFragmentByTag("watch_order") == null) {
-                                                MediaContentBottomSheet.newWatchOrderInstance(
-                                                    getString(R.string.watch_order),
-                                                    watchOrder
-                                                ).show(childFragmentManager, "watch_order")
-                                            }
-                                        }
-                                    }
-                                }
+                if (!offline) {
+                    val isAnimeMedia = media.anime != null
+                    ItemQuelsBinding.inflate(
+                        LayoutInflater.from(context),
+                        parent,
+                        false
+                    ).apply {
+                        if (isAnimeMedia) {
+                            val watchOrderImage = media.banner ?: media.cover
+                            val newsImage = media.relations?.firstOrNull { it.cover != null && it.cover != media.cover }?.cover
+                                ?: media.characters?.firstOrNull()?.image
+                                ?: media.relations?.firstOrNull { it.banner != null && it.banner != media.banner }?.banner
+                                ?: media.cover?.takeIf { it != watchOrderImage }
+                                ?: media.banner
+                                ?: media.cover
 
-                                mediaInfoSequel.visibility = View.VISIBLE
-                                mediaInfoSequelTitle.text = getString(R.string.news)
-                                mediaInfoSequelImage.loadImage(media.cover ?: media.banner)
-                                mediaInfoSequel.setSafeOnClickListener {
-                                    if (!isAdded || context == null) return@setSafeOnClickListener
-                                    lifecycleScope.launch(Dispatchers.IO) {
-                                        val news = model.getAnimeNews(media)
-                                        withContext(Dispatchers.Main) {
-                                            if (!isAdded || context == null) return@withContext
-                                            if (news.isEmpty()) {
-                                                toast(getString(R.string.no_news_found))
-                                                return@withContext
-                                            }
-                                            if (childFragmentManager.findFragmentByTag("news") == null) {
-                                                MediaContentBottomSheet.newNewsInstance(
-                                                    getString(R.string.news),
-                                                    news
-                                                ).show(childFragmentManager, "news")
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                mediaInfoPrequel.visibility = View.VISIBLE
-                                mediaInfoPrequelTitle.text = getString(R.string.news)
-                                mediaInfoPrequelImage.loadImage(media.banner ?: media.cover)
-                                mediaInfoPrequel.setSafeOnClickListener {
-                                    if (!isAdded || context == null) return@setSafeOnClickListener
-                                    lifecycleScope.launch(Dispatchers.IO) {
-                                        val news = model.getMangaNovelNews(media)
-                                        withContext(Dispatchers.Main) {
-                                            if (!isAdded || context == null) return@withContext
-                                            if (news.isEmpty()) {
-                                                toast(getString(R.string.no_news_found))
-                                                return@withContext
-                                            }
-                                            if (childFragmentManager.findFragmentByTag("news") == null) {
-                                                MediaContentBottomSheet.newNewsInstance(
-                                                    getString(R.string.news),
-                                                    news
-                                                ).show(childFragmentManager, "news")
-                                            }
-                                        }
-                                    }
+                            mediaInfoPrequel.visibility = View.VISIBLE
+                            mediaInfoPrequelTitle.text = getString(R.string.watch_order)
+                            mediaInfoPrequelImage.loadImage(watchOrderImage)
+                            mediaInfoPrequel.setSafeOnClickListener {
+                                if (!isAdded || context == null) return@setSafeOnClickListener
+                                if (childFragmentManager.findFragmentByTag("watch_order") == null) {
+                                    MediaContentBottomSheet.newWatchOrderInstance(media)
+                                        .show(childFragmentManager, "watch_order")
                                 }
                             }
 
-                            root.tag = "dynamic_view"
-                            parent.addView(root)
-                        }
-                    }
-
-                    if (!media.review.isNullOrEmpty()) {
-                        ItemTitleRecyclerBinding.inflate(
-                            LayoutInflater.from(context),
-                            parent,
-                            false
-                        ).apply {
-                            val adapter = GroupieAdapter()
-                            media.review!!.forEach { adapter.add(ReviewAdapter(it)) }
-                            itemTitle.setText(R.string.reviews)
-                            itemRecycler.adapter = adapter
-                            itemRecycler.layoutManager = LinearLayoutManager(requireContext())
-                            itemMore.visibility = View.VISIBLE
-                            itemMore.setSafeOnClickListener {
-                                startActivity(
-                                    Intent(requireContext(), ReviewActivity::class.java)
-                                        .putExtra("mediaId", media.id)
-                                )
+                            mediaInfoSequel.visibility = View.VISIBLE
+                            mediaInfoSequelTitle.text = getString(R.string.news)
+                            mediaInfoSequelImage.loadImage(newsImage)
+                            mediaInfoSequel.setSafeOnClickListener {
+                                if (!isAdded || context == null) return@setSafeOnClickListener
+                                if (childFragmentManager.findFragmentByTag("news") == null) {
+                                    MediaContentBottomSheet.newNewsInstance(media)
+                                        .show(childFragmentManager, "news")
+                                }
                             }
-                            root.tag = "dynamic_view"
-                            parent.addView(root)
+                        } else {
+                            val newsImage = media.banner ?: media.cover
+                            mediaInfoPrequel.visibility = View.VISIBLE
+                            mediaInfoPrequelTitle.text = getString(R.string.news)
+                            mediaInfoPrequelImage.loadImage(newsImage)
+                            mediaInfoPrequel.setSafeOnClickListener {
+                                if (!isAdded || context == null) return@setSafeOnClickListener
+                                if (childFragmentManager.findFragmentByTag("news") == null) {
+                                    MediaContentBottomSheet.newNewsInstance(media)
+                                        .show(childFragmentManager, "news")
+                                }
+                            }
                         }
-                    }
 
+                        root.tag = "dynamic_view"
+                        parent.addView(root)
+                    }
+                }
+
+                if (!media.review.isNullOrEmpty()) {
                     ItemTitleRecyclerBinding.inflate(
                         LayoutInflater.from(context),
                         parent,
                         false
                     ).apply {
+                        val adapter = GroupieAdapter()
+                        media.review!!.forEach { adapter.add(ReviewAdapter(it)) }
+                        itemTitle.setText(R.string.reviews)
+                        itemRecycler.adapter = adapter
+                        itemRecycler.layoutManager = LinearLayoutManager(requireContext())
+                        itemMore.visibility = View.VISIBLE
+                        itemMore.setSafeOnClickListener {
+                            startActivity(
+                                Intent(requireContext(), ReviewActivity::class.java)
+                                    .putExtra("mediaId", media.id)
+                            )
+                        }
+                        root.tag = "dynamic_view"
+                        parent.addView(root)
+                    }
+                }
 
+                if (!media.relations.isNullOrEmpty() && !offline) {
+                    ItemTitleRecyclerBinding.inflate(
+                        LayoutInflater.from(context),
+                        parent,
+                        false
+                    ).apply {
                         itemRecycler.adapter =
                             MediaAdaptor(0, media.relations!!, requireActivity())
                         itemRecycler.layoutManager = LinearLayoutManager(
