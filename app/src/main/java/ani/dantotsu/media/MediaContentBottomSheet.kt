@@ -49,7 +49,7 @@ class MediaContentBottomSheet : BottomSheetDialogFragment() {
             getString(R.string.news)
         }
         val title = arguments?.getString(ARG_TITLE)?.ifEmpty { defaultTitle } ?: defaultTitle
-        val media: Media? = arguments?.getSerialized(ARG_MEDIA)
+        val media: Media? = arguments?.getSerialized(ARG_MEDIA) ?: model.getMedia().value
 
         binding.title.text = title
         binding.subscribeButton.visibility = View.GONE
@@ -95,8 +95,9 @@ class MediaContentBottomSheet : BottomSheetDialogFragment() {
                     displayWatchOrder(items, media)
                 }
             } else {
+                val isAnime = media.anime != null || media.format in listOf("TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC")
                 val items = withContext(Dispatchers.IO) {
-                    if (media.anime != null) {
+                    if (isAnime) {
                         model.getAnimeNews(media)
                     } else {
                         model.getMangaNovelNews(media)
