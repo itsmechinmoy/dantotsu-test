@@ -240,16 +240,9 @@ class PlayerCastManager(
 
         if (PrefManager.getVal(PrefName.UseInternalCast)) {
             if (castContext == null && isCastApiAvailable) {
-                // CastContext is still initializing — try to set up the route button eagerly
-                // so MediaRouteButton has a selector and won't auto-hide the button.
-                try {
-                    CastButtonFactory.setUpMediaRouteButton(activity, castButton)
-                    castButton.dialogFactory = CustomCastThemeFactory()
-                    castButton.setAlwaysVisible(true)
-                } catch (_: Exception) {
-                    // Will be retried in pendingCastButtonSetup below
-                }
-                // Schedule full setup once CastContext is ready
+                // CastContext is still initializing asynchronously.
+                // Do not call setUpMediaRouteButton prematurely as it causes MediaRouteButton to auto-hide.
+                // Schedule full setup once CastContext is ready.
                 pendingCastButtonSetup = {
                     setupCastButton(castButton, media, video, subtitle, hasExtSubtitles, episodeTitle)
                 }
