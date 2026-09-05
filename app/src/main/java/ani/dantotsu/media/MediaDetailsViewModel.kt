@@ -1151,6 +1151,9 @@ class MediaDetailsViewModel : ViewModel() {
             )
 
             val malId = media.idMAL ?: ani.dantotsu.others.IdMappers.getMalId(media.id)
+            if (media.idMAL == null && malId != null) {
+                media.idMAL = malId
+            }
             var targetId = malId?.toString()
 
             if (targetId == null) {
@@ -1220,12 +1223,20 @@ class MediaDetailsViewModel : ViewModel() {
                 val parts = metaText.split('|').map { it.trim() }
                 val airDate = if (parts.isNotEmpty()) parts[0] else ""
                 val format = if (parts.size > 1) parts[1] else ""
-                val eps = if (parts.size > 2) parts[2] else ""
-                val rating = if (parts.size > 3) parts[3] else row.select("span.wo_rating").text().trim()
+                val eps = if (parts.size > 2) parts[2].substringBefore("★").substringBefore("(").trim() else ""
+                val rating = ""
 
                 // 3. Is current anime
-                val isCurrent = (anilistId.isNotEmpty() && anilistId == media.id.toString()) ||
-                        (id.isNotEmpty() && id == media.idMAL?.toString())
+                val cleanId = id.trim()
+                val cleanAnilistId = anilistId.trim()
+                val currentMalId = media.idMAL ?: malId
+                val isCurrent = (cleanAnilistId.isNotEmpty() && cleanAnilistId == media.id.toString()) ||
+                        (cleanId.isNotEmpty() && currentMalId != null && cleanId == currentMalId.toString()) ||
+                        (cleanId.isNotEmpty() && targetId != null && cleanId == targetId.trim() && (currentMalId == null || currentMalId.toString() == targetId.trim())) ||
+                        (title.isNotEmpty() && (title.equals(media.userPreferredName, ignoreCase = true) ||
+                                title.equals(media.mainName(), ignoreCase = true) ||
+                                title.equals(media.name, ignoreCase = true) ||
+                                title.equals(media.nameRomaji, ignoreCase = true)))
 
                 // 4. Relation type
                 val relationType = when {
@@ -1261,15 +1272,60 @@ class MediaDetailsViewModel : ViewModel() {
 
     suspend fun getAnimeNews(media: Media): List<NewsItem> {
         return tryWithSuspend {
-            val malId = media.idMAL
-                ?: ani.dantotsu.others.IdMappers.getMalId(media.id)
-                ?: media.id
+            var malId = media.idMAL
+            if (malId == null || malId == 0) {
+                malId = ani.dantotsu.others.IdMappers.getMalId(media.id)
+            }
+            if (malId == null || malId == 0) {
+                runCatching {
+                    val query = "query{Media(id:${media.id}){idMal}}"
+                    val headers = mapOf(
+                        "Content-Type" to "application/json",
+                        "Accept" to "application/json",
+                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    )
+                    val resp = client.post(
+                        "https://graphql.anilist.co",
+                        headers = headers,
+                        data = org.json.JSONObject().put("query", query).toString()
+                    ).text
+                    val resolvedMal = org.json.JSONObject(resp)
+                        .optJSONObject("data")?.optJSONObject("Media")?.optInt("idMal", 0)
+                    if (resolvedMal != null && resolvedMal != 0) {
+                        malId = resolvedMal
+                        media.idMAL = resolvedMal
+                    }
+                }
+            }
+            if (malId == null || malId == 0) return@tryWithSuspend emptyList()
+
             val headers = mapOf(
                 "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept" to "application/json, text/plain, */*",
-                "Referer" to "https://kuroiru.co/"
+                "Accept" to "application/json, text/plain, */*"
             )
-            val res = client.get("https://kuroiru.co/api/anime/$malId", headers = headers).text
+
+            var res: String? = runCatching {
+                client.get("https://kuroiru.co/api/anime/$malId", headers = headers).text
+            }.getOrNull()
+
+            if (res == null) {
+                val candidateIds = mutableListOf<Int>()
+                media.prequel?.idMAL?.let { candidateIds.add(it) }
+                media.relations?.forEach { rel ->
+                    rel.idMAL?.let { candidateIds.add(it) }
+                }
+                for (candId in candidateIds) {
+                    if (candId != malId && candId != 0) {
+                        res = runCatching {
+                            client.get("https://kuroiru.co/api/anime/$candId", headers = headers).text
+                        }.getOrNull()
+                        if (res != null) break
+                    }
+                }
+            }
+
+            if (res == null) return@tryWithSuspend emptyList()
+
             val root = org.json.JSONObject(res)
             val newsArr = root.optJSONArray("news") ?: return@tryWithSuspend emptyList()
             val result = mutableListOf<NewsItem>()
@@ -1296,14 +1352,38 @@ class MediaDetailsViewModel : ViewModel() {
 
     suspend fun getMangaNovelNews(media: Media): List<NewsItem> {
         return tryWithSuspend {
-            val seriesData = MangaAnimeUtil.getSeriesFromMedia(media) ?: return@tryWithSuspend emptyList()
-            if (seriesData.isEmpty()) return@tryWithSuspend emptyList()
-            val bakaId = seriesData[0].id ?: return@tryWithSuspend emptyList()
             val headers = mapOf(
                 "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                 "Accept" to "application/json, text/plain, */*"
             )
-            val res = client.get("https://api.mangabaka.org/v1/series/$bakaId/news", headers = headers).text
+            val bakaBase = "https://api.mangabaka.org/v1"
+            var bakaId: Int? = null
+
+            if (media.id != 0) {
+                runCatching {
+                    val res = client.get("$bakaBase/source/anilist/${media.id}", headers = headers).text
+                    val root = org.json.JSONObject(res)
+                    val seriesArr = root.optJSONObject("data")?.optJSONArray("series")
+                    if (seriesArr != null && seriesArr.length() > 0) {
+                        bakaId = seriesArr.getJSONObject(0).optInt("id")
+                    }
+                }
+            }
+
+            if (bakaId == null && media.idMAL != null && media.idMAL != 0) {
+                runCatching {
+                    val res = client.get("$bakaBase/source/my-anime-list/${media.idMAL}", headers = headers).text
+                    val root = org.json.JSONObject(res)
+                    val seriesArr = root.optJSONObject("data")?.optJSONArray("series")
+                    if (seriesArr != null && seriesArr.length() > 0) {
+                        bakaId = seriesArr.getJSONObject(0).optInt("id")
+                    }
+                }
+            }
+
+            if (bakaId == null || bakaId == 0) return@tryWithSuspend emptyList()
+
+            val res = client.get("$bakaBase/series/$bakaId/news", headers = headers).text
             val root = org.json.JSONObject(res)
             val newsArr = root.optJSONArray("data") ?: return@tryWithSuspend emptyList()
             val result = mutableListOf<NewsItem>()
