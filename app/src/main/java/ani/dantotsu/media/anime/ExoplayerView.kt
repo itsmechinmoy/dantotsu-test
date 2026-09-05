@@ -5,7 +5,9 @@ import android.annotation.SuppressLint
 import android.app.Dialog
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.app.PictureInPictureUiState
 import android.app.RemoteAction
+import androidx.annotation.RequiresApi
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -276,9 +278,11 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         lateinit var media: Media
         var targetStartPosition: Long? = null
         private const val MAX_PLAYER_ERROR_RETRIES = 1
+        const val ACTION_PIP_PREV_EP = "ani.dantotsu.PIP_PREV_EP"
         const val ACTION_PIP_REWIND = "ani.dantotsu.PIP_REWIND"
         const val ACTION_PIP_PLAY_PAUSE = "ani.dantotsu.PIP_PLAY_PAUSE"
         const val ACTION_PIP_SKIP = "ani.dantotsu.PIP_SKIP"
+        const val ACTION_PIP_NEXT_EP = "ani.dantotsu.PIP_NEXT_EP"
     }
 
     override fun onAttachedToWindow() {
@@ -533,6 +537,17 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     }
                 }
             }
+        }
+        // Cast
+        if (PrefManager.getVal(PrefName.Cast)) {
+            castManager.setupCastButton(
+                customCastButton,
+                media,
+                null,
+                subtitle,
+                hasExtSubtitles,
+                null
+            )
         }
 
         // PiP
@@ -1490,6 +1505,19 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private fun buildPipActions(isPlaying: Boolean): List<RemoteAction> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return emptyList()
 
+        val prevEpIntent = PendingIntent.getBroadcast(
+            this,
+            10,
+            Intent(ACTION_PIP_PREV_EP).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val prevEpAction = RemoteAction(
+            Icon.createWithResource(this, R.drawable.ic_round_skip_previous_24),
+            "Previous Episode",
+            "Previous Episode",
+            prevEpIntent
+        )
+
         val rewindIntent = PendingIntent.getBroadcast(
             this,
             1,
@@ -1531,7 +1559,30 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             skipIntent
         )
 
-        return listOf(rewindAction, playPauseAction, skipAction)
+        val nextEpIntent = PendingIntent.getBroadcast(
+            this,
+            20,
+            Intent(ACTION_PIP_NEXT_EP).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val nextEpAction = RemoteAction(
+            Icon.createWithResource(this, R.drawable.ic_round_skip_next_24),
+            "Next Episode",
+            "Next Episode",
+            nextEpIntent
+        )
+
+        val maxActions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            maxNumPictureInPictureActions
+        } else {
+            3
+        }
+
+        return if (maxActions >= 5) {
+            listOf(prevEpAction, rewindAction, playPauseAction, skipAction, nextEpAction)
+        } else {
+            listOf(rewindAction, playPauseAction, skipAction)
+        }
     }
 
     private fun updatePipActions(isPlaying: Boolean = isPlayerPlaying) {
@@ -1547,6 +1598,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     }
 
     private fun enterPipMode() {
+        playerView.useController = false
+        playerView.hideController()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val params = PictureInPictureParams.Builder()
                 .setAspectRatio(aspectRatio)
@@ -1559,17 +1612,24 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         }
     }
 
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+    private fun onPipModeChangedInternal(isInPictureInPictureMode: Boolean) {
+        playerView.useController = !isInPictureInPictureMode
         if (isInPictureInPictureMode) {
+            playerView.hideController()
             if (pipReceiver == null) {
                 pipReceiver = object : BroadcastReceiver() {
                     override fun onReceive(context: Context?, intent: Intent?) {
                         when (intent?.action) {
+                            ACTION_PIP_PREV_EP -> {
+                                if (currentEpisodeIndex > 0) {
+                                    changeEpisode(currentEpisodeIndex - 1)
+                                }
+                            }
                             ACTION_PIP_REWIND -> {
                                 playerManager.exoPlayer?.let { exo ->
+                                    val seekMs = (PrefManager.getVal<Int>(PrefName.SeekTime) * 1000).toLong().takeIf { it > 0 } ?: 10000L
                                     val current = exo.currentPosition
-                                    exo.seekTo(maxOf(0L, current - 10000L))
+                                    exo.seekTo(maxOf(0L, current - seekMs))
                                 }
                             }
                             ACTION_PIP_PLAY_PAUSE -> {
@@ -1579,19 +1639,30 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                             }
                             ACTION_PIP_SKIP -> {
                                 playerManager.exoPlayer?.let { exo ->
+                                    val seekMs = (PrefManager.getVal<Int>(PrefName.SeekTime) * 1000).toLong().takeIf { it > 0 } ?: 10000L
                                     val current = exo.currentPosition
                                     val duration = exo.duration
-                                    val target = if (duration > 0) minOf(duration, current + 10000L) else current + 10000L
+                                    val target = if (duration > 0) minOf(duration, current + seekMs) else current + seekMs
                                     exo.seekTo(target)
+                                }
+                            }
+                            ACTION_PIP_NEXT_EP -> {
+                                if (playerManager.isInitialized) {
+                                    progressManager.nextEpisode { i ->
+                                        progressManager.updateAniProgress()
+                                        changeEpisode(currentEpisodeIndex + i)
+                                    }
                                 }
                             }
                         }
                     }
                 }
                 val filter = IntentFilter().apply {
+                    addAction(ACTION_PIP_PREV_EP)
                     addAction(ACTION_PIP_REWIND)
                     addAction(ACTION_PIP_PLAY_PAUSE)
                     addAction(ACTION_PIP_SKIP)
+                    addAction(ACTION_PIP_NEXT_EP)
                 }
                 ContextCompat.registerReceiver(
                     this,
@@ -1601,7 +1672,6 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 )
             }
             updatePipActions(isPlayerPlaying)
-            playerView.hideController()
             val ratio = aspectRatio.toFloat()
             val baseSubSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
             val pipSubSize = when {
@@ -1625,6 +1695,24 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             val textElevation = PrefManager.getVal<Float>(PrefName.SubBottomMargin) / 50 * resources.displayMetrics.heightPixels
             customSubtitleView.translationY = -textElevation + 10f
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        onPipModeChangedInternal(isInPictureInPictureMode)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+        onPipModeChangedInternal(isInPictureInPictureMode)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onPictureInPictureUiStateChanged(pipState: PictureInPictureUiState) {
+        super.onPictureInPictureUiStateChanged(pipState)
+        onPipModeChangedInternal(isInPictureInPictureMode)
     }
 
     override fun onUserLeaveHint() {
