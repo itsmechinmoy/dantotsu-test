@@ -3,12 +3,18 @@ package ani.dantotsu.media.anime
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.drawable.Animatable
+import android.graphics.drawable.Icon
 import android.hardware.SensorManager
 import android.net.Uri
 import android.os.Build
@@ -32,6 +38,7 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
@@ -200,6 +207,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private var interacted = true
     private var pipEnabled = false
     private var aspectRatio = Rational(16, 9)
+    private var pipReceiver: BroadcastReceiver? = null
     private var isBuffering = true
     private var playerErrorRetryCount = 0
     private var rotation = 0
@@ -1334,6 +1342,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                     .into(exoPlay)
             }
             discordManager.updatePresence(media, episode, playerManager.exoPlayer, isPlaying)
+            updatePipActions(isPlaying)
         }
     }
 
@@ -1475,10 +1484,70 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         super.onWindowFocusChanged(hasFocus)
     }
 
+    private fun buildPipActions(isPlaying: Boolean): List<RemoteAction> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return emptyList()
+
+        val rewindIntent = PendingIntent.getBroadcast(
+            this,
+            1,
+            Intent(ACTION_PIP_REWIND).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val rewindAction = RemoteAction(
+            Icon.createWithResource(this, R.drawable.ic_pip_rewind_10),
+            "Rewind 10s",
+            "Rewind 10s",
+            rewindIntent
+        )
+
+        val playPauseIntent = PendingIntent.getBroadcast(
+            this,
+            2,
+            Intent(ACTION_PIP_PLAY_PAUSE).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val playPauseIcon = if (isPlaying) R.drawable.ic_round_pause_24 else R.drawable.ic_round_play_arrow_24
+        val playPauseTitle = if (isPlaying) "Pause" else "Play"
+        val playPauseAction = RemoteAction(
+            Icon.createWithResource(this, playPauseIcon),
+            playPauseTitle,
+            playPauseTitle,
+            playPauseIntent
+        )
+
+        val skipIntent = PendingIntent.getBroadcast(
+            this,
+            3,
+            Intent(ACTION_PIP_SKIP).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val skipAction = RemoteAction(
+            Icon.createWithResource(this, R.drawable.ic_pip_skip_10),
+            "Skip 10s",
+            "Skip 10s",
+            skipIntent
+        )
+
+        return listOf(rewindAction, playPauseAction, skipAction)
+    }
+
+    private fun updatePipActions(isPlaying: Boolean = isPlayerPlaying) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (isInPictureInPictureMode) {
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(aspectRatio)
+                    .setActions(buildPipActions(isPlaying))
+                    .build()
+                setPictureInPictureParams(params)
+            }
+        }
+    }
+
     private fun enterPipMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val params = android.app.PictureInPictureParams.Builder()
+            val params = PictureInPictureParams.Builder()
                 .setAspectRatio(aspectRatio)
+                .setActions(buildPipActions(isPlayerPlaying))
                 .build()
             enterPictureInPictureMode(params)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -1490,6 +1559,45 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (isInPictureInPictureMode) {
+            if (pipReceiver == null) {
+                pipReceiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        when (intent?.action) {
+                            ACTION_PIP_REWIND -> {
+                                playerManager.exoPlayer?.let { exo ->
+                                    val current = exo.currentPosition
+                                    exo.seekTo(maxOf(0L, current - 10000L))
+                                }
+                            }
+                            ACTION_PIP_PLAY_PAUSE -> {
+                                playerManager.exoPlayer?.let { exo ->
+                                    if (exo.isPlaying) exo.pause() else exo.play()
+                                }
+                            }
+                            ACTION_PIP_SKIP -> {
+                                playerManager.exoPlayer?.let { exo ->
+                                    val current = exo.currentPosition
+                                    val duration = exo.duration
+                                    val target = if (duration > 0) minOf(duration, current + 10000L) else current + 10000L
+                                    exo.seekTo(target)
+                                }
+                            }
+                        }
+                    }
+                }
+                val filter = IntentFilter().apply {
+                    addAction(ACTION_PIP_REWIND)
+                    addAction(ACTION_PIP_PLAY_PAUSE)
+                    addAction(ACTION_PIP_SKIP)
+                }
+                ContextCompat.registerReceiver(
+                    this,
+                    pipReceiver,
+                    filter,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+            }
+            updatePipActions(isPlayerPlaying)
             playerView.hideController()
             val ratio = aspectRatio.toFloat()
             val baseSubSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
@@ -1502,6 +1610,12 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             customSubtitleView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, pipSubSize)
             customSubtitleView.translationY = 0f
         } else {
+            pipReceiver?.let {
+                try {
+                    unregisterReceiver(it)
+                } catch (_: Exception) {}
+                pipReceiver = null
+            }
             val baseSubSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
             exoSubtitleView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, baseSubSize)
             customSubtitleView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, baseSubSize)
@@ -1599,6 +1713,18 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             }
         } catch (_: Exception) {}
         castManager.release()
+        pipReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {}
+            pipReceiver = null
+        }
         super.onDestroy()
+    }
+
+    companion object {
+        const val ACTION_PIP_REWIND = "ani.dantotsu.PIP_REWIND"
+        const val ACTION_PIP_PLAY_PAUSE = "ani.dantotsu.PIP_PLAY_PAUSE"
+        const val ACTION_PIP_SKIP = "ani.dantotsu.PIP_SKIP"
     }
 }
