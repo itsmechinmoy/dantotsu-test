@@ -760,9 +760,34 @@ class MediaInfoFragment : Fragment() {
                             bind.itemChipGroup,
                             false
                         ).root
-                        val seasonYear = if (rank.year != null) "${rank.season ?: ""} ${rank.year}".trim() else ""
-                        val contextStr = rank.context ?: if (rank.allTime == true) "All Time" else seasonYear
-                        chip.text = "#${rank.rank} $contextStr"
+                        val rawContext = rank.context?.takeIf { it.isNotBlank() }
+                            ?: when (rank.type) {
+                                "POPULAR" -> "most popular"
+                                "RATED" -> "highest rated"
+                                else -> ""
+                            }
+                        val formattedContext = rawContext.split(" ")
+                            .filter { it.isNotBlank() }
+                            .joinToString(" ") { word -> word.replaceFirstChar(Char::titlecase) }
+
+                        val isAllTime = rank.allTime == true || formattedContext.contains("All Time", ignoreCase = true)
+                        val seasonName = rank.season?.name?.lowercase()?.replaceFirstChar(Char::titlecase)
+
+                        val timePeriod = when {
+                            isAllTime -> if (formattedContext.contains("All Time", ignoreCase = true)) "" else "All Time"
+                            seasonName != null && rank.year != null -> "$seasonName ${rank.year}"
+                            rank.year != null -> "${rank.year}"
+                            seasonName != null -> seasonName
+                            else -> ""
+                        }
+
+                        val rankingText = if (timePeriod.isNotEmpty()) {
+                            "$formattedContext $timePeriod"
+                        } else {
+                            formattedContext
+                        }
+
+                        chip.text = "#${rank.rank} $rankingText"
                         bind.itemChipGroup.addView(chip)
                     }
                     parent.addView(bind.root)
