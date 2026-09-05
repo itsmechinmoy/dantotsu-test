@@ -149,32 +149,6 @@
                     android:textSize="12sp"
                     tools:text="11 eps" />
 
-                <LinearLayout
-                    android:id="@+id/watchOrderScoreContainer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <ImageView
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        app:srcCompat="@drawable/ic_round_star_24"
-                        app:tint="?attr/colorSecondary"
-                        tools:ignore="ContentDescription" />
-
-                    <TextView
-                        android:id="@+id/watchOrderScore"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="3dp"
-                        android:fontFamily="@font/poppins_bold"
-                        android:textColor="?attr/colorSecondary"
-                        android:textSize="12sp"
-                        tools:text="8.3" />
-
-                </LinearLayout>
 
             </LinearLayout>
 
