@@ -223,7 +223,7 @@
                             android:layout_height="44dp"
                             android:alpha="0.33"
                             android:background="?android:attr/selectableItemBackground"
-                            android:contentDescription="@string/manga_layouts"
+                            android:contentDescription="@string/layout"
                             android:scaleX="-1"
                             android:src="@drawable/ic_round_amp_stories_24"
                             app:tint="?attr/colorOnBackground" />
@@ -243,7 +243,7 @@
                             android:layout_height="44dp"
                             android:alpha="0.33"
                             android:background="?android:attr/selectableItemBackground"
-                            android:contentDescription="@string/manga_layouts"
+                            android:contentDescription="@string/layout"
                             android:src="@drawable/ic_round_view_array_24"
                             app:tint="?attr/colorOnBackground" />
                     </androidx.cardview.widget.CardView>
@@ -262,7 +262,7 @@
                             android:layout_height="44dp"
                             android:alpha="0.33"
                             android:background="?android:attr/selectableItemBackground"
-                            android:contentDescription="@string/manga_layouts"
+                            android:contentDescription="@string/layout"
                             android:src="@drawable/ic_round_view_column_24"
                             app:tint="?attr/colorOnBackground" />
                     </androidx.cardview.widget.CardView>
