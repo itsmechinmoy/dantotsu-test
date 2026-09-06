@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.10"
 ksp = "2.3.11"
-agp = "9.3.2"
+agp = "9.4.0"
 serialization = "1.11.0"
 coroutines = "1.11.0"
 firebase-bom = "34.18.0"
@@ -143,7 +143,7 @@ okhttp-logging = "com.squareup.okhttp3:logging-interceptor:5.5.0"
 okhttp-brotli = "com.squareup.okhttp3:okhttp-brotli:5.5.0"
 okhttp-doh = "com.squareup.okhttp3:okhttp-dnsoverhttps:5.5.0"
 okhttp-zstd = "com.squareup.okhttp3:okhttp-zstd:5.5.0"
-okio = "com.squareup.okio:okio:3.18.1"
+okio = "com.squareup.okio:okio:3.18.2"
 
 # libtorrent4j
 libtorrent4j = { group = "org.libtorrent4j", name = "libtorrent4j", version.ref = "libtorrent4j" }
