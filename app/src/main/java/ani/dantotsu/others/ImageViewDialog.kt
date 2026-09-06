@@ -1,113 +1,177 @@
-package ani.dantotsu.media.manga.mangareader
+package ani.dantotsu.others
 
 import android.animation.ObjectAnimator
-import android.content.res.Resources.getSystem
-import android.graphics.Bitmap
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.updateLayoutParams
-import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
+import ani.dantotsu.BottomSheetDialogFragment
+import ani.dantotsu.FileUrl
 import ani.dantotsu.R
-import ani.dantotsu.databinding.ItemImageBinding
-import ani.dantotsu.media.manga.MangaChapter
-import ani.dantotsu.settings.CurrentReaderSettings.Directions.LEFT_TO_RIGHT
-import ani.dantotsu.settings.CurrentReaderSettings.Directions.RIGHT_TO_LEFT
-import ani.dantotsu.settings.CurrentReaderSettings.Layouts.PAGED
-import ani.dantotsu.settings.saving.PrefManager
-import ani.dantotsu.settings.saving.PrefName
+import ani.dantotsu.databinding.BottomSheetImageBinding
+import ani.dantotsu.media.manga.MangaCache
+import ani.dantotsu.media.manga.mangareader.BaseImageAdapter.Companion.loadBitmap
+import ani.dantotsu.media.manga.mangareader.BaseImageAdapter.Companion.loadBitmapOld
+import ani.dantotsu.media.manga.mangareader.BaseImageAdapter.Companion.mergeBitmap
+import ani.dantotsu.openLinkInBrowser
+import ani.dantotsu.saveImageToDownloads
+import ani.dantotsu.setSafeOnClickListener
+import ani.dantotsu.shareImage
+import ani.dantotsu.snackString
+import ani.dantotsu.toast
+import ani.dantotsu.util.StoragePermissions.Companion.downloadsPermission
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.davemorrissey.labs.subscaleview.ImageSource
-import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import kotlinx.coroutines.launch
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
-open class ImageAdapter(
-    activity: MangaReaderActivity,
-    chapter: MangaChapter
-) : BaseImageAdapter(activity, chapter) {
+class ImageViewDialog : BottomSheetDialogFragment() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
-        val binding = ItemImageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ImageViewHolder(binding)
+    private var _binding: BottomSheetImageBinding? = null
+    private val binding get() = _binding!!
+
+    private var reload = false
+    private var _title: String? = null
+    private var _image: FileUrl? = null
+    private var _image2: FileUrl? = null
+
+    var onReloadPressed: ((ImageViewDialog) -> Unit)? = null
+    var trans1: List<BitmapTransformation>? = null
+    var trans2: List<BitmapTransformation>? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            _title = it.getString("title")?.replace(Regex("[\\\\/:*?\"<>|]"), "")
+            reload = it.getBoolean("reload")
+            _image = it.getSerialized("image")!!
+            _image2 = it.getSerialized("image2")
+        }
     }
 
-    inner class ImageViewHolder(binding: ItemImageBinding) : RecyclerView.ViewHolder(binding.root)
-
-    open suspend fun loadBitmap(position: Int, parent: View): Bitmap? {
-        val link = images.getOrNull(position)?.url ?: return null
-        if (link.url.isEmpty()) return null
-
-        val transforms = mutableListOf<BitmapTransformation>()
-        val parserTransformation = activity.getTransformation(images[position])
-
-        if (parserTransformation != null) transforms.add(parserTransformation)
-        if (settings.cropBorders) {
-            transforms.add(RemoveBordersTransformation(true, settings.cropBorderThreshold))
-            transforms.add(RemoveBordersTransformation(false, settings.cropBorderThreshold))
-        }
-
-        return activity.loadBitmap(link, transforms)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = BottomSheetImageBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
-    override suspend fun loadImage(position: Int, parent: View): Boolean {
-        val imageView = parent.findViewById<SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
-            ?: return false
-        val progress = parent.findViewById<View>(R.id.imgProgProgress) ?: return false
-        imageView.recycle()
-        imageView.visibility = View.GONE
-
-        val bitmap = loadBitmap(position, parent)
-        if (bitmap == null) {
-            progress.visibility = View.GONE
-            return false
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        val (title, image, image2) = Triple(_title, _image, _image2)
+        if (image == null || title == null) {
+            dismiss()
+            snackString(getString(R.string.error_getting_image_data))
+            return
+        }
+        if (reload) {
+            binding.bottomImageReload.visibility = View.VISIBLE
+            binding.bottomImageReload.setSafeOnClickListener {
+                onReloadPressed?.invoke(this)
+            }
         }
 
-        var sWidth = getSystem().displayMetrics.widthPixels
-        var sHeight = getSystem().displayMetrics.heightPixels
+        binding.bottomImageTitle.text = title
+        binding.bottomImageReload.setOnLongClickListener {
+            openLinkInBrowser(image.url)
+            if (image2 != null) openLinkInBrowser(image2.url)
+            true
+        }
+        val context = requireContext()
 
-        if (settings.layout != PAGED)
-            parent.updateLayoutParams {
-                if (settings.direction != LEFT_TO_RIGHT && settings.direction != RIGHT_TO_LEFT) {
-                    sHeight =
-                        if (settings.wrapImages) bitmap.height else (sWidth * bitmap.height * 1f / bitmap.width).toInt()
-                    height = sHeight
-                } else {
-                    sWidth =
-                        if (settings.wrapImages) bitmap.width else (sHeight * bitmap.width * 1f / bitmap.height).toInt()
-                    width = sWidth
+        viewLifecycleOwner.lifecycleScope.launch {
+            val binding = _binding ?: return@launch
+
+            val preloaded = preloadedBitmap
+            preloadedBitmap = null
+            val mangaCache = try { Injekt.get<MangaCache>() } catch (_: Exception) { null }
+
+            var bitmap = if (preloaded != null && !preloaded.isRecycled) {
+                preloaded
+            } else {
+                mangaCache?.getBitmap(image.url)
+            }
+
+            var bitmap2 = if (image2 != null) mangaCache?.getBitmap(image2.url) else null
+
+            if (bitmap == null) {
+                bitmap = context.loadBitmap(image, trans1 ?: listOf())
+                if (bitmap == null) {
+                    bitmap = context.loadBitmapOld(image, trans1 ?: listOf())
+                }
+            }
+            if (image2 != null && bitmap2 == null) {
+                bitmap2 = context.loadBitmap(image2, trans2 ?: listOf())
+                if (bitmap2 == null) {
+                    bitmap2 = context.loadBitmapOld(image2, trans2 ?: listOf())
                 }
             }
 
-        imageView.visibility = View.VISIBLE
-        imageView.isQuickScaleEnabled = settings.oneHandZoom
-        imageView.setImage(ImageSource.cachedBitmap(bitmap))
+            bitmap =
+                if (bitmap2 != null && bitmap != null) mergeBitmap(bitmap, bitmap2) else bitmap
 
-        val parentArea = sWidth * sHeight * 1f
-        val bitmapArea = bitmap.width * bitmap.height * 1f
-        val scale =
-            if (parentArea < bitmapArea) (bitmapArea / parentArea) else (parentArea / bitmapArea)
+            if (bitmap != null) {
+                binding.bottomImageShare.isEnabled = true
+                binding.bottomImageSave.isEnabled = true
+                binding.bottomImageSave.setOnClickListener {
+                    if (downloadsPermission(context as AppCompatActivity))
+                        saveImageToDownloads(title, bitmap, requireActivity())
+                }
+                binding.bottomImageShare.setOnClickListener {
+                    shareImage(title, bitmap, requireContext())
+                }
 
-        imageView.maxScale = scale * 1.1f
-        imageView.minScale = scale
-
-        ObjectAnimator.ofFloat(parent, "alpha", 0f, 1f)
-            .setDuration((400 * PrefManager.getVal<Float>(PrefName.AnimationSpeed)).toLong())
-            .start()
-        progress.visibility = View.GONE
-
-        return true
+                binding.bottomImageView.setImage(ImageSource.cachedBitmap(bitmap))
+                ObjectAnimator.ofFloat(binding.bottomImageView, "alpha", 0f, 1f).setDuration(400L)
+                    .start()
+                binding.bottomImageProgress.visibility = View.GONE
+            } else {
+                toast(context.getString(R.string.loading_image_failed))
+                binding.bottomImageNo.visibility = View.VISIBLE
+                binding.bottomImageProgress.visibility = View.GONE
+            }
+        }
     }
 
-    override fun getItemCount(): Int = images.size
-
-    override fun isZoomed(): Boolean {
-        val imageView =
-            activity.findViewById<SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
-        return imageView.scale > imageView.minScale
+    override fun onDestroyView() {
+        _binding?.bottomImageView?.recycle()
+        _binding = null
+        super.onDestroyView()
     }
 
-    override fun setZoom(zoom: Float) {
-        val imageView =
-            activity.findViewById<SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
-        imageView.setScaleAndCenter(zoom, imageView.center)
+    companion object {
+        var preloadedBitmap: android.graphics.Bitmap? = null
+
+        fun newInstance(
+            title: String,
+            image: FileUrl,
+            showReload: Boolean = false,
+            image2: FileUrl?,
+            bitmap: android.graphics.Bitmap? = null
+        ) = ImageViewDialog().apply {
+            preloadedBitmap = bitmap
+            arguments = Bundle().apply {
+                putString("title", title)
+                putBoolean("reload", showReload)
+                putSerializable("image", image)
+                putSerializable("image2", image2)
+            }
+        }
+
+        fun newInstance(activity: FragmentActivity, title: String?, image: String?): Boolean {
+            ImageViewDialog().apply {
+                arguments = Bundle().apply {
+                    putString("title", title ?: return false)
+                    putSerializable("image", FileUrl(image ?: return false))
+                }
+                show(activity.supportFragmentManager, "image")
+            }
+            return true
+        }
     }
 }
