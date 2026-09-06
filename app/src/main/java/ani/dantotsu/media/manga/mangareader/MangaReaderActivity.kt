@@ -4,9 +4,11 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -28,12 +30,14 @@ import android.widget.CheckBox
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.math.MathUtils.clamp
 import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -126,6 +130,7 @@ class MangaReaderActivity : AppCompatActivity() {
     private var notchHeight: Int? = null
 
     private var imageAdapter: BaseImageAdapter? = null
+    private var autoScrollManager: MangaReaderAutoScroll? = null
 
     var sliding = false
     var isAnimating = false
@@ -167,6 +172,8 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        autoScrollManager?.destroy()
+        autoScrollManager = null
         mangaCache.clear()
         RPCManager.clearPresence(this)
         ani.dantotsu.widgets.continue_widget.ContinueWidget.updateReadingState(this, null, null, null, isExiting = true)
@@ -326,12 +333,16 @@ class MangaReaderActivity : AppCompatActivity() {
 
         //Chapter Change
         fun change(index: Int) {
-            mangaCache.clear()
             PrefManager.setCustomVal(
                 "${media.id}_${chaptersArr[currentChapterIndex]}",
                 currentChapterPage
             )
-            ChapterLoaderDialog.newInstance(chapters[chaptersArr[index]]!!)
+            val nextChap = chapters[chaptersArr.getOrNull(index)]
+            if (nextChap == null) {
+                snackString(getString(R.string.next_chapter_not_found))
+                return
+            }
+            ChapterLoaderDialog.newInstance(nextChap)
                 .show(supportFragmentManager, "dialog")
         }
 
@@ -355,6 +366,44 @@ class MangaReaderActivity : AppCompatActivity() {
 
         binding.mangaReaderSettings.setSafeOnClickListener {
             ReaderSettingsDialogFragment.newInstance().show(supportFragmentManager, "settings")
+        }
+
+        // Manga On-Device OCR & Translation
+        binding.mangaReaderTranslate.setOnClickListener {
+            val currentPos = if (defaultSettings.layout == PAGED) {
+                binding.mangaReaderPager.currentItem
+            } else {
+                val lm = binding.mangaReaderRecycler.layoutManager as? LinearLayoutManager
+                lm?.findFirstVisibleItemPosition() ?: 0
+            }
+            val pageImg = if (directionPagedBT) {
+                chapter.images().reversed().getOrNull(currentPos)
+            } else {
+                chapter.images().getOrNull(currentPos)
+            }
+            val bitmap = pageImg?.url?.url?.let { mangaCache.getBitmap(it) }
+            if (bitmap != null && !bitmap.isRecycled) {
+                ani.dantotsu.media.manga.mangareader.ocr.OcrTranslationBottomSheet.newInstance(bitmap)
+                    .show(supportFragmentManager, "ocr_translate")
+            } else {
+                snackString(getString(R.string.no_text_detected))
+            }
+        }
+
+        // Auto-Scroll Floating Pill Controls
+        binding.autoScrollPlayPause.setOnClickListener {
+            val isNowRunning = autoScrollManager?.toggle() ?: false
+            binding.autoScrollPlayPause.setImageResource(
+                if (isNowRunning) R.drawable.ic_round_pause_24 else R.drawable.ic_round_play_arrow_24
+            )
+        }
+        binding.autoScrollSpeedUp.setOnClickListener {
+            val newSpeed = (defaultSettings.autoScrollSpeed + 1f).coerceAtMost(10f)
+            updateAutoScrollSpeed(newSpeed)
+        }
+        binding.autoScrollSpeedDown.setOnClickListener {
+            val newSpeed = (defaultSettings.autoScrollSpeed - 1f).coerceAtLeast(1f)
+            updateAutoScrollSpeed(newSpeed)
         }
 
         //Next Chapter
@@ -390,6 +439,7 @@ class MangaReaderActivity : AppCompatActivity() {
 
         model.getMangaChapter().observe(this) { chap ->
             if (chap != null) {
+                mangaCache.clearBitmaps()
                 chapter = chap
                 media.manga!!.selectedChapter = chapter
                 PrefManager.setCustomVal("${media.id}_current_chp", chap.number)
@@ -473,6 +523,8 @@ class MangaReaderActivity : AppCompatActivity() {
 
         saveReaderSettings("${media.id}_current_settings", defaultSettings)
         hideSystemBars()
+        applyBackgroundColor(defaultSettings.backgroundColor)
+        applyOrientationLock(defaultSettings.defaultRotation)
 
         //true colors
         SubsamplingScaleImageView.setPreferredBitmapConfig(
@@ -675,7 +727,20 @@ class MangaReaderActivity : AppCompatActivity() {
                     RecyclerView.HORIZONTAL,
                 directionRLBT
             )
-            manager.preloadItemCount = 5
+            manager.preloadItemCount = defaultSettings.preloadAmount
+            applySidePadding(defaultSettings.continuousSidePadding)
+
+            if (autoScrollManager == null) {
+                autoScrollManager = MangaReaderAutoScroll().apply {
+                    attach(binding.mangaReaderRecycler, defaultSettings.direction)
+                    speed = defaultSettings.autoScrollSpeed.toFloat()
+                }
+            } else {
+                autoScrollManager?.attach(binding.mangaReaderRecycler, defaultSettings.direction)
+                autoScrollManager?.speed = defaultSettings.autoScrollSpeed.toFloat()
+            }
+            binding.mangaReaderAutoScrollPlayBar.visibility =
+                if (defaultSettings.autoScroll) View.VISIBLE else View.GONE
 
             binding.mangaReaderPager.visibility = View.GONE
 
@@ -780,7 +845,9 @@ class MangaReaderActivity : AppCompatActivity() {
                         ViewPager2.ORIENTATION_HORIZONTAL
                     else ViewPager2.ORIENTATION_VERTICAL
                 registerOnPageChangeCallback(pageChangeCallback)
-                offscreenPageLimit = 5
+                offscreenPageLimit = defaultSettings.preloadAmount.coerceAtLeast(1)
+                autoScrollManager?.stop()
+                binding.mangaReaderAutoScrollPlayBar.visibility = View.GONE
 
                 setCurrentItem(currentPage / (dualPage { 2 } ?: 1) - 1, false)
             }
@@ -1065,6 +1132,13 @@ class MangaReaderActivity : AppCompatActivity() {
             page = maxChapterPage - pageNumber + 1
         }
         if (currentChapterPage != page) {
+            if (defaultSettings.eInkFlash) {
+                binding.mangaReaderEInkOverlay.apply {
+                    visibility = View.VISIBLE
+                    alpha = 0.85f
+                    animate().alpha(0f).setDuration(120L).withEndAction { visibility = View.GONE }.start()
+                }
+            }
             currentChapterPage = page
             PrefManager.setCustomVal("${media.id}_${chapter.number}", page)
             val cleanChapNum = MediaNameAdapter.findChapterNumber(chapter.number)?.let {
@@ -1077,14 +1151,17 @@ class MangaReaderActivity : AppCompatActivity() {
                 value = clamp(currentChapterPage.toFloat(), 1f, valueTo)
             }
         }
-        if (maxChapterPage - currentChapterPage <= 1 && !loading)
+        if (maxChapterPage - currentChapterPage <= defaultSettings.preloadAmount && !loading)
             scope.launch(Dispatchers.IO) {
                 loading = true
-                model.loadMangaChapterImages(
-                    chapters[chaptersArr.getOrNull(currentChapterIndex + 1) ?: return@launch]!!,
-                    media.selected!!,
-                    false
-                )
+                val nextChapter = chapters[chaptersArr.getOrNull(currentChapterIndex + 1) ?: return@launch]
+                if (nextChapter != null && media.selected != null) {
+                    model.loadMangaChapterImages(
+                        nextChapter,
+                        media.selected!!,
+                        false
+                    )
+                }
                 loading = false
             }
     }
@@ -1267,7 +1344,15 @@ class MangaReaderActivity : AppCompatActivity() {
             chaptersTitleArr.getOrNull(currentChapterIndex)?.replace(" : ", " - ") ?: ""
         } [${media.userPreferredName}]"
 
-        ImageViewDialog.newInstance(title, img1.url, true, img2?.url).apply {
+        val loaded1 = mangaCache.getBitmap(img1.url.url)
+        val loaded2 = if (img2 != null) mangaCache.getBitmap(img2.url.url) else null
+        val preloaded = if (loaded2 != null && loaded1 != null) {
+            BaseImageAdapter.mergeBitmap(loaded1, loaded2)
+        } else {
+            loaded1
+        }
+
+        ImageViewDialog.newInstance(title, img1.url, true, img2?.url, preloaded).apply {
             val transforms1 = mutableListOf<BitmapTransformation>()
             val parserTransformation1 = getTransformation(img1)
             if (parserTransformation1 != null) transforms1.add(parserTransformation1)
@@ -1291,5 +1376,72 @@ class MangaReaderActivity : AppCompatActivity() {
             show(supportFragmentManager, "image")
         }
         return true
+    }
+
+    fun updateAutoScrollState(enabled: Boolean) {
+        defaultSettings.autoScroll = enabled
+        PrefManager.setVal(PrefName.AutoScroll, enabled)
+        if (enabled && defaultSettings.layout != PAGED) {
+            binding.mangaReaderAutoScrollPlayBar.visibility = View.VISIBLE
+        } else {
+            autoScrollManager?.stop()
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+            binding.mangaReaderAutoScrollPlayBar.visibility = View.GONE
+        }
+    }
+
+    fun updateAutoScrollSpeed(speed: Float) {
+        defaultSettings.autoScrollSpeed = speed
+        autoScrollManager?.speed = speed
+        PrefManager.setVal(PrefName.AutoScrollSpeed, speed)
+    }
+
+    fun applyBackgroundColor(mode: Int) {
+        defaultSettings.backgroundColor = mode
+        val color = when (mode) {
+            1 -> Color.BLACK
+            2 -> Color.rgb(33, 33, 33)
+            3 -> Color.WHITE
+            else -> ContextCompat.getColor(this, R.color.nav_bg)
+        }
+        binding.root.setBackgroundColor(color)
+        binding.mangaReaderRecycler.setBackgroundColor(color)
+        binding.mangaReaderPager.setBackgroundColor(color)
+    }
+
+    fun applyOrientationLock(mode: Int) {
+        defaultSettings.defaultRotation = mode
+        requestedOrientation = when (mode) {
+            1 -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            2 -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    fun applySidePadding(paddingPercent: Int) {
+        defaultSettings.continuousSidePadding = paddingPercent
+        if (defaultSettings.layout != PAGED) {
+            val screenWidth = resources.displayMetrics.widthPixels
+            val sidePad = (screenWidth * (paddingPercent / 100f) / 2f).toInt()
+            if (defaultSettings.direction == TOP_TO_BOTTOM || defaultSettings.direction == BOTTOM_TO_TOP) {
+                binding.mangaReaderRecycler.updatePadding(left = sidePad, right = sidePad)
+            } else {
+                binding.mangaReaderRecycler.updatePadding(top = sidePad, bottom = sidePad)
+            }
+        }
+    }
+
+    fun applyOneHandZoom(enabled: Boolean) {
+        defaultSettings.oneHandZoom = enabled
+        for (i in 0 until binding.mangaReaderRecycler.childCount) {
+            val child = binding.mangaReaderRecycler.getChildAt(i)
+            child.findViewById<SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)?.isQuickScaleEnabled = enabled
+        }
+    }
+
+    fun updatePreloadAmount(amount: Int) {
+        defaultSettings.preloadAmount = amount
+        (binding.mangaReaderRecycler.layoutManager as? PreloadLinearLayoutManager)?.preloadItemCount = amount
+        binding.mangaReaderPager.offscreenPageLimit = amount.coerceAtLeast(1)
     }
 }
