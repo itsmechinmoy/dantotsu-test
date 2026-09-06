@@ -1350,6 +1350,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
 
     <!-- Manga Reader Overhaul & Tabs -->
     <string name="tab_layout">Layout</string>
+    <string name="manga_layouts">Layout</string>
     <string name="tab_navigation">Navigation</string>
     <string name="tab_display">Display</string>
     <string name="tab_data_preload">Data</string>
