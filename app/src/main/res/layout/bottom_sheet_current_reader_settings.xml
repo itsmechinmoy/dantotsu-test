@@ -1,665 +1,1113 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/bottom_sheet_background">
+    android:layout_height="wrap_content"
+    android:background="@drawable/bottom_sheet_background"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
 
+    <!-- Top Drag Handle -->
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/badge_bg_rounded"
+        android:backgroundTint="?attr/colorOutline" />
+
+    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:orientation="vertical"
-        android:paddingBottom="32dp">
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="16dp"
-            android:fontFamily="@font/poppins_semi_bold"
-            android:text="@string/reader_settings"
-            android:textAlignment="center"
-            android:textSize="16sp" />
+        <FrameLayout
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_icon_container">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:alpha="0.58"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/layout" />
-
-                <TextView
-                    android:id="@+id/readerLayoutText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
-                    android:textColor="?attr/colorSecondary"
-                    tools:text="Continuous" />
-            </LinearLayout>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/readerPaged"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:alpha="0.33"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:scaleX="-1"
-                    android:src="@drawable/ic_round_amp_stories_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/readerContinuousPaged"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:alpha="0.33"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:src="@drawable/ic_round_view_array_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck,DuplicateSpeakableTextCheck" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/readerContinuous"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:alpha="0.33"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:src="@drawable/ic_round_view_column_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
-            </androidx.cardview.widget.CardView>
-
-        </LinearLayout>
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_round_menu_book_24"
+                app:tint="?attr/colorPrimary" />
+        </FrameLayout>
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center"
-            android:orientation="horizontal">
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:alpha="0.58"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/direction" />
-
-                <TextView
-                    android:id="@+id/readerDirectionText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
-                    android:textColor="?attr/colorSecondary"
-                    tools:text="Top to Bottom" />
-            </LinearLayout>
-
-            <androidx.cardview.widget.CardView
+            <TextView
+                android:id="@+id/readerSheetTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
+                android:fontFamily="@font/poppins_bold"
+                android:text="@string/reader_settings"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="17sp" />
 
-                <ImageButton
-                    android:id="@+id/readerDirection"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:rotation="0"
-                    android:src="@drawable/ic_round_swipe_up_alt_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
-            </androidx.cardview.widget.CardView>
-
+            <TextView
+                android:id="@+id/readerSheetSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/poppins_semi_bold"
+                android:maxLines="1"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="11sp"
+                tools:text="Continuous" />
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:alpha="0.58"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/dual_page" />
-
-                <TextView
-                    android:id="@+id/readerDualPageText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
-                    android:textColor="?attr/colorSecondary"
-                    tools:ignore="TextContrastCheck"
-                    tools:text="Force" />
-            </LinearLayout>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/readerDualNo"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:alpha="0.33"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:scaleX="-1"
-                    android:src="@drawable/ic_round_close_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/readerDualAuto"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:alpha="0.33"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:src="@drawable/ic_round_screen_rotation_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck,DuplicateSpeakableTextCheck" />
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/nav_bg_inv"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/readerDualForce"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:alpha="0.33"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:src="@drawable/ic_round_menu_book_24"
-                    app:tint="?attr/colorOnBackground"
-                    tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
-            </androidx.cardview.widget.CardView>
-
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="-8dp"
-            android:layout_marginBottom="8dp"
-            android:alpha="0.58"
-            android:fontFamily="@font/poppins_family"
-            android:text="@string/dual_page_info"
-            android:textSize="14sp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerOverscroll"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:drawableStart="@drawable/ic_round_swipe_vertical_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/over_scroll"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerTrueColors"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_high_quality_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/true_colors"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="-8dp"
-            android:layout_marginBottom="8dp"
-            android:alpha="0.58"
-            android:fontFamily="@font/poppins_family"
-            android:text="@string/true_colors_info"
-            android:textSize="14sp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerImageRotation"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:drawableStart="@drawable/ic_round_screen_rotation_alt_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/image_rotation"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerCropBorders"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_auto_awesome_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/crop_borders"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track"
-            tools:ignore="TextContrastCheck" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerPadding"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:drawableStart="@drawable/ic_round_space_bar_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/spaced_pages"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerHideScrollBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_no_scroll_bar"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/hide_scroll_bar"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerHidePageNumbers"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_page_numbering"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/hide_page_numbers"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerHorizontalScrollBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:drawableStart="@drawable/ic_round_straighten_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/horizontal_scroll_bar"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerKeepScreenOn"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_baseline_screen_lock_portrait_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/keep_screen_on"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerVolumeButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_touch_app_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/volume_buttons"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerWrapImage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_fullscreen_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/wrap_images"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="-8dp"
-            android:alpha="0.58"
-            android:fontFamily="@font/poppins_family"
-            android:text="@string/wrap_images_info"
-            android:textSize="14sp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/readerLongClickImage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_touch_app_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/image_long_clicking"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <!-- Data Saver Section -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/data_saver"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:alpha="0.58"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/data_saver_mode" />
-
-                <TextView
-                    android:id="@+id/dataSaverModeText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_semi_bold"
-                    android:text="@string/disabled"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/dataSaverNone"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_margin="8dp"
-                    android:alpha="0.33"
-                    android:background="?selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/disabled"
-                    android:scaleType="centerInside"
-                    android:src="@drawable/ic_round_close_24"
-                    app:tint="?attr/colorPrimary" />
-
-                <ImageButton
-                    android:id="@+id/dataSaverBandwidthHero"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_margin="8dp"
-                    android:alpha="0.33"
-                    android:background="?selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/bandwidth_hero"
-                    android:scaleType="centerInside"
-                    android:src="@drawable/ic_round_refresh_24"
-                    app:tint="?attr/colorPrimary" />
-
-                <ImageButton
-                    android:id="@+id/dataSaverWsrvNl"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_margin="8dp"
-                    android:alpha="0.33"
-                    android:background="?selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/wsrv_nl"
-                    android:scaleType="centerInside"
-                    android:src="@drawable/ic_round_photo_size_select_actual_24"
-                    app:tint="?attr/colorPrimary" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <com.google.android.material.slider.Slider
-            android:id="@+id/dataSaverQualitySlider"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:valueFrom="10"
-            android:valueTo="100"
-            android:stepSize="5"
-            android:value="80" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="-8dp"
-            android:alpha="0.58"
-            android:fontFamily="@font/poppins_family"
-            android:text="@string/data_saver_quality"
-            android:textSize="14sp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/dataSaverIgnoreJpeg"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_photo_size_select_actual_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/data_saver_ignore_jpeg"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/dataSaverIgnoreGif"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:drawableStart="@drawable/ic_round_animation_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/data_saver_ignore_gif"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/dataSaverImageFormat"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:drawableStart="@drawable/ic_round_photo_size_select_actual_24"
-            android:drawablePadding="16dp"
-            android:elegantTextHeight="true"
-            android:fontFamily="@font/poppins_bold"
-            android:minHeight="64dp"
-            android:text="@string/data_saver_image_format_jpeg"
-            android:textAlignment="viewStart"
-            android:textColor="?attr/colorOnBackground"
-            app:cornerRadius="0dp"
-            app:drawableTint="?attr/colorPrimary"
-            app:showText="false"
-            app:thumbTint="@color/button_switch_track" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="-8dp"
-            android:alpha="0.58"
-            android:fontFamily="@font/poppins_family"
-            android:text="@string/data_saver_image_format_info"
-            android:textSize="14sp" />
+        <ImageButton
+            android:id="@+id/closeReaderSheet"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cancel"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_round_close_24"
+            app:tint="?android:attr/textColorSecondary" />
     </LinearLayout>
 
-</androidx.core.widget.NestedScrollView>
+    <!-- Segmented Tab Navigation (4 sections max) -->
+    <LinearLayout
+        android:id="@+id/tabContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/bg_icon_container"
+        android:orientation="horizontal"
+        android:padding="4dp">
+
+        <TextView
+            android:id="@+id/tabLayoutBtn"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@drawable/badge_bg_rounded"
+            android:backgroundTint="?attr/colorPrimaryContainer"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:gravity="center"
+            android:text="@string/tab_layout"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tabNavBtn"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:gravity="center"
+            android:text="@string/tab_navigation"
+            android:textColor="@color/grey_60"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tabDisplayBtn"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:gravity="center"
+            android:text="@string/tab_display"
+            android:textColor="@color/grey_60"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tabDataBtn"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:gravity="center"
+            android:text="@string/tab_data_preload"
+            android:textColor="@color/grey_60"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Scrollable Content Area -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/readerSettingsScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="24dp">
+
+            <!-- ================= TAB 1: LAYOUT ================= -->
+            <LinearLayout
+                android:id="@+id/tabLayoutContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="visible">
+
+                <!-- Layout Modes Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:alpha="0.58"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/layout" />
+
+                        <TextView
+                            android:id="@+id/readerLayoutText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_bold"
+                            android:textColor="?attr/colorSecondary"
+                            tools:text="Continuous" />
+                    </LinearLayout>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerPaged"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:alpha="0.33"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/manga_layouts"
+                            android:scaleX="-1"
+                            android:src="@drawable/ic_round_amp_stories_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerContinuousPaged"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:alpha="0.33"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/manga_layouts"
+                            android:src="@drawable/ic_round_view_array_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerContinuous"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:alpha="0.33"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/manga_layouts"
+                            android:src="@drawable/ic_round_view_column_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
+
+                <!-- Direction Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:alpha="0.58"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/direction" />
+
+                        <TextView
+                            android:id="@+id/readerDirectionText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_bold"
+                            android:textColor="?attr/colorSecondary"
+                            tools:text="Top to Bottom" />
+                    </LinearLayout>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerDirection"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/direction"
+                            android:src="@drawable/ic_round_swipe_up_alt_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
+
+                <!-- Dual Page Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:alpha="0.58"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/dual_page" />
+
+                        <TextView
+                            android:id="@+id/readerDualPageText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_bold"
+                            android:textColor="?attr/colorSecondary"
+                            tools:text="Automatic" />
+                    </LinearLayout>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerDualNo"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:alpha="0.33"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/disabled"
+                            android:src="@drawable/ic_round_close_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerDualAuto"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:alpha="0.33"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/screen_rotation"
+                            android:src="@drawable/ic_round_screen_rotation_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/nav_bg_inv"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp">
+
+                        <ImageButton
+                            android:id="@+id/readerDualForce"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:alpha="0.33"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:contentDescription="@string/dual_page"
+                            android:src="@drawable/ic_round_menu_book_24"
+                            app:tint="?attr/colorOnBackground" />
+                    </androidx.cardview.widget.CardView>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/dual_page_info"
+                    android:textSize="12sp" />
+
+                <!-- Continuous Side Padding Slider -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/continuous_side_padding"
+                        android:textColor="?attr/colorOnBackground" />
+
+                    <TextView
+                        android:id="@+id/readerContinuousPaddingText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="13sp"
+                        tools:text="0%" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/readerContinuousPaddingSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="0"
+                    android:valueFrom="0"
+                    android:valueTo="25" />
+
+                <!-- Padding (Spaced Pages) -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerPadding"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_space_bar_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/spaced_pages"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Crop Borders -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerCropBorders"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_auto_awesome_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/crop_borders"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Wrap Image -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerWrapImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_fullscreen_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/wrap_images"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginBottom="8dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/wrap_images_info"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- ================= TAB 2: NAVIGATION ================= -->
+            <LinearLayout
+                android:id="@+id/tabNavContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <!-- One Hand Zoom (QuickScale) -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerOneHandZoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_touch_app_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/one_hand_zoom"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginBottom="8dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/one_hand_zoom_info"
+                    android:textSize="12sp" />
+
+                <!-- Auto Scroll -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerAutoScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_swipe_vertical_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/auto_scroll"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Auto Scroll Speed Slider -->
+                <LinearLayout
+                    android:id="@+id/readerAutoScrollSpeedLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/auto_scroll_speed"
+                        android:textColor="?attr/colorOnBackground" />
+
+                    <TextView
+                        android:id="@+id/readerAutoScrollSpeedText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="13sp"
+                        tools:text="2x" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/readerAutoScrollSpeedSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="2"
+                    android:valueFrom="1"
+                    android:valueTo="10" />
+
+                <!-- Overscroll -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerOverscroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_swipe_vertical_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/over_scroll"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Volume Buttons -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerVolumeButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_touch_app_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/volume_buttons"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Long Click Image -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerLongClickImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_touch_app_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/image_long_clicking"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+            </LinearLayout>
+
+            <!-- ================= TAB 3: DISPLAY ================= -->
+            <LinearLayout
+                android:id="@+id/tabDisplayContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <!-- High Quality WebGPU / libvips Renderer -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerHighQualityRenderer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_high_quality_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/high_quality_renderer"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginBottom="12dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/high_quality_renderer_info"
+                    android:textSize="12sp" />
+
+                <!-- Background Color Overrides -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="@string/reader_bg_color"
+                    android:textColor="?attr/colorOnBackground" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/readerBgGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerBgAuto"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/reader_bg_auto"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerBgBlack"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/reader_bg_black"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerBgGray"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/reader_bg_gray"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerBgWhite"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/reader_bg_white"
+                        android:textSize="12sp" />
+                </com.google.android.material.chip.ChipGroup>
+
+                <!-- Screen Orientation Lock -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="@string/screen_rotation"
+                    android:textColor="?attr/colorOnBackground" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/readerRotationGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerRotationFree"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/rotation_free"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerRotationPortrait"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/rotation_portrait"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/readerRotationLandscape"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:text="@string/rotation_landscape"
+                        android:textSize="12sp" />
+                </com.google.android.material.chip.ChipGroup>
+
+                <!-- E-Ink Screen Flash -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerEInkFlash"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_refresh_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/e_ink_flash"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginBottom="8dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/e_ink_flash_info"
+                    android:textSize="12sp" />
+
+                <!-- True Colors -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerTrueColors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_high_quality_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/true_colors"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginBottom="8dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/true_colors_info"
+                    android:textSize="12sp" />
+
+                <!-- Image Rotation -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerImageRotation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_screen_rotation_alt_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/image_rotation"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Keep Screen On -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerKeepScreenOn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_baseline_screen_lock_portrait_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/keep_screen_on"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Hide Scroll Bar -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerHideScrollBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_no_scroll_bar"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/hide_scroll_bar"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Hide Page Numbers -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerHidePageNumbers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_page_numbering"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/hide_page_numbers"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Horizontal Scroll Bar -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerHorizontalScrollBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_straighten_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/horizontal_scroll_bar"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+            </LinearLayout>
+
+            <!-- ================= TAB 4: DATA & PRELOAD ================= -->
+            <LinearLayout
+                android:id="@+id/tabDataContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <!-- Preload Slider -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/preload_amount"
+                        android:textColor="?attr/colorOnBackground" />
+
+                    <TextView
+                        android:id="@+id/readerPreloadText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="13sp"
+                        tools:text="4 Pages" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/readerPreloadSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="4"
+                    android:valueFrom="1"
+                    android:valueTo="10" />
+
+                <!-- Always Show Chapter Transition -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/readerAlwaysShowChapterTransition"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_view_column_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/always_show_chapter_transition"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <!-- Data Saver Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="@string/data_saver"
+                    android:textColor="?attr/colorOnBackground" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:alpha="0.58"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/data_saver_mode" />
+
+                        <TextView
+                            android:id="@+id/dataSaverModeText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semi_bold"
+                            android:text="@string/disabled"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/dataSaverNone"
+                            android:layout_width="42dp"
+                            android:layout_height="42dp"
+                            android:layout_margin="4dp"
+                            android:alpha="0.33"
+                            android:background="?selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/disabled"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_round_close_24"
+                            app:tint="?attr/colorPrimary" />
+
+                        <ImageButton
+                            android:id="@+id/dataSaverBandwidthHero"
+                            android:layout_width="42dp"
+                            android:layout_height="42dp"
+                            android:layout_margin="4dp"
+                            android:alpha="0.33"
+                            android:background="?selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/bandwidth_hero"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_round_refresh_24"
+                            app:tint="?attr/colorPrimary" />
+
+                        <ImageButton
+                            android:id="@+id/dataSaverWsrvNl"
+                            android:layout_width="42dp"
+                            android:layout_height="42dp"
+                            android:layout_margin="4dp"
+                            android:alpha="0.33"
+                            android:background="?selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/wsrv_nl"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_round_photo_size_select_actual_24"
+                            app:tint="?attr/colorPrimary" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/dataSaverQualityLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/data_saver_quality"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/dataSaverQualitySlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="5"
+                    android:value="80"
+                    android:valueFrom="10"
+                    android:valueTo="100" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/dataSaverIgnoreJpeg"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_photo_size_select_actual_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/data_saver_ignore_jpeg"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/dataSaverIgnoreGif"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:drawableStart="@drawable/ic_round_animation_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/data_saver_ignore_gif"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/dataSaverImageFormat"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:drawableStart="@drawable/ic_round_photo_size_select_actual_24"
+                    android:drawablePadding="16dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:minHeight="56dp"
+                    android:text="@string/data_saver_image_format_jpeg"
+                    android:textColor="?attr/colorOnBackground"
+                    app:drawableTint="?attr/colorPrimary"
+                    app:thumbTint="@color/button_switch_track" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:alpha="0.58"
+                    android:fontFamily="@font/poppins_family"
+                    android:text="@string/data_saver_image_format_info"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>
