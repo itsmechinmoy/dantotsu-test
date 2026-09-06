@@ -44,9 +44,8 @@ data class ImageData(
                         Logger.log("DataSaver Response: ${response.code} - ${response.message}")
                         if (response.isSuccessful) {
                             bitmap = response.use {
-                                it.body.byteStream().use { inputStream ->
-                                    BitmapFactory.decodeStream(inputStream)
-                                }
+                                val bytes = it.body.bytes()
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                             }
                             if (bitmap != null) {
                                 success = true
@@ -66,9 +65,8 @@ data class ImageData(
                     val response = httpSource.getImage(page)
                     Logger.log("Response: ${response.code} - ${response.message}")
                     bitmap = response.use {
-                        it.body.byteStream().use { inputStream ->
-                            BitmapFactory.decodeStream(inputStream)
-                        }
+                        val bytes = it.body.bytes()
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                     }
                 }
 
@@ -137,6 +135,11 @@ fun saveImage(
 class MangaCache {
     private val maxEntries = 60
     private val cache = LruCache<String, ImageData>(maxEntries)
+    private val bitmapCache = object : LruCache<String, Bitmap>(30) {
+        override fun sizeOf(key: String, value: Bitmap): Int {
+            return (value.byteCount / 1024).coerceAtLeast(1)
+        }
+    }
 
     @Synchronized
     fun put(key: String, imageDate: ImageData) {
@@ -149,11 +152,26 @@ class MangaCache {
     @Synchronized
     fun remove(key: String) {
         cache.remove(key)
+        bitmapCache.remove(key)
     }
 
     @Synchronized
     fun clear() {
         cache.evictAll()
+        bitmapCache.evictAll()
+    }
+
+    @Synchronized
+    fun putBitmap(key: String, bitmap: Bitmap) {
+        bitmapCache.put(key, bitmap)
+    }
+
+    @Synchronized
+    fun getBitmap(key: String): Bitmap? = bitmapCache.get(key)
+
+    @Synchronized
+    fun clearBitmaps() {
+        bitmapCache.evictAll()
     }
 
     fun size(): Int = cache.size()
