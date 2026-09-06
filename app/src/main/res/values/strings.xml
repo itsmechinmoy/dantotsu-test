@@ -1347,4 +1347,36 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="no_watch_order_found">No Watch Order Found</string>
     <string name="read_article">Read Article</string>
     <string name="current">Current</string>
+
+    <!-- Manga Reader Overhaul & Tabs -->
+    <string name="tab_layout">Layout</string>
+    <string name="tab_navigation">Navigation</string>
+    <string name="tab_display">Display</string>
+    <string name="tab_data_preload">Data</string>
+    <string name="one_hand_zoom">One-Hand Zoom</string>
+    <string name="one_hand_zoom_info">Double-tap and hold, then drag up or down to zoom smoothly</string>
+    <string name="auto_scroll">Auto-Scroll</string>
+    <string name="auto_scroll_speed">Auto-Scroll Speed</string>
+    <string name="reader_bg_color">Reader Background</string>
+    <string name="reader_bg_auto">Auto</string>
+    <string name="reader_bg_black">Black</string>
+    <string name="reader_bg_gray">Gray</string>
+    <string name="reader_bg_white">White</string>
+    <string name="screen_rotation">Screen Orientation</string>
+    <string name="rotation_free">Free</string>
+    <string name="rotation_portrait">Portrait</string>
+    <string name="rotation_landscape">Landscape</string>
+    <string name="continuous_side_padding">Continuous Side Padding</string>
+    <string name="e_ink_flash">E-Ink Screen Flash</string>
+    <string name="e_ink_flash_info">Briefly flash screen on page change to eliminate e-ink ghosting</string>
+    <string name="high_quality_renderer">High Quality Renderer (WebGPU &amp; libvips)</string>
+    <string name="high_quality_renderer_info">Hardware-accelerated rendering and libvips native decoding</string>
+    <string name="preload_amount">Page Preload Amount</string>
+    <string name="always_show_chapter_transition">Always Show Chapter Transition</string>
+    <string name="manga_translator">Manga Translator</string>
+    <string name="detected_text">Detected Text</string>
+    <string name="translated_text">Translated Text</string>
+    <string name="copy_translation">Copy Translation</string>
+    <string name="translating_page">Recognizing &amp; translating page text…</string>
+    <string name="no_text_detected">No text detected on page</string>
 </resources>
