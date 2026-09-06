@@ -8,10 +8,19 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 
 class DualPageAdapter(
     activity: MangaReaderActivity,
-    val chapter: MangaChapter
+    chapter: MangaChapter
 ) : ImageAdapter(activity, chapter) {
 
-    private val pages = chapter.dualPages()
+    private val pages = chapter.dualPages().toMutableList()
+
+    override fun appendChapter(nextChap: MangaChapter) {
+        super.appendChapter(nextChap)
+        val newDual = nextChap.dualPages()
+        if (newDual.isEmpty()) return
+        val start = pages.size
+        pages.addAll(newDual)
+        notifyItemRangeInserted(start, newDual.size)
+    }
 
     override suspend fun loadBitmap(position: Int, parent: View): Bitmap? {
         val img1 = pages[position].first
