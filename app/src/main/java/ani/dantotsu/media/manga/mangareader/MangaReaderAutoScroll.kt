@@ -1,7 +1,6 @@
 package ani.dantotsu.media.manga.mangareader
 
-import android.os.Handler
-import android.os.Looper
+import android.view.Choreographer
 import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.settings.CurrentReaderSettings
 
@@ -14,29 +13,39 @@ class MangaReaderAutoScroll {
     private var recyclerView: RecyclerView? = null
     private var direction: CurrentReaderSettings.Directions = CurrentReaderSettings.Directions.TOP_TO_BOTTOM
 
-    private val handler = Handler(Looper.getMainLooper())
+    private var lastFrameTimeNanos: Long = 0L
     private var accumulatedScroll = 0f
 
-    private val scrollRunnable = object : Runnable {
-        override fun run() {
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
             val rv = recyclerView
             if (!isRunning || rv == null) return
 
-            accumulatedScroll += speed
-            val pixelsToScroll = accumulatedScroll.toInt()
+            if (lastFrameTimeNanos != 0L) {
+                val dt = ((frameTimeNanos - lastFrameTimeNanos).coerceAtMost(50_000_000L)) / 1_000_000_000f
+                // Standardize speed relative to 60fps base:
+                // At 60Hz:  dt ~ 0.0166s -> 60 * dt ~ 1.0 -> speed pixels/frame
+                // At 90Hz:  dt ~ 0.0111s -> 60 * dt ~ 0.67 -> smoother micro-steps
+                // At 120Hz: dt ~ 0.0083s -> 60 * dt ~ 0.5 -> 2x smoother micro-steps
+                accumulatedScroll += speed * 60f * dt
+                val pixelsToScroll = accumulatedScroll.toInt()
 
-            if (pixelsToScroll != 0) {
-                accumulatedScroll -= pixelsToScroll
+                if (pixelsToScroll != 0) {
+                    accumulatedScroll -= pixelsToScroll
 
-                when (direction) {
-                    CurrentReaderSettings.Directions.TOP_TO_BOTTOM -> rv.scrollBy(0, pixelsToScroll)
-                    CurrentReaderSettings.Directions.BOTTOM_TO_TOP -> rv.scrollBy(0, -pixelsToScroll)
-                    CurrentReaderSettings.Directions.LEFT_TO_RIGHT -> rv.scrollBy(pixelsToScroll, 0)
-                    CurrentReaderSettings.Directions.RIGHT_TO_LEFT -> rv.scrollBy(-pixelsToScroll, 0)
+                    when (direction) {
+                        CurrentReaderSettings.Directions.TOP_TO_BOTTOM -> rv.scrollBy(0, pixelsToScroll)
+                        CurrentReaderSettings.Directions.BOTTOM_TO_TOP -> rv.scrollBy(0, -pixelsToScroll)
+                        CurrentReaderSettings.Directions.LEFT_TO_RIGHT -> rv.scrollBy(pixelsToScroll, 0)
+                        CurrentReaderSettings.Directions.RIGHT_TO_LEFT -> rv.scrollBy(-pixelsToScroll, 0)
+                    }
                 }
             }
+            lastFrameTimeNanos = frameTimeNanos
 
-            handler.postDelayed(this, 16L)
+            if (isRunning) {
+                Choreographer.getInstance().postFrameCallback(this)
+            }
         }
     }
 
@@ -50,12 +59,14 @@ class MangaReaderAutoScroll {
         if (recyclerView == null) return
         isRunning = true
         accumulatedScroll = 0f
-        handler.post(scrollRunnable)
+        lastFrameTimeNanos = 0L
+        Choreographer.getInstance().postFrameCallback(frameCallback)
     }
 
     fun stop() {
         isRunning = false
-        handler.removeCallbacks(scrollRunnable)
+        lastFrameTimeNanos = 0L
+        Choreographer.getInstance().removeFrameCallback(frameCallback)
     }
 
     fun toggle(): Boolean {
