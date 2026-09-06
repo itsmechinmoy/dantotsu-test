@@ -30,7 +30,17 @@ data class CurrentReaderSettings(
     var dataSaverIgnoreJpeg: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreJpeg),
     var dataSaverIgnoreGif: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreGif),
     var dataSaverServer: String = PrefManager.getVal(PrefName.DataSaverServer),
-    var dataSaverColorBW: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW)
+    var dataSaverColorBW: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW),
+    var oneHandZoom: Boolean = PrefManager.getVal(PrefName.OneHandZoom),
+    var autoScroll: Boolean = PrefManager.getVal(PrefName.AutoScroll),
+    var autoScrollSpeed: Float = PrefManager.getVal(PrefName.AutoScrollSpeed),
+    var backgroundColor: Int = PrefManager.getVal(PrefName.ReaderBackgroundColor),
+    var defaultRotation: Int = PrefManager.getVal(PrefName.DefaultRotation),
+    var continuousSidePadding: Int = PrefManager.getVal(PrefName.ContinuousSidePadding),
+    var eInkFlash: Boolean = PrefManager.getVal(PrefName.EInkFlashPageChange),
+    var highQualityRenderer: Boolean = PrefManager.getVal(PrefName.HighQualityRenderer),
+    var preloadAmount: Int = PrefManager.getVal(PrefName.PagePreloadAmount),
+    var alwaysShowChapterTransition: Boolean = PrefManager.getVal(PrefName.AlwaysShowChapterTransition)
 ) : Serializable {
 
     enum class Directions {
@@ -73,4 +83,3 @@ data class CurrentReaderSettings(
         }
     }
 }
-
