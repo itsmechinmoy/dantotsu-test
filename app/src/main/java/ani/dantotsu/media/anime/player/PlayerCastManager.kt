@@ -33,7 +33,6 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 import java.util.concurrent.Executors
-
 import androidx.mediarouter.media.MediaRouter
 import androidx.mediarouter.media.MediaRouterParams
 import ani.dantotsu.media.anime.cast.CastProxyServer
@@ -312,7 +311,7 @@ class PlayerCastManager(
         episodeTitle: String?
     ) {
         val videoURL = video?.file?.url ?: run {
-            activity.toast(activity.getString(R.string.video_not_ready))
+            toast(activity.getString(R.string.video_not_ready))
             return
         }
         val subtitleUrl = if (!hasExtSubtitles || subtitle == null) video.file.url else subtitle.file.url
