@@ -35,19 +35,47 @@ import java.io.File
 
 abstract class BaseImageAdapter(
     val activity: MangaReaderActivity,
-    chapter: MangaChapter
+    val chapter: MangaChapter
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     val settings = activity.defaultSettings
-    private val chapterImages = chapter.images()
-    var images = chapterImages
+    val chapterImages = chapter.images()
+    var images = chapterImages.toMutableList()
+    val chapterOffsets = mutableListOf(0 to chapter)
+
+    open fun appendChapter(nextChap: MangaChapter) {
+        val newImages = nextChap.images()
+        if (newImages.isEmpty()) return
+        if (chapterOffsets.any { it.second.uniqueNumber() == nextChap.uniqueNumber() }) return
+        val insertStart = images.size
+        chapterOffsets.add(insertStart to nextChap)
+        images.addAll(newImages)
+        notifyItemRangeInserted(insertStart, newImages.size)
+    }
+
+    open fun getChapterForPosition(position: Int): Pair<MangaChapter, Int> {
+        var resultChapter = chapterOffsets.firstOrNull()?.second ?: chapter
+        var localPos = position
+        for (i in chapterOffsets.indices.reversed()) {
+            val (offset, chap) = chapterOffsets[i]
+            if (position >= offset) {
+                resultChapter = chap
+                localPos = position - offset
+                break
+            }
+        }
+        return resultChapter to localPos
+    }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
-        images = if (settings.layout == CurrentReaderSettings.Layouts.PAGED
-            && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP
-        ) {
-            chapterImages.reversed()
-        } else {
-            chapterImages
+        if (images.isEmpty()) {
+            val baseList = if (settings.layout == CurrentReaderSettings.Layouts.PAGED
+                && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP
+            ) {
+                chapterImages.reversed()
+            } else {
+                chapterImages
+            }
+            images = baseList.toMutableList()
         }
         super.onAttachedToRecyclerView(recyclerView)
     }
