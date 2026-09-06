@@ -2,6 +2,7 @@ package ani.dantotsu.media.manga.mangareader
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
@@ -57,6 +58,7 @@ abstract class BaseImageAdapter(
         view.controller.also {
             if (settings.layout == CurrentReaderSettings.Layouts.PAGED) {
                 it.settings.enableGestures()
+                it.settings.isDoubleTapEnabled = settings.oneHandZoom
             }
             it.settings.isRotationEnabled = settings.rotation
         }
@@ -159,6 +161,7 @@ abstract class BaseImageAdapter(
                         }
                         .submit()
                         .get()
+                        ?.let { downsampleIfNeeded(it) }
                 }
             }
         }
@@ -169,6 +172,10 @@ abstract class BaseImageAdapter(
         ): Bitmap? {
             return tryWithSuspend {
                 val mangaCache = uy.kohesive.injekt.Injekt.get<MangaCache>()
+                val cached = mangaCache.getBitmap(link.url)
+                if (cached != null && !cached.isRecycled) {
+                    return@tryWithSuspend cached
+                }
                 withContext(Dispatchers.IO) {
                     Glide.with(this@loadBitmap)
                         .asBitmap()
@@ -204,7 +211,24 @@ abstract class BaseImageAdapter(
                         }
                         ?.submit()
                         ?.get()
+                        ?.let { downsampleIfNeeded(it) }
+                        ?.also { mangaCache.putBitmap(link.url, it) }
                 }
+            }
+        }
+
+        fun downsampleIfNeeded(bitmap: Bitmap): Bitmap {
+            val maxAllowedWidth = (Resources.getSystem().displayMetrics.widthPixels * 2).coerceAtLeast(1080)
+            return if (bitmap.width > maxAllowedWidth) {
+                val scale = maxAllowedWidth.toFloat() / bitmap.width.toFloat()
+                val targetHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
+                val scaled = Bitmap.createScaledBitmap(bitmap, maxAllowedWidth, targetHeight, true)
+                if (scaled != bitmap && !bitmap.isRecycled) {
+                    bitmap.recycle()
+                }
+                scaled
+            } else {
+                bitmap
             }
         }
 
