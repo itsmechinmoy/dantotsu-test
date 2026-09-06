@@ -556,7 +556,7 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_remove"
+                android:src="@drawable/ic_minus"
                 android:contentDescription="Speed Down"
                 app:tint="?attr/colorPrimary" />
         </LinearLayout>
