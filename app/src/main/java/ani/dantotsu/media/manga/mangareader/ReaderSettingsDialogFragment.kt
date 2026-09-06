@@ -1,16 +1,24 @@
 package ani.dantotsu.media.manga.mangareader
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.databinding.BottomSheetCurrentReaderSettingsBinding
+import ani.dantotsu.media.manga.MangaCache
 import ani.dantotsu.settings.CurrentReaderSettings
 import ani.dantotsu.settings.CurrentReaderSettings.Directions
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
+import ani.dantotsu.getThemeColor
+import com.google.android.material.slider.Slider
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
     private var _binding: BottomSheetCurrentReaderSettingsBinding? = null
@@ -30,19 +38,53 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         val activity = requireActivity() as MangaReaderActivity
         val settings = activity.defaultSettings
 
-        binding.readerDirectionText.text =
-            resources.getStringArray(R.array.manga_directions)[settings.direction.ordinal]
-        binding.readerDirection.rotation = 90f * (settings.direction.ordinal)
-        binding.readerDirection.setOnClickListener {
-            settings.direction =
-                Directions[settings.direction.ordinal + 1] ?: Directions.TOP_TO_BOTTOM
-            binding.readerDirectionText.text =
-                resources.getStringArray(R.array.manga_directions)[settings.direction.ordinal]
-            binding.readerDirection.rotation = 90f * (settings.direction.ordinal)
-            activity.applySettings()
+        // Close button
+        binding.closeReaderSheet.setOnClickListener { dismiss() }
+
+        // Subtitle indicator
+        binding.readerSheetSubtitle.text =
+            resources.getStringArray(R.array.manga_layouts)[settings.layout.ordinal]
+
+        // --- SEGMENTED TAB SWITCHING ---
+        val tabButtons = listOf(
+            binding.tabLayoutBtn,
+            binding.tabNavBtn,
+            binding.tabDisplayBtn,
+            binding.tabDataBtn
+        )
+        val tabContents = listOf(
+            binding.tabLayoutContent,
+            binding.tabNavContent,
+            binding.tabDisplayContent,
+            binding.tabDataContent
+        )
+
+        val primaryColor = requireContext().getThemeColor(androidx.appcompat.R.attr.colorPrimary)
+        val containerColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimaryContainer)
+        val unselectedColor = ContextCompat.getColor(requireContext(), R.color.grey_60)
+
+        fun selectTab(selectedIdx: Int) {
+            tabButtons.forEachIndexed { idx, btn ->
+                if (idx == selectedIdx) {
+                    btn.setBackgroundResource(R.drawable.badge_bg_rounded)
+                    btn.backgroundTintList = ColorStateList.valueOf(containerColor)
+                    btn.setTextColor(primaryColor)
+                } else {
+                    btn.setBackgroundColor(Color.TRANSPARENT)
+                    btn.setTextColor(unselectedColor)
+                }
+            }
+            tabContents.forEachIndexed { idx, layout ->
+                layout.visibility = if (idx == selectedIdx) View.VISIBLE else View.GONE
+            }
         }
 
-        val list = listOf(
+        tabButtons.forEachIndexed { idx, btn ->
+            btn.setOnClickListener { selectTab(idx) }
+        }
+
+        // ================= TAB 1: LAYOUT =================
+        val layoutButtons = listOf(
             binding.readerPaged,
             binding.readerContinuousPaged,
             binding.readerContinuous
@@ -53,35 +95,36 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             binding.readerPadding.isEnabled = enable
         }
 
-        binding.readerPadding.isChecked = settings.padding
-        binding.readerPadding.setOnCheckedChangeListener { _, isChecked ->
-            settings.padding = isChecked
-            activity.applySettings()
-        }
-
-        binding.readerCropBorders.isChecked = settings.cropBorders
-        binding.readerCropBorders.setOnCheckedChangeListener { _, isChecked ->
-            settings.cropBorders = isChecked
-            activity.applySettings()
-        }
-
         binding.readerLayoutText.text =
             resources.getStringArray(R.array.manga_layouts)[settings.layout.ordinal]
-        var selected = list[settings.layout.ordinal]
-        selected.alpha = 1f
+        var selectedLayoutBtn = layoutButtons[settings.layout.ordinal]
+        selectedLayoutBtn.alpha = 1f
 
-        list.forEachIndexed { index, imageButton ->
+        layoutButtons.forEachIndexed { index, imageButton ->
             imageButton.setOnClickListener {
-                selected.alpha = 0.33f
-                selected = imageButton
-                selected.alpha = 1f
+                selectedLayoutBtn.alpha = 0.33f
+                selectedLayoutBtn = imageButton
+                selectedLayoutBtn.alpha = 1f
                 settings.layout =
                     CurrentReaderSettings.Layouts[index] ?: CurrentReaderSettings.Layouts.CONTINUOUS
-                binding.readerLayoutText.text =
-                    resources.getStringArray(R.array.manga_layouts)[settings.layout.ordinal]
+                val layoutText = resources.getStringArray(R.array.manga_layouts)[settings.layout.ordinal]
+                binding.readerLayoutText.text = layoutText
+                binding.readerSheetSubtitle.text = layoutText
                 activity.applySettings()
                 paddingAvailable(settings.layout.ordinal != 0)
             }
+        }
+
+        binding.readerDirectionText.text =
+            resources.getStringArray(R.array.manga_directions)[settings.direction.ordinal]
+        binding.readerDirection.rotation = 90f * (settings.direction.ordinal)
+        binding.readerDirection.setOnClickListener {
+            settings.direction =
+                Directions[settings.direction.ordinal + 1] ?: Directions.TOP_TO_BOTTOM
+            binding.readerDirectionText.text =
+                resources.getStringArray(R.array.manga_directions)[settings.direction.ordinal]
+            binding.readerDirection.rotation = 90f * (settings.direction.ordinal)
+            activity.applySettings()
         }
 
         val dualList = listOf(
@@ -105,6 +148,149 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
                 activity.applySettings()
             }
         }
+
+        // Continuous Side Padding Slider
+        binding.readerContinuousPaddingSlider.value = settings.continuousSidePadding.toFloat()
+        binding.readerContinuousPaddingText.text = "${settings.continuousSidePadding}%"
+        binding.readerContinuousPaddingSlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                val paddingVal = value.toInt()
+                settings.continuousSidePadding = paddingVal
+                binding.readerContinuousPaddingText.text = "${paddingVal}%"
+                PrefManager.setVal(PrefName.ContinuousSidePadding, paddingVal)
+                activity.applySidePadding(paddingVal)
+            }
+        }
+
+        binding.readerPadding.isChecked = settings.padding
+        binding.readerPadding.setOnCheckedChangeListener { _, isChecked ->
+            settings.padding = isChecked
+            activity.applySettings()
+        }
+
+        binding.readerCropBorders.isChecked = settings.cropBorders
+        binding.readerCropBorders.setOnCheckedChangeListener { _, isChecked ->
+            settings.cropBorders = isChecked
+            activity.applySettings()
+        }
+
+        binding.readerWrapImage.isChecked = settings.wrapImages
+        binding.readerWrapImage.setOnCheckedChangeListener { _, isChecked ->
+            settings.wrapImages = isChecked
+            activity.applySettings()
+        }
+
+        // ================= TAB 2: NAVIGATION =================
+        binding.readerOneHandZoom.isChecked = settings.oneHandZoom
+        binding.readerOneHandZoom.setOnCheckedChangeListener { _, isChecked ->
+            settings.oneHandZoom = isChecked
+            PrefManager.setVal(PrefName.OneHandZoom, isChecked)
+            activity.applyOneHandZoom(isChecked)
+        }
+
+        binding.readerAutoScroll.isChecked = settings.autoScroll
+        binding.readerAutoScroll.setOnCheckedChangeListener { _, isChecked ->
+            settings.autoScroll = isChecked
+            activity.updateAutoScrollState(isChecked)
+        }
+
+        binding.readerAutoScrollSpeedSlider.value = settings.autoScrollSpeed.toFloat()
+        binding.readerAutoScrollSpeedText.text = "${settings.autoScrollSpeed}x"
+        binding.readerAutoScrollSpeedSlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                settings.autoScrollSpeed = value
+                binding.readerAutoScrollSpeedText.text = "${value.toInt()}x"
+                PrefManager.setVal(PrefName.AutoScrollSpeed, value)
+                activity.updateAutoScrollSpeed(value)
+            }
+        }
+
+        binding.readerOverscroll.isChecked = settings.overScrollMode
+        binding.readerOverscroll.setOnCheckedChangeListener { _, isChecked ->
+            settings.overScrollMode = isChecked
+            activity.applySettings()
+        }
+
+        binding.readerVolumeButton.isChecked = settings.volumeButtons
+        binding.readerVolumeButton.setOnCheckedChangeListener { _, isChecked ->
+            settings.volumeButtons = isChecked
+            activity.applySettings()
+        }
+
+        binding.readerLongClickImage.isChecked = settings.longClickImage
+        binding.readerLongClickImage.setOnCheckedChangeListener { _, isChecked ->
+            settings.longClickImage = isChecked
+            activity.applySettings()
+        }
+
+        // ================= TAB 3: DISPLAY =================
+        binding.readerHighQualityRenderer.isChecked = settings.highQualityRenderer
+        binding.readerHighQualityRenderer.setOnCheckedChangeListener { _, isChecked ->
+            settings.highQualityRenderer = isChecked
+            PrefManager.setVal(PrefName.HighQualityRenderer, isChecked)
+            activity.applySettings()
+        }
+
+        // Background Color Chips (0: Auto, 1: Black, 2: Gray, 3: White)
+        when (settings.backgroundColor) {
+            0 -> binding.readerBgAuto.isChecked = true
+            1 -> binding.readerBgBlack.isChecked = true
+            2 -> binding.readerBgGray.isChecked = true
+            3 -> binding.readerBgWhite.isChecked = true
+            else -> binding.readerBgAuto.isChecked = true
+        }
+
+        binding.readerBgAuto.setOnClickListener {
+            settings.backgroundColor = 0
+            PrefManager.setVal(PrefName.ReaderBackgroundColor, 0)
+            activity.applyBackgroundColor(0)
+        }
+        binding.readerBgBlack.setOnClickListener {
+            settings.backgroundColor = 1
+            PrefManager.setVal(PrefName.ReaderBackgroundColor, 1)
+            activity.applyBackgroundColor(1)
+        }
+        binding.readerBgGray.setOnClickListener {
+            settings.backgroundColor = 2
+            PrefManager.setVal(PrefName.ReaderBackgroundColor, 2)
+            activity.applyBackgroundColor(2)
+        }
+        binding.readerBgWhite.setOnClickListener {
+            settings.backgroundColor = 3
+            PrefManager.setVal(PrefName.ReaderBackgroundColor, 3)
+            activity.applyBackgroundColor(3)
+        }
+
+        // Orientation Lock Chips (0: Free, 1: Portrait, 2: Landscape)
+        when (settings.defaultRotation) {
+            0 -> binding.readerRotationFree.isChecked = true
+            1 -> binding.readerRotationPortrait.isChecked = true
+            2 -> binding.readerRotationLandscape.isChecked = true
+            else -> binding.readerRotationFree.isChecked = true
+        }
+
+        binding.readerRotationFree.setOnClickListener {
+            settings.defaultRotation = 0
+            PrefManager.setVal(PrefName.DefaultRotation, 0)
+            activity.applyOrientationLock(0)
+        }
+        binding.readerRotationPortrait.setOnClickListener {
+            settings.defaultRotation = 1
+            PrefManager.setVal(PrefName.DefaultRotation, 1)
+            activity.applyOrientationLock(1)
+        }
+        binding.readerRotationLandscape.setOnClickListener {
+            settings.defaultRotation = 2
+            PrefManager.setVal(PrefName.DefaultRotation, 2)
+            activity.applyOrientationLock(2)
+        }
+
+        binding.readerEInkFlash.isChecked = settings.eInkFlash
+        binding.readerEInkFlash.setOnCheckedChangeListener { _, isChecked ->
+            settings.eInkFlash = isChecked
+            PrefManager.setVal(PrefName.EInkFlashPageChange, isChecked)
+        }
+
         binding.readerTrueColors.isChecked = settings.trueColors
         binding.readerTrueColors.setOnCheckedChangeListener { _, isChecked ->
             settings.trueColors = isChecked
@@ -114,12 +300,6 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         binding.readerImageRotation.isChecked = settings.rotation
         binding.readerImageRotation.setOnCheckedChangeListener { _, isChecked ->
             settings.rotation = isChecked
-            activity.applySettings()
-        }
-
-        binding.readerHorizontalScrollBar.isChecked = settings.horizontalScrollBar
-        binding.readerHorizontalScrollBar.setOnCheckedChangeListener { _, isChecked ->
-            settings.horizontalScrollBar = isChecked
             activity.applySettings()
         }
 
@@ -141,52 +321,51 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             activity.applySettings()
         }
 
-        binding.readerOverscroll.isChecked = settings.overScrollMode
-        binding.readerOverscroll.setOnCheckedChangeListener { _, isChecked ->
-            settings.overScrollMode = isChecked
+        binding.readerHorizontalScrollBar.isChecked = settings.horizontalScrollBar
+        binding.readerHorizontalScrollBar.setOnCheckedChangeListener { _, isChecked ->
+            settings.horizontalScrollBar = isChecked
             activity.applySettings()
         }
 
-        binding.readerVolumeButton.isChecked = settings.volumeButtons
-        binding.readerVolumeButton.setOnCheckedChangeListener { _, isChecked ->
-            settings.volumeButtons = isChecked
-            activity.applySettings()
+        // ================= TAB 4: DATA & PRELOAD =================
+        binding.readerPreloadSlider.value = settings.preloadAmount.toFloat()
+        binding.readerPreloadText.text = "${settings.preloadAmount} Pages"
+        binding.readerPreloadSlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                val amount = value.toInt()
+                settings.preloadAmount = amount
+                binding.readerPreloadText.text = "${amount} Pages"
+                PrefManager.setVal(PrefName.PagePreloadAmount, amount)
+                activity.updatePreloadAmount(amount)
+            }
         }
 
-        binding.readerWrapImage.isChecked = settings.wrapImages
-        binding.readerWrapImage.setOnCheckedChangeListener { _, isChecked ->
-            settings.wrapImages = isChecked
-            activity.applySettings()
+        binding.readerAlwaysShowChapterTransition.isChecked = settings.alwaysShowChapterTransition
+        binding.readerAlwaysShowChapterTransition.setOnCheckedChangeListener { _, isChecked ->
+            settings.alwaysShowChapterTransition = isChecked
+            PrefManager.setVal(PrefName.AlwaysShowChapterTransition, isChecked)
         }
 
-        binding.readerLongClickImage.isChecked = settings.longClickImage
-        binding.readerLongClickImage.setOnCheckedChangeListener { _, isChecked ->
-            settings.longClickImage = isChecked
-            activity.applySettings()
-        }
-
-        // Data Saver Settings
+        // Data Saver Modes
         val dataSaverModes = listOf(
             binding.dataSaverNone,
             binding.dataSaverBandwidthHero,
             binding.dataSaverWsrvNl
         )
-        
         val dataSaverModeNames = arrayOf(
             getString(R.string.disabled),
             getString(R.string.bandwidth_hero),
             getString(R.string.wsrv_nl)
         )
-        
-        // Set initial state
+
         binding.dataSaverModeText.text = dataSaverModeNames[settings.dataSaverMode]
         dataSaverModes[settings.dataSaverMode].alpha = 1f
-        
+
         binding.dataSaverQualitySlider.value = settings.dataSaverImageQuality.toFloat()
         binding.dataSaverIgnoreJpeg.isChecked = settings.dataSaverIgnoreJpeg
         binding.dataSaverIgnoreGif.isChecked = settings.dataSaverIgnoreGif
         binding.dataSaverImageFormat.isChecked = settings.dataSaverImageFormatJpeg
-        
+
         dataSaverModes.forEachIndexed { index, button ->
             button.setOnClickListener {
                 dataSaverModes.forEach { it.alpha = 0.33f }
@@ -194,31 +373,47 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
                 settings.dataSaverMode = index
                 binding.dataSaverModeText.text = dataSaverModeNames[index]
                 PrefManager.setVal(PrefName.DataSaverMode, index)
+                try { Injekt.get<MangaCache>().clearBitmaps() } catch (_: Exception) {}
                 activity.applySettings()
             }
         }
-        
-        binding.dataSaverQualitySlider.addOnChangeListener { _, value, _ ->
-            settings.dataSaverImageQuality = value.toInt()
-            PrefManager.setVal(PrefName.DataSaverImageQuality, value.toInt())
-            activity.applySettings()
+
+        binding.dataSaverQualitySlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                binding.dataSaverQualityLabel.text = "${getString(R.string.data_saver_quality)} (${value.toInt()}%)"
+            }
         }
-        
+
+        binding.dataSaverQualitySlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: Slider) {}
+            override fun onStopTrackingTouch(slider: Slider) {
+                val q = slider.value.toInt()
+                settings.dataSaverImageQuality = q
+                PrefManager.setVal(PrefName.DataSaverImageQuality, q)
+                binding.dataSaverQualityLabel.text = "${getString(R.string.data_saver_quality)} ($q%)"
+                try { Injekt.get<MangaCache>().clearBitmaps() } catch (_: Exception) {}
+                activity.applySettings()
+            }
+        })
+
         binding.dataSaverIgnoreJpeg.setOnCheckedChangeListener { _, isChecked ->
             settings.dataSaverIgnoreJpeg = isChecked
             PrefManager.setVal(PrefName.DataSaverIgnoreJpeg, isChecked)
+            try { Injekt.get<MangaCache>().clearBitmaps() } catch (_: Exception) {}
             activity.applySettings()
         }
-        
+
         binding.dataSaverIgnoreGif.setOnCheckedChangeListener { _, isChecked ->
             settings.dataSaverIgnoreGif = isChecked
             PrefManager.setVal(PrefName.DataSaverIgnoreGif, isChecked)
+            try { Injekt.get<MangaCache>().clearBitmaps() } catch (_: Exception) {}
             activity.applySettings()
         }
-        
+
         binding.dataSaverImageFormat.setOnCheckedChangeListener { _, isChecked ->
             settings.dataSaverImageFormatJpeg = isChecked
             PrefManager.setVal(PrefName.DataSaverImageFormatJpeg, isChecked)
+            try { Injekt.get<MangaCache>().clearBitmaps() } catch (_: Exception) {}
             activity.applySettings()
         }
     }
