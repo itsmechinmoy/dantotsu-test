@@ -118,19 +118,41 @@ class DantotsuPlayerManager(
             headers.putAll(it)
         }
         if (isLocalhost) {
-            headers["Accept-Encoding"] = "identity"
+            headers.remove("Accept-Encoding")
+            headers.remove("accept-encoding")
         }
 
         val httpClient = client.newBuilder().apply {
             connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
-            addInterceptor { chain ->
+            // Strip Accept-Encoding on the wire for localhost/127.0.0.1 NanoHTTPD server.
+            // When NanoHTTPD forwards requests upstream to CDNs (like imgnex/megaplay),
+            // having NO Accept-Encoding header allows NanoHTTPD's internal OkHttpClient
+            // to enable transparentGzip = true, which automatically decompresses
+            // gzipped M3U8 playlists. If Accept-Encoding is sent (even "identity" or "gzip"),
+            // transparentGzip is disabled in NanoHTTPD and it returns mangled binary gzip
+            // which causes ExoPlayer ParserException: Input does not start with #EXTM3U.
+            addNetworkInterceptor { chain ->
                 val request = chain.request()
-                val isLocal = request.url.host == "127.0.0.1" || request.url.host == "localhost"
+                val host = request.url.host
+                val isLocal = host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
                 val newRequest = if (isLocal) {
                     request.newBuilder()
-                        .header("Accept-Encoding", "identity")
+                        .removeHeader("Accept-Encoding")
+                        .build()
+                } else {
+                    request
+                }
+                chain.proceed(newRequest)
+            }
+            addInterceptor { chain ->
+                val request = chain.request()
+                val host = request.url.host
+                val isLocal = host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
+                val newRequest = if (isLocal) {
+                    request.newBuilder()
+                        .removeHeader("Accept-Encoding")
                         .build()
                 } else {
                     request
