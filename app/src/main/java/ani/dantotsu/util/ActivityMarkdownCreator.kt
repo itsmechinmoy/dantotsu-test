@@ -119,7 +119,7 @@ class ActivityMarkdownCreator : AppCompatActivity() {
                 text = it.toString()
             }
             if (type == "review") {
-                binding.reviewBodyCountText.text = getString(R.string.review_body_counter, it?.length ?: 0)
+                binding.reviewBodyCountText.text = "Review body: ${it?.length ?: 0} / 2200 min characters"
             }
         }
 
@@ -142,7 +142,7 @@ class ActivityMarkdownCreator : AppCompatActivity() {
                 if (initialSummary.isNotEmpty()) binding.reviewSummaryEditText.setText(initialSummary)
                 if (initialScore > 0) binding.reviewScoreEditText.setText(initialScore.toString())
                 binding.privateCheckbox.isChecked = private
-                binding.reviewBodyCountText.text = getString(R.string.review_body_counter, text.length)
+                binding.reviewBodyCountText.text = "Review body: ${text.length} / 2200 min characters"
             }
 
             "thread" -> {
