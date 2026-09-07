@@ -132,6 +132,10 @@ kotlin {
     }
 }
 
+configurations.all {
+    exclude(group = "org.json", module = "json")
+}
+
 dependencies {
     // ffmpeg-kit (must precede media3 so complete native binaries with av_log_default_callback are chosen by pickFirsts)
     implementation(libs.ffmpeg.kit)
@@ -174,6 +178,10 @@ dependencies {
     implementation(libs.kenburns)
     implementation(libs.subsampling)
     implementation(libs.gesture)
+    implementation(libs.webgpuviewer)
+    implementation(libs.image.decoder)
+    implementation(libs.mlkit.text.japanese)
+    implementation(libs.mlkit.text)
     implementation(libs.ebook)
     implementation(libs.dialogs)
     implementation(libs.charts)
