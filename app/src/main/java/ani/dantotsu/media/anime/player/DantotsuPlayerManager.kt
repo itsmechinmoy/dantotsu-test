@@ -44,7 +44,9 @@ import ani.dantotsu.util.Logger
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.peerless2012.ass.media.kt.withAssSupport
 import okhttp3.OkHttpClient
+import java.io.ByteArrayInputStream
 import java.util.Calendar
+import java.util.zip.GZIPInputStream
 
 @UnstableApi
 class DantotsuPlayerManager(
@@ -105,16 +107,82 @@ class DantotsuPlayerManager(
         mediaMetadata: MediaMetadata? = null,
         audioTracks: List<eu.kanade.tachiyomi.animesource.model.Track> = emptyList()
     ): Pair<MediaSource, MediaItem> {
+        val isLocalhost = runCatching {
+            val host = video.file.url.toUri().host
+            host == "127.0.0.1" || host == "localhost"
+        }.getOrDefault(false)
+
         val headers = mutableMapOf<String, String>()
         headers.putAll(defaultHeaders)
         video.file.headers?.let {
             headers.putAll(it)
+        }
+        if (isLocalhost) {
+            headers["Accept-Encoding"] = "identity"
         }
 
         val httpClient = client.newBuilder().apply {
             connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            addInterceptor { chain ->
+                val request = chain.request()
+                val isLocal = request.url.host == "127.0.0.1" || request.url.host == "localhost"
+                val newRequest = if (isLocal) {
+                    request.newBuilder()
+                        .header("Accept-Encoding", "identity")
+                        .build()
+                } else {
+                    request
+                }
+                val response = chain.proceed(newRequest)
+                if (isLocal && response.isSuccessful) {
+                    val isM3u8 = request.url.encodedPath.contains("m3u8") ||
+                        request.url.query?.contains(".m3u8") == true ||
+                        response.header("Content-Type")?.contains("mpegurl", ignoreCase = true) == true
+                    val hasGzipEncoding = response.header("Content-Encoding")?.equals("gzip", ignoreCase = true) == true
+
+                    val body = response.body
+                    if (body != null && (isM3u8 || hasGzipEncoding)) {
+                        val rawBytes = body.bytes()
+                        val isGzip = (rawBytes.size >= 2 && rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()) || hasGzipEncoding
+                        val decompressedBytes = if (isGzip) {
+                            try {
+                                GZIPInputStream(ByteArrayInputStream(rawBytes)).use { it.readBytes() }
+                            } catch (_: Exception) {
+                                rawBytes
+                            }
+                        } else {
+                            rawBytes
+                        }
+
+                        val finalBytes = if (isM3u8) {
+                            var text = decompressedBytes.toString(Charsets.UTF_8)
+                            if (text.startsWith("\uFEFF")) {
+                                text = text.substring(1)
+                            }
+                            text.trimStart().toByteArray(Charsets.UTF_8)
+                        } else {
+                            decompressedBytes
+                        }
+
+                        val strippedHeaders = response.headers.newBuilder()
+                            .removeAll("Content-Encoding")
+                            .removeAll("Content-Length")
+                            .build()
+
+                        val newBody = okhttp3.ResponseBody.create(body.contentType(), finalBytes)
+                        response.newBuilder()
+                            .headers(strippedHeaders)
+                            .body(newBody)
+                            .build()
+                    } else {
+                        response
+                    }
+                } else {
+                    response
+                }
+            }
         }.build()
         val httpDataSourceFactory = OkHttpDataSource.Factory(httpClient).apply {
             setDefaultRequestProperties(headers)
