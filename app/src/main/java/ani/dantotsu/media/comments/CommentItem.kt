@@ -68,7 +68,7 @@ class CommentItem(
         adapter.add(repliesSection)
     }
 
-    fun setRepliesVisible(visible: Boolean) {
+    fun updateRepliesVisibility(visible: Boolean) {
         repliesVisible = visible
         if (::binding.isInitialized) {
             if ((comment.replyCount ?: 0) > 0 || repliesVisible) {
