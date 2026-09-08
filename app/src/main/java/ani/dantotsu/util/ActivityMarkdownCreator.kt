@@ -130,6 +130,10 @@ class ActivityMarkdownCreator : AppCompatActivity() {
                 return
             }
 
+            "activity" -> {
+                binding.privateCheckbox.visibility = ViewGroup.GONE
+            }
+
             "message" -> {
                 if (editId == -1) {
                     binding.privateCheckbox.visibility = ViewGroup.VISIBLE
