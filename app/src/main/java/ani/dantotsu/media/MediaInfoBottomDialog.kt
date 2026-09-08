@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.databinding.BottomSheetRecyclerBinding
-import ani.dantotsu.databinding.ItemMediaInfoCardBinding
+import ani.dantotsu.databinding.ItemMediaContentBinding
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -68,11 +68,11 @@ class MediaInfoBottomDialog : BottomSheetDialogFragment() {
         private val items: List<MediaDetailsViewModel.WatchOrderItem>
     ) : RecyclerView.Adapter<WatchOrderAdapter.ViewHolder>() {
 
-        inner class ViewHolder(val binding: ItemMediaInfoCardBinding) :
+        inner class ViewHolder(val binding: ItemMediaContentBinding) :
             RecyclerView.ViewHolder(binding.root)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val itemBinding = ItemMediaInfoCardBinding.inflate(
+            val itemBinding = ItemMediaContentBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false
             )
             return ViewHolder(itemBinding)
@@ -81,11 +81,11 @@ class MediaInfoBottomDialog : BottomSheetDialogFragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
             holder.binding.apply {
-                cardIcon.setImageResource(R.drawable.ic_round_movie_filter_24)
-                cardTitle.text = item.name
-                cardSubtitle.text = item.relationType.ifBlank { "Anime" }
+                contentIcon.setImageResource(R.drawable.ic_round_movie_filter_24)
+                contentTitle.text = item.name
+                contentSubtitle.text = item.relationType.ifBlank { "Anime" }
 
-                cardContainer.setOnClickListener {
+                contentCard.setOnClickListener {
                     val anilistId = item.anilistId.toIntOrNull()
                     if (anilistId != null && anilistId > 0) {
                         val intent = Intent(context, MediaDetailsActivity::class.java).apply {
@@ -107,11 +107,11 @@ class MediaInfoBottomDialog : BottomSheetDialogFragment() {
 
         private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
-        inner class ViewHolder(val binding: ItemMediaInfoCardBinding) :
+        inner class ViewHolder(val binding: ItemMediaContentBinding) :
             RecyclerView.ViewHolder(binding.root)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val itemBinding = ItemMediaInfoCardBinding.inflate(
+            val itemBinding = ItemMediaContentBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false
             )
             return ViewHolder(itemBinding)
@@ -120,12 +120,12 @@ class MediaInfoBottomDialog : BottomSheetDialogFragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
             holder.binding.apply {
-                cardIcon.setImageResource(R.drawable.ic_round_menu_book_24)
-                cardTitle.text = item.title
+                contentIcon.setImageResource(R.drawable.ic_round_menu_book_24)
+                contentTitle.text = item.title
                 val dateStr = item.date?.let { dateFormat.format(it) } ?: ""
-                cardSubtitle.text = if (dateStr.isNotEmpty()) "$dateStr � ${holder.itemView.context.getString(R.string.read_article)}" else holder.itemView.context.getString(R.string.read_article)
+                contentSubtitle.text = if (dateStr.isNotEmpty()) "$dateStr • ${holder.itemView.context.getString(R.string.read_article)}" else holder.itemView.context.getString(R.string.read_article)
 
-                cardContainer.setOnClickListener {
+                contentCard.setOnClickListener {
                     if (item.url.isNotBlank()) {
                         val uri = Uri.parse(item.url)
                         val intent = Intent(Intent.ACTION_VIEW, uri)
