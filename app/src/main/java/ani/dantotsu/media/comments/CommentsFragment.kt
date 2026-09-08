@@ -855,7 +855,7 @@ class CommentsFragment : Fragment() {
                         0
                     )
                     if (threadList.size > 1) {
-                        rootItem.setRepliesVisible(true)
+                        rootItem.updateRepliesVisibility(true)
                     }
                     section.add(rootItem)
                     currentParentItem = rootItem
@@ -878,7 +878,7 @@ class CommentsFragment : Fragment() {
                     )
                     // Expand this child's replies if there are subsequent replies in the chain leading to targetComment
                     if (index < threadList.size - 1) {
-                        childItem.setRepliesVisible(true)
+                        childItem.updateRepliesVisibility(true)
                     }
                     targetSection.add(childItem)
                     currentParentItem = childItem
