@@ -12,7 +12,7 @@ if (gradle.startParameter.taskNames.any { it.contains("google", true) }) {
 
 val baseVersion = "3.2.2"
 
-fun getGitCommitHash(): String {
+fun computeGitCommitHash(): String {
     val envHash = System.getenv("COMMIT_HASH") ?: System.getenv("GITHUB_SHA")
     if (!envHash.isNullOrBlank()) {
         return envHash.take(7)
@@ -32,7 +32,7 @@ fun getGitCommitHash(): String {
     }
 }
 
-val gitCommitHash = getGitCommitHash()
+val gitCommitHash = computeGitCommitHash()
 
 android {
     namespace = "ani.dantotsu"
