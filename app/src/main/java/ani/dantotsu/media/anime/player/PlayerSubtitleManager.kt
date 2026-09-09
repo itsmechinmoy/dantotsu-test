@@ -41,6 +41,7 @@ import ani.dantotsu.connections.subtitles.WyzieSub
 import ani.dantotsu.defaultHeaders
 import ani.dantotsu.media.Media
 import ani.dantotsu.media.MediaDetailsViewModel
+import ani.dantotsu.media.anime.EpisodeSubtitleStore
 import ani.dantotsu.media.anime.ExoplayerView
 import ani.dantotsu.others.LanguageMapper
 import ani.dantotsu.others.Xubtitle
@@ -623,7 +624,7 @@ class PlayerSubtitleManager(
         }
     }
 
-    fun clearOnlineSubtitle(mediaId: Int? = null) {
+    fun clearOnlineSubtitle(mediaId: Int? = null, clearPersistedForEp: String? = null) {
         currentActiveSubFile = null
         currentActiveSubRawContent = null
         activeSubtitleDisplayName = null
@@ -636,6 +637,9 @@ class PlayerSubtitleManager(
             if (savedLang?.startsWith("Online:") == true) {
                 PrefManager.setCustomVal("subLang_$mediaId", null)
             }
+            if (clearPersistedForEp != null) {
+                EpisodeSubtitleStore.clearSavedSubtitle(activity, mediaId, clearPersistedForEp)
+            }
         }
         try {
             activity.cacheDir.listFiles()?.forEach { file ->
@@ -646,6 +650,29 @@ class PlayerSubtitleManager(
         } catch (e: Exception) {
             Log.e("PlayerSubtitleManager", "clearOnlineSubtitle error: ${e.message}")
         }
+    }
+
+    fun restoreSavedOnlineSubtitle(mediaId: Int, episodeNumber: String): Boolean {
+        val saved = EpisodeSubtitleStore.getSavedSubtitle(mediaId, episodeNumber) ?: return false
+        val savedFilePath = saved.filePath
+        if (savedFilePath != null) {
+            val file = java.io.File(savedFilePath)
+            if (file.exists() && file.length() > 0) {
+                val mimeType = when {
+                    file.name.endsWith(".vtt", ignoreCase = true) -> MimeTypes.TEXT_VTT
+                    file.name.endsWith(".ass", ignoreCase = true) || file.name.endsWith(".ssa", ignoreCase = true) -> MimeTypes.TEXT_SSA
+                    file.name.endsWith(".ttml", ignoreCase = true) -> MimeTypes.APPLICATION_TTML
+                    else -> MimeTypes.APPLICATION_SUBRIP
+                }
+                applySubtitleFromFile(file, saved.language, mimeType, saved.displayName, saved.id, saved.provider)
+                return true
+            }
+        }
+        if (!saved.url.isNullOrBlank()) {
+            applyOnlineSubtitleUrl(saved.url, saved.id, saved.language, saved.displayName, saved.provider)
+            return true
+        }
+        return false
     }
 
     fun clearTransientSubtitleCache(episodeId: String, mediaId: Int? = null) {
@@ -836,6 +863,21 @@ class PlayerSubtitleManager(
 
         val exoActivity = activity as? ExoplayerView
         if (exoActivity != null) {
+            val epNum = runCatching { exoActivity.episode.number }.getOrNull()
+            if (epNum != null) {
+                EpisodeSubtitleStore.saveSubtitle(
+                    context = exoActivity,
+                    mediaId = ExoplayerView.media.id,
+                    episodeNumber = epNum,
+                    sub = EpisodeSubtitleStore.SavedEpisodeSubtitle(
+                        id = id,
+                        displayName = displayName,
+                        provider = provider,
+                        language = lang
+                    ),
+                    sourceFile = file
+                )
+            }
             exoActivity.playerManager.applyUpdatedSubtitles(existingSubtitles, currentPos)
         } else {
             val newMediaItem = currentMediaItem.buildUpon()
