@@ -623,7 +623,33 @@ class PlayerSubtitleManager(
         }
     }
 
-    fun clearTransientSubtitleCache(episodeId: String) {
+    fun clearOnlineSubtitle(mediaId: Int? = null) {
+        currentActiveSubFile = null
+        currentActiveSubRawContent = null
+        activeSubtitleDisplayName = null
+        activeSubtitleId = null
+        pendingTrackId = null
+        pendingSubtitleLabel = null
+        serverSubJob?.cancel()
+        if (mediaId != null) {
+            val savedLang: String? = PrefManager.getNullableCustomVal("subLang_$mediaId", null, String::class.java)
+            if (savedLang?.startsWith("Online:") == true) {
+                PrefManager.setCustomVal("subLang_$mediaId", null)
+            }
+        }
+        try {
+            activity.cacheDir.listFiles()?.forEach { file ->
+                if (file.name.startsWith("online_subtitle_") || file.name.startsWith("shifted_")) {
+                    file.delete()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PlayerSubtitleManager", "clearOnlineSubtitle error: ${e.message}")
+        }
+    }
+
+    fun clearTransientSubtitleCache(episodeId: String, mediaId: Int? = null) {
+        clearOnlineSubtitle(mediaId)
         model.clearFetchedSubtitles(episodeId)
         model.clearLocalSubtitles(episodeId)
         try {
