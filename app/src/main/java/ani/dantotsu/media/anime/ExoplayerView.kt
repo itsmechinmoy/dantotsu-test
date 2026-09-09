@@ -895,7 +895,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                         PrefManager.setCustomVal("${media.id}_${cleanEp}", p.currentPosition)
                     }
                 }
-                subtitleManager.clearTransientSubtitleCache("${media.id}-$prevEpKey")
+                subtitleManager.clearTransientSubtitleCache("${media.id}-$prevEpKey", media.id)
             }
             playerManager.exoPlayer?.pause()
             aniSkipManager.resetForNewEpisode()
@@ -937,7 +937,11 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             "Turkish", "Ukrainian", "Urdu", "Vietnamese"
         )
         val lang = subLanguages.getOrNull(PrefManager.getVal<Int>(PrefName.SubLanguage)) ?: "English"
-        val savedSubLang: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
+        var savedSubLang: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
+        if (savedSubLang?.startsWith("Online:") == true) {
+            PrefManager.setCustomVal("subLang_${media.id}", null)
+            savedSubLang = null
+        }
         subtitle = intent.getSerialized("subtitle")
             ?: when {
                 savedSubLang == null -> when (episode.selectedSubtitle) {
@@ -1835,7 +1839,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             if (playerManager.isInitialized) {
                 progressManager.updateAniProgress()
                 val episodeId = "${media.id}-${media.anime?.selectedEpisode ?: ""}"
-                subtitleManager.clearTransientSubtitleCache(episodeId)
+                subtitleManager.clearTransientSubtitleCache(episodeId, media.id)
                 releasePlayer()
             } else {
                 playerView.player = null
