@@ -85,6 +85,7 @@ import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.tryWith
 import ani.dantotsu.util.customAlertDialog
 import com.alexvasilkov.gestures.views.GestureFrameLayout
+import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
@@ -170,6 +171,27 @@ class MangaReaderActivity : AppCompatActivity() {
         mangaCache.clear()
         RPCManager.clearPresence(this)
         ani.dantotsu.widgets.continue_widget.ContinueWidget.updateReadingState(this, null, null, null, isExiting = true)
+        if (::binding.isInitialized) {
+            try {
+                for (i in 0 until binding.mangaReaderRecycler.childCount) {
+                    val child = binding.mangaReaderRecycler.getChildAt(i)
+                    val subsamplingView = child.findViewById<SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
+                    subsamplingView?.recycle()
+                    val oldBitmap = child.getTag(R.id.imgProgImageNoGestures) as? Bitmap
+                    child.setTag(R.id.imgProgImageNoGestures, null)
+                    if (oldBitmap != null && !oldBitmap.isRecycled) {
+                        oldBitmap.recycle()
+                    }
+                }
+                binding.mangaReaderRecycler.adapter = null
+                binding.mangaReaderRecycler.recycledViewPool.clear()
+                binding.mangaReaderPager.adapter = null
+            } catch (_: Exception) {}
+        }
+        imageAdapter = null
+        try {
+            Glide.get(this).clearMemory()
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 
