@@ -10,6 +10,7 @@ import com.lagradost.nicehttp.Requests
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.tachiyomi.network.interceptor.AnilistInterceptor
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
@@ -80,6 +81,7 @@ private fun setupSocks5Proxy() {
             )
             .addInterceptor(UncaughtExceptionInterceptor())
             .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
+            .addInterceptor(AnilistInterceptor())
 
         class ConsoleLogger : HttpLoggingInterceptor.Logger {
             override fun log(message: String) {
