@@ -37,6 +37,10 @@ data class ImageData(
                 var bitmap: Bitmap? = null
                 var success = false
 
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                }
+
                 if (compressedUrl != originalUrl) {
                     try {
                         page.imageUrl = compressedUrl
@@ -45,7 +49,7 @@ data class ImageData(
                         if (response.isSuccessful) {
                             bitmap = response.use {
                                 it.body.byteStream().use { inputStream ->
-                                    BitmapFactory.decodeStream(inputStream)
+                                    BitmapFactory.decodeStream(inputStream, null, decodeOptions)
                                 }
                             }
                             if (bitmap != null) {
@@ -67,7 +71,7 @@ data class ImageData(
                     Logger.log("Response: ${response.code} - ${response.message}")
                     bitmap = response.use {
                         it.body.byteStream().use { inputStream ->
-                            BitmapFactory.decodeStream(inputStream)
+                            BitmapFactory.decodeStream(inputStream, null, decodeOptions)
                         }
                     }
                 }
@@ -135,7 +139,7 @@ fun saveImage(
 }
 
 class MangaCache {
-    private val maxEntries = 60
+    private val maxEntries = 500
     private val cache = LruCache<String, ImageData>(maxEntries)
 
     @Synchronized
