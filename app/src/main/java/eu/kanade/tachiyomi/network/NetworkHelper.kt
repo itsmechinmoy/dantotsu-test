@@ -89,7 +89,14 @@ private fun setupSocks5Proxy() {
                     path.endsWith(".mkv") ||
                     path.contains("/segment") ||
                     request.header("Range") != null
-                if (isMediaSegment) {
+                val isNoStore = isMediaSegment ||
+                    path.endsWith(".jpg") ||
+                    path.endsWith(".jpeg") ||
+                    path.endsWith(".png") ||
+                    path.endsWith(".webp") ||
+                    path.endsWith(".avif") ||
+                    path.endsWith(".gif")
+                if (isNoStore) {
                     chain.proceed(
                         request.newBuilder()
                             .cacheControl(okhttp3.CacheControl.Builder().noStore().build())
