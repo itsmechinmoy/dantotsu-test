@@ -159,13 +159,16 @@ class DantotsuPlayerManager(
                 }
                 val response = chain.proceed(newRequest)
                 if (isLocal && response.isSuccessful) {
+                    val isSegment = request.url.encodedPath.contains("/segment") ||
+                        request.url.encodedPath.endsWith(".ts") ||
+                        request.url.encodedPath.endsWith(".m4s")
                     val isM3u8 = request.url.encodedPath.contains("m3u8") ||
                         request.url.query?.contains(".m3u8") == true ||
                         response.header("Content-Type")?.contains("mpegurl", ignoreCase = true) == true
                     val hasGzipEncoding = response.header("Content-Encoding")?.equals("gzip", ignoreCase = true) == true
 
                     val body = response.body
-                    if (body != null && isM3u8) {
+                    if (body != null && !isSegment && (isM3u8 || hasGzipEncoding)) {
                         val rawBytes = body.bytes()
                         val isGzip = (rawBytes.size >= 2 && rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()) || hasGzipEncoding
                         val decompressedBytes = if (isGzip) {
