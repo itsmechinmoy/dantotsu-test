@@ -55,6 +55,8 @@ data class ImageData(
                             if (bitmap != null) {
                                 success = true
                             }
+                        } else {
+                            response.close()
                         }
                     } catch (e: Exception) {
                         Logger.log("DataSaver failed, falling back to original: ${e.message}")
@@ -69,10 +71,14 @@ data class ImageData(
                     }
                     val response = httpSource.getImage(page)
                     Logger.log("Response: ${response.code} - ${response.message}")
-                    bitmap = response.use {
-                        it.body.byteStream().use { inputStream ->
-                            BitmapFactory.decodeStream(inputStream, null, decodeOptions)
+                    if (response.isSuccessful) {
+                        bitmap = response.use {
+                            it.body.byteStream().use { inputStream ->
+                                BitmapFactory.decodeStream(inputStream, null, decodeOptions)
+                            }
                         }
+                    } else {
+                        response.close()
                     }
                 }
 
