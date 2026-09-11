@@ -79,6 +79,26 @@ private fun setupSocks5Proxy() {
                     maxSize = 5L * 1024 * 1024, // 5 MiB
                 ),
             )
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val path = request.url.encodedPath.lowercase()
+                val isMediaSegment = path.endsWith(".ts") ||
+                    path.endsWith(".m4s") ||
+                    path.endsWith(".m3u8") ||
+                    path.endsWith(".mp4") ||
+                    path.endsWith(".mkv") ||
+                    path.contains("/segment") ||
+                    request.header("Range") != null
+                if (isMediaSegment) {
+                    chain.proceed(
+                        request.newBuilder()
+                            .cacheControl(okhttp3.CacheControl.Builder().noStore().build())
+                            .build()
+                    )
+                } else {
+                    chain.proceed(request)
+                }
+            }
             .addInterceptor(UncaughtExceptionInterceptor())
             .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
             .addInterceptor(AnilistInterceptor())
@@ -120,6 +140,7 @@ private fun setupSocks5Proxy() {
 
     // Tuned for HLS segment fan-out (~16 workers/host) without oversized pools/radio tail.
     val downloadClient = client.newBuilder()
+        .cache(null)
         .dispatcher(
             okhttp3.Dispatcher().apply {
                 maxRequests = 96
