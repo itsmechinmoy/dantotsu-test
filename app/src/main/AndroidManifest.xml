@@ -77,6 +77,9 @@
         android:usesCleartextTraffic="true"
         tools:ignore="AllowBackup"
         tools:targetApi="tiramisu">
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr,ocr_japanese" />
 
         <receiver
             android:name=".widgets.upcoming.UpcomingWidget"
