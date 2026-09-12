@@ -38,6 +38,12 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         val activity = requireActivity() as MangaReaderActivity
         val settings = activity.defaultSettings
 
+        // Defensive null safety for settings deserialized from older versions
+        settings.imageQuality = settings.imageQuality ?: CurrentReaderSettings.ImageQuality.FAST
+        settings.layout = settings.layout ?: CurrentReaderSettings.Layouts.CONTINUOUS
+        settings.direction = settings.direction ?: CurrentReaderSettings.Directions.TOP_TO_BOTTOM
+        settings.dualPageMode = settings.dualPageMode ?: CurrentReaderSettings.DualPageModes.Automatic
+
         // Close button
         binding.closeReaderSheet.setOnClickListener { dismiss() }
 
@@ -225,7 +231,8 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
 
         // ================= TAB 3: DISPLAY =================
         // Image Quality chips
-        when (settings.imageQuality) {
+        val currentQuality = settings.imageQuality ?: CurrentReaderSettings.ImageQuality.FAST
+        when (currentQuality) {
             CurrentReaderSettings.ImageQuality.FAST     -> binding.readerImageQualityFast.isChecked = true
             CurrentReaderSettings.ImageQuality.BALANCED -> binding.readerImageQualityBalanced.isChecked = true
             CurrentReaderSettings.ImageQuality.LANCZOS  -> binding.readerImageQualityLanczos.isChecked = true
