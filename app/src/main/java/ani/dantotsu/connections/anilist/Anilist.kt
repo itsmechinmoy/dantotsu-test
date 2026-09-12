@@ -46,9 +46,11 @@ object Anilist {
     var tags: Map<Boolean, List<String>>? = null
 
     var rateLimitReset: Long = 0
-    private var lastRateLimitToastTime: Long = 0
+    @PublishedApi
+    internal var lastRateLimitToastTime: Long = 0
 
-    private fun showRateLimitToast(msg: String) {
+    @PublishedApi
+    internal fun showRateLimitToast(msg: String) {
         val now = System.currentTimeMillis()
         if (now - lastRateLimitToastTime > 4000) {
             lastRateLimitToastTime = now
