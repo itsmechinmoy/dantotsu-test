@@ -14,6 +14,7 @@ import ani.dantotsu.util.Logger
 import ani.dantotsu.util.createDataSaver
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -83,9 +84,10 @@ data class ImageData(
                 }
 
                 return@withContext bitmap
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Logger.log("An error occurred: ${e.message}")
-                snackString("An error occurred: ${e.message}")
+                Logger.log("MangaCache image fetch error: ${e.message}")
                 return@withContext null
             }
         }
