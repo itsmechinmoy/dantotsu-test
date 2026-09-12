@@ -66,6 +66,35 @@
             android:textSize="18sp"
             tools:text="Chapter 68 - The professor's irresistible charm" />
 
+        <!-- Loading indicator when next chapter is loading -->
+        <LinearLayout
+            android:id="@+id/transitionLoadingContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="24dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ProgressBar
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#B3FFFFFF" />
+
+            <TextView
+                android:id="@+id/transitionLoadingText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/poppins"
+                android:text="@string/transition_loading_next"
+                android:textColor="#B3FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
         <!-- Action Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/transitionNextButton"
@@ -77,6 +106,7 @@
             android:fontFamily="@font/poppins_bold"
             android:text="@string/transition_read_next"
             android:textSize="14sp"
+            android:visibility="gone"
             app:cornerRadius="24dp"
             app:icon="@drawable/ic_round_arrow_forward_ios_24"
             app:iconGravity="end" />
