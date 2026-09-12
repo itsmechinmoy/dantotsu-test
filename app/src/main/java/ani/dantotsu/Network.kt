@@ -174,6 +174,7 @@ fun isCloudflareOr403(e: Throwable): Boolean {
 }
 
 fun logError(e: Throwable, post: Boolean = true, snackbar: Boolean = true) {
+    if (e is CancellationException) return
     val sw = StringWriter()
     val pw = PrintWriter(sw)
     e.printStackTrace(pw)
@@ -209,10 +210,10 @@ suspend fun <T> tryWithSuspend(
 ): T? {
     return try {
         call.invoke()
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Throwable) {
         logError(e, post, snackbar)
-        null
-    } catch (e: CancellationException) {
         null
     }
 }
