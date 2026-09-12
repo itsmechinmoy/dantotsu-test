@@ -62,18 +62,18 @@ object WebGpuManager {
     /**
      * Returns the appropriate transition animation based on preference or mode.
      */
-    fun getTransition(name: String): Transition {
+    fun getTransition(name: String, isVertical: Boolean = false): Transition {
         return when (name.lowercase()) {
-            "cube" -> TransitionCube()
-            "flip" -> TransitionFlip()
-            "sphere" -> TransitionSphere()
-            "fade" -> TransitionFade()
-            "stack_left" -> TransitionStackLeft()
-            "stack_right" -> TransitionStackRight()
-            "stack_up" -> TransitionStackUp()
-            "stack_down" -> TransitionStackDown()
-            "none" -> TransitionNone()
-            else -> TransitionBasic()
+            "cube" -> TransitionCube
+            "flip" -> TransitionFlip
+            "sphere" -> TransitionSphere
+            "fade" -> TransitionFade
+            "stack_left" -> TransitionStackLeft
+            "stack_right" -> TransitionStackRight
+            "stack_up" -> TransitionStackUp
+            "stack_down" -> TransitionStackDown
+            "none" -> TransitionNone
+            else -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
         }
     }
 }
