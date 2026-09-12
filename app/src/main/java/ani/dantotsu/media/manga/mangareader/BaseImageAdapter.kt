@@ -27,35 +27,83 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
+import ani.dantotsu.parsers.MangaImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.api.get
 import java.io.File
 
+sealed class ReaderItem {
+    data class Page(
+        val image: MangaImage,
+        val chapter: MangaChapter,
+        val pageNumber: Int,
+        val totalPages: Int
+    ) : ReaderItem()
+
+    data class DualPage(
+        val first: MangaImage,
+        val second: MangaImage?,
+        val chapter: MangaChapter,
+        val pageNumber: Int,
+        val totalPages: Int
+    ) : ReaderItem()
+
+    data class Transition(
+        val fromChapter: MangaChapter,
+        val toChapter: MangaChapter?,
+        var isLoading: Boolean = false
+    ) : ReaderItem()
+}
+
 abstract class BaseImageAdapter(
     val activity: MangaReaderActivity,
-    chapter: MangaChapter
+    val initialChapter: MangaChapter
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     val settings = activity.defaultSettings
-    private val chapterImages = chapter.images()
-    var images = chapterImages
+    val items = mutableListOf<ReaderItem>()
 
-    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
-        images = if (settings.layout == CurrentReaderSettings.Layouts.PAGED
-            && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP
-        ) {
-            chapterImages.reversed()
-        } else {
-            chapterImages
+    val images: List<MangaImage>
+        get() = items.mapNotNull {
+            when (it) {
+                is ReaderItem.Page -> it.image
+                is ReaderItem.DualPage -> it.first
+                else -> null
+            }
         }
-        super.onAttachedToRecyclerView(recyclerView)
+
+    fun getItem(position: Int): ReaderItem? = items.getOrNull(position)
+
+    fun findPositionForPage(targetChapter: MangaChapter, pageNum: Int): Int {
+        return items.indexOfFirst {
+            when (it) {
+                is ReaderItem.Page -> it.chapter.uniqueNumber() == targetChapter.uniqueNumber() && it.pageNumber == pageNum
+                is ReaderItem.DualPage -> it.chapter.uniqueNumber() == targetChapter.uniqueNumber() && it.pageNumber == pageNum
+                else -> false
+            }
+        }
     }
+
+    override fun getItemCount(): Int = items.size
+
+    override fun getItemViewType(position: Int): Int {
+        return when (items.getOrNull(position)) {
+            is ReaderItem.Transition -> VIEW_TYPE_TRANSITION
+            else -> VIEW_TYPE_IMAGE
+        }
+    }
+
+    open fun appendChapter(nextChap: MangaChapter, afterNextChap: MangaChapter? = null) {}
 
     private val loadJobs = java.util.concurrent.ConcurrentHashMap<RecyclerView.ViewHolder, kotlinx.coroutines.Job>()
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
         loadJobs.remove(holder)?.cancel()
+        if (holder is TransitionViewHolder) {
+            super.onViewRecycled(holder)
+            return
+        }
         val subsamplingView = holder.itemView.findViewById<com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
         subsamplingView?.recycle()
         val oldBitmap = holder.itemView.getTag(R.id.imgProgImageNoGestures) as? Bitmap
@@ -75,7 +123,7 @@ abstract class BaseImageAdapter(
     inner class TransitionViewHolder(
         val binding: ItemChapterTransitionBinding
     ) : RecyclerView.ViewHolder(binding.root) {
-        fun bind() {
+        fun bind(transition: ReaderItem.Transition) {
             if (settings.layout != CurrentReaderSettings.Layouts.PAGED) {
                 if (settings.direction == CurrentReaderSettings.Directions.LEFT_TO_RIGHT ||
                     settings.direction == CurrentReaderSettings.Directions.RIGHT_TO_LEFT
@@ -91,22 +139,37 @@ abstract class BaseImageAdapter(
                     }
                 }
             }
-            val finishedTitle = activity.getFinishedChapterTitle()
-            val nextTitle = activity.getNextChapterTitle()
+            val fromChap = transition.fromChapter
+            val toChap = transition.toChapter
 
+            val finishedTitle = activity.getChapterDisplayTitle(fromChap)
             binding.transitionFinishedTitle.text = finishedTitle
 
-            if (!nextTitle.isNullOrBlank()) {
+            if (toChap != null) {
+                val nextTitle = activity.getChapterDisplayTitle(toChap)
                 binding.transitionNextHeader.visibility = View.VISIBLE
                 binding.transitionNextTitle.visibility = View.VISIBLE
                 binding.transitionNextTitle.text = nextTitle
-                binding.transitionNextButton.visibility = View.VISIBLE
-                binding.transitionNextButton.setOnClickListener {
-                    activity.loadNextChapter()
+
+                if (transition.isLoading) {
+                    binding.transitionLoadingContainer.visibility = View.VISIBLE
+                } else {
+                    binding.transitionLoadingContainer.visibility = View.GONE
+                }
+
+                if (settings.layout == CurrentReaderSettings.Layouts.PAGED) {
+                    binding.transitionNextButton.visibility = View.VISIBLE
+                    binding.transitionNextButton.setOnClickListener {
+                        activity.loadNextChapter()
+                    }
+                } else {
+                    binding.transitionNextButton.visibility = View.GONE
                 }
             } else {
-                binding.transitionNextHeader.visibility = View.GONE
-                binding.transitionNextTitle.visibility = View.GONE
+                binding.transitionNextHeader.visibility = View.VISIBLE
+                binding.transitionNextTitle.visibility = View.VISIBLE
+                binding.transitionNextTitle.text = itemView.context.getString(R.string.transition_no_next)
+                binding.transitionLoadingContainer.visibility = View.GONE
                 binding.transitionNextButton.visibility = View.GONE
             }
         }
@@ -114,8 +177,9 @@ abstract class BaseImageAdapter(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        if (getItemViewType(position) == VIEW_TYPE_TRANSITION) {
-            (holder as? TransitionViewHolder)?.bind()
+        val item = items.getOrNull(position)
+        if (holder is TransitionViewHolder && item is ReaderItem.Transition) {
+            holder.bind(item)
             return
         }
         val view = holder.itemView as GestureFrameLayout
@@ -178,7 +242,12 @@ abstract class BaseImageAdapter(
                 }
                 setOnLongClickListener {
                     val pos = holder.bindingAdapterPosition
-                    val image = images.getOrNull(pos) ?: return@setOnLongClickListener false
+                    val targetItem = items.getOrNull(pos)
+                    val image = when (targetItem) {
+                        is ReaderItem.Page -> targetItem.image
+                        is ReaderItem.DualPage -> targetItem.first
+                        else -> null
+                    } ?: return@setOnLongClickListener false
                     activity.onImageLongClicked(pos, image, null) { dialog ->
                         activity.lifecycleScope.launch {
                             loadImage(pos, view)
