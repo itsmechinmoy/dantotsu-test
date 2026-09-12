@@ -30,16 +30,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+private val userIdMutex = Mutex()
 
 suspend fun getUserId(context: Context? = null, block: () -> Unit) {
-    if ((!Anilist.initialized || Anilist.avatar == null) && PrefManager.getVal<String>(PrefName.AnilistToken) != "") {
-        if (Anilist.query.getUserData()) {
-            tryWithSuspend {
-                if (MAL.token != null && !MAL.query.getUserData())
-                    context?.let { snackString(it.getString(R.string.error_loading_mal_user_data)) }
+    if (!Anilist.initialized && PrefManager.getVal<String>(PrefName.AnilistToken) != "") {
+        userIdMutex.withLock {
+            if (!Anilist.initialized && PrefManager.getVal<String>(PrefName.AnilistToken) != "") {
+                if (Anilist.query.getUserData()) {
+                    tryWithSuspend {
+                        if (MAL.token != null && !MAL.query.getUserData())
+                            context?.let { snackString(it.getString(R.string.error_loading_mal_user_data)) }
+                    }
+                } else {
+                    context?.let { snackString(it.getString(R.string.error_loading_anilist_user_data)) }
+                }
             }
-        } else {
-            context?.let { snackString(it.getString(R.string.error_loading_anilist_user_data)) }
         }
     }
     block.invoke()
