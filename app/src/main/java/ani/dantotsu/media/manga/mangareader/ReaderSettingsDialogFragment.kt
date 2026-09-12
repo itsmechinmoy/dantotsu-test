@@ -224,10 +224,20 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         }
 
         // ================= TAB 3: DISPLAY =================
-        binding.readerHighQualityRenderer.isChecked = settings.highQualityRenderer
-        binding.readerHighQualityRenderer.setOnCheckedChangeListener { _, isChecked ->
-            settings.highQualityRenderer = isChecked
-            PrefManager.setVal(PrefName.HighQualityRenderer, isChecked)
+        // Image Quality chips
+        when (settings.imageQuality) {
+            CurrentReaderSettings.ImageQuality.FAST     -> binding.readerImageQualityFast.isChecked = true
+            CurrentReaderSettings.ImageQuality.BALANCED -> binding.readerImageQualityBalanced.isChecked = true
+            CurrentReaderSettings.ImageQuality.LANCZOS  -> binding.readerImageQualityLanczos.isChecked = true
+        }
+        binding.readerImageQualityGroup.setOnCheckedStateChangeListener { _, checkedIds ->
+            val quality = when (checkedIds.firstOrNull()) {
+                R.id.readerImageQualityBalanced -> CurrentReaderSettings.ImageQuality.BALANCED
+                R.id.readerImageQualityLanczos  -> CurrentReaderSettings.ImageQuality.LANCZOS
+                else                            -> CurrentReaderSettings.ImageQuality.FAST
+            }
+            settings.imageQuality = quality
+            PrefManager.setVal(PrefName.ImageQuality, quality.ordinal)
             activity.applySettings()
         }
 
