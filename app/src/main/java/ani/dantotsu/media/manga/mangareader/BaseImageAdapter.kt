@@ -34,6 +34,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.api.get
 import java.io.File
+import java.io.InputStream
+import ca.mpreg.imagedecoder.ImageDecoder
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
@@ -319,22 +323,36 @@ abstract class BaseImageAdapter(
                     val localFile = File(link.url)
                     val baseBitmap = when {
                         localFile.exists() -> {
-                            Glide.with(this@loadBitmap)
-                                .asBitmap()
-                                .load(localFile.absoluteFile)
-                                .skipMemoryCache(true)
-                                .diskCacheStrategy(DiskCacheStrategy.NONE)
-                                .submit()
-                                .get()
+                            val libvipsBitmap = try {
+                                localFile.inputStream().use { decodeWithLibvips(it) }
+                            } catch (_: Exception) { null }
+                            libvipsBitmap ?: run {
+                                try {
+                                    Glide.with(this@loadBitmap)
+                                        .asBitmap()
+                                        .load(localFile.absoluteFile)
+                                        .skipMemoryCache(true)
+                                        .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                        .submit()
+                                        .get()
+                                } catch (_: Exception) { null }
+                            }
                         }
                         link.url.startsWith("content://") -> {
-                            Glide.with(this@loadBitmap)
-                                .asBitmap()
-                                .load(Uri.parse(link.url))
-                                .skipMemoryCache(true)
-                                .diskCacheStrategy(DiskCacheStrategy.NONE)
-                                .submit()
-                                .get()
+                            val libvipsBitmap = try {
+                                contentResolver.openInputStream(Uri.parse(link.url))?.use { decodeWithLibvips(it) }
+                            } catch (_: Exception) { null }
+                            libvipsBitmap ?: run {
+                                try {
+                                    Glide.with(this@loadBitmap)
+                                        .asBitmap()
+                                        .load(Uri.parse(link.url))
+                                        .skipMemoryCache(true)
+                                        .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                        .submit()
+                                        .get()
+                                } catch (_: Exception) { null }
+                            }
                         }
                         else -> {
                             val imageData = mangaCache.get(link.url)
@@ -343,7 +361,7 @@ abstract class BaseImageAdapter(
                                 imageData.source
                             )
                             cachedBitmap ?: run {
-                                try {
+                                val glideBitmap = try {
                                     Glide.with(this@loadBitmap)
                                         .asBitmap()
                                         .load(GlideUrl(link.url) { link.headers })
@@ -353,6 +371,20 @@ abstract class BaseImageAdapter(
                                         .get()
                                 } catch (_: Exception) {
                                     null
+                                }
+                                glideBitmap ?: run {
+                                    // Fallback to native libvips over network for unsupported/exotic formats (e.g. JXL / AVIF / HEIF)
+                                    try {
+                                        val okHttpClient = uy.kohesive.injekt.Injekt.get<OkHttpClient>()
+                                        val requestBuilder = Request.Builder().url(link.url)
+                                        link.headers.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+                                        val response = okHttpClient.newCall(requestBuilder.build()).execute()
+                                        if (response.isSuccessful) {
+                                            response.body?.byteStream()?.use { decodeWithLibvips(it) }
+                                        } else null
+                                    } catch (_: Exception) {
+                                        null
+                                    }
                                 }
                             }
                         }
@@ -393,6 +425,27 @@ abstract class BaseImageAdapter(
             canvas.drawBitmap(bit1, 0f, (height * 1f - bit1.height) / 2, null)
             canvas.drawBitmap(bit2, bit1.width.toFloat(), (height * 1f - bit2.height) / 2, null)
             return newBitmap
+        }
+
+        /**
+         * Decode image using native libvips engine (ca.mpreg:imagedecoder).
+         * Supports modern formats like AVIF, JXL, HEIF, JP2, and standard formats.
+         */
+        fun decodeWithLibvips(inputStream: InputStream): Bitmap? {
+            return try {
+                val decoder = ImageDecoder.new(inputStream)
+                if (decoder != null && decoder.pages > 0) {
+                    val res = decoder.decode()
+                    val bitmap = Bitmap.createBitmap(res.width, res.height, Bitmap.Config.ARGB_8888)
+                    res.image.rewind()
+                    bitmap.copyPixelsFromBuffer(res.image)
+                    bitmap
+                } else {
+                    null
+                }
+            } catch (_: Throwable) {
+                null
+            }
         }
 
         /**
