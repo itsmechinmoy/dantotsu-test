@@ -12,6 +12,7 @@ import ani.dantotsu.R
 import ani.dantotsu.databinding.ItemChapterTransitionBinding
 import ani.dantotsu.databinding.ItemImageBinding
 import ani.dantotsu.media.manga.MangaChapter
+import ani.dantotsu.settings.CurrentReaderSettings
 import ani.dantotsu.settings.CurrentReaderSettings.Directions.LEFT_TO_RIGHT
 import ani.dantotsu.settings.CurrentReaderSettings.Directions.RIGHT_TO_LEFT
 import ani.dantotsu.settings.CurrentReaderSettings.Layouts.PAGED
