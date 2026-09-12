@@ -90,6 +90,7 @@ import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.tryWith
 import ani.dantotsu.util.customAlertDialog
 import com.alexvasilkov.gestures.views.GestureFrameLayout
+import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
@@ -179,6 +180,27 @@ class MangaReaderActivity : AppCompatActivity() {
         mangaCache.clear()
         RPCManager.clearPresence(this)
         ani.dantotsu.widgets.continue_widget.ContinueWidget.updateReadingState(this, null, null, null, isExiting = true)
+        if (::binding.isInitialized) {
+            try {
+                for (i in 0 until binding.mangaReaderRecycler.childCount) {
+                    val child = binding.mangaReaderRecycler.getChildAt(i)
+                    val subsamplingView = child.findViewById<SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
+                    subsamplingView?.recycle()
+                    val oldBitmap = child.getTag(R.id.imgProgImageNoGestures) as? Bitmap
+                    child.setTag(R.id.imgProgImageNoGestures, null)
+                    if (oldBitmap != null && !oldBitmap.isRecycled) {
+                        oldBitmap.recycle()
+                    }
+                }
+                binding.mangaReaderRecycler.adapter = null
+                binding.mangaReaderRecycler.recycledViewPool.clear()
+                binding.mangaReaderPager.adapter = null
+            } catch (_: Exception) {}
+        }
+        imageAdapter = null
+        try {
+            Glide.get(this).clearMemory()
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 
@@ -360,7 +382,10 @@ class MangaReaderActivity : AppCompatActivity() {
                     position: Int,
                     p3: Long
                 ) {
-                    if (position != currentChapterIndex) change(position)
+                    if (position != currentChapterIndex) {
+                        val isForward = if (directionRLBT) position < currentChapterIndex else position > currentChapterIndex
+                        progress(isForward) { change(position) }
+                    }
                 }
 
                 override fun onNothingSelected(parent: AdapterView<*>) {}
@@ -417,7 +442,7 @@ class MangaReaderActivity : AppCompatActivity() {
                 if (currentChapterIndex > 0) progress { change(currentChapterIndex - 1) }
                 else snackString(getString(R.string.first_chapter))
             } else {
-                if (chaptersArr.size > currentChapterIndex + 1) progress {
+                if (chaptersArr.size > currentChapterIndex + 1) progress(true) {
                     change(
                         currentChapterIndex + 1
                     )
@@ -431,10 +456,12 @@ class MangaReaderActivity : AppCompatActivity() {
         }
         binding.mangaReaderPreviousChapter.setOnClickListener {
             if (directionRLBT) {
-                if (chaptersArr.size > currentChapterIndex + 1) change(currentChapterIndex + 1)
+                if (chaptersArr.size > currentChapterIndex + 1) progress(true) {
+                    change(currentChapterIndex + 1)
+                }
                 else snackString(getString(R.string.next_chapter_not_found))
             } else {
-                if (currentChapterIndex > 0) change(currentChapterIndex - 1)
+                if (currentChapterIndex > 0) progress { change(currentChapterIndex - 1) }
                 else snackString(getString(R.string.first_chapter))
             }
         }
@@ -731,17 +758,17 @@ class MangaReaderActivity : AppCompatActivity() {
                     RecyclerView.HORIZONTAL,
                 directionRLBT
             )
-            manager.preloadItemCount = defaultSettings.preloadAmount
+            manager.preloadItemCount = defaultSettings.preloadAmount.coerceIn(1, 4)
             applySidePadding(defaultSettings.continuousSidePadding)
 
             if (autoScrollManager == null) {
                 autoScrollManager = MangaReaderAutoScroll().apply {
                     attach(binding.mangaReaderRecycler, defaultSettings.direction)
-                    speed = defaultSettings.autoScrollSpeed.toFloat()
+                    speed = defaultSettings.autoScrollSpeed
                 }
             } else {
                 autoScrollManager?.attach(binding.mangaReaderRecycler, defaultSettings.direction)
-                autoScrollManager?.speed = defaultSettings.autoScrollSpeed.toFloat()
+                autoScrollManager?.speed = defaultSettings.autoScrollSpeed
             }
             binding.mangaReaderAutoScrollPlayBar.visibility =
                 if (defaultSettings.autoScroll) View.VISIBLE else View.GONE
@@ -849,7 +876,7 @@ class MangaReaderActivity : AppCompatActivity() {
                         ViewPager2.ORIENTATION_HORIZONTAL
                     else ViewPager2.ORIENTATION_VERTICAL
                 registerOnPageChangeCallback(pageChangeCallback)
-                offscreenPageLimit = defaultSettings.preloadAmount.coerceAtLeast(1)
+                offscreenPageLimit = defaultSettings.preloadAmount.coerceIn(1, 4)
                 autoScrollManager?.stop()
                 binding.mangaReaderAutoScrollPlayBar.visibility = View.GONE
 
@@ -1270,7 +1297,11 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     private fun progress(runnable: Runnable) {
-        val chapterCompleted = maxChapterPage - currentChapterPage <= 1
+        progress(false, runnable)
+    }
+
+    private fun progress(forceComplete: Boolean, runnable: Runnable) {
+        val chapterCompleted = forceComplete || (maxChapterPage > 0 && maxChapterPage - currentChapterPage <= 1)
         if (chapterCompleted) {
             maybeHandleSubscriptionAfterChapterCompletion()
         }
@@ -1350,11 +1381,7 @@ class MangaReaderActivity : AppCompatActivity() {
         }
         if (alreadySubscribed) return
         if (PrefManager.getCustomVal("${media.id}_subscription_declined", false)) return
-        val caughtUp = if (directionRLBT) {
-            chaptersArr.getOrNull(currentChapterIndex - 1) == null
-        } else {
-            chaptersArr.getOrNull(currentChapterIndex + 1) == null
-        }
+        val caughtUp = chaptersArr.getOrNull(currentChapterIndex + 1) == null
         if (!caughtUp) return
 
         customAlertDialog().apply {
