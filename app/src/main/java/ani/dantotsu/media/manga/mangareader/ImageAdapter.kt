@@ -21,7 +21,9 @@ import ani.dantotsu.settings.saving.PrefName
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 open class ImageAdapter(
     activity: MangaReaderActivity,
@@ -128,6 +130,30 @@ open class ImageAdapter(
                     width = sWidth
                 }
             }
+
+        // Apply image quality scaling when the bitmap is larger than screen and quality mode requires it.
+        // FAST: skip (SSIV's own GPU bilinear is fine). BALANCED/LANCZOS: pre-scale on IO thread.
+        if (settings.imageQuality != CurrentReaderSettings.ImageQuality.FAST &&
+            (bitmap.width > sWidth || bitmap.height > sHeight)
+        ) {
+            val targetW: Int
+            val targetH: Int
+            val bitmapRatio = bitmap.width.toFloat() / bitmap.height
+            val screenRatio = sWidth.toFloat() / sHeight
+            if (bitmapRatio > screenRatio) {
+                targetW = sWidth
+                targetH = (sWidth / bitmapRatio).toInt().coerceAtLeast(1)
+            } else {
+                targetH = sHeight
+                targetW = (sHeight * bitmapRatio).toInt().coerceAtLeast(1)
+            }
+            val scaled = withContext(Dispatchers.IO) {
+                scaleBitmap(bitmap, targetW, targetH, settings.imageQuality)
+            }
+            if (scaled !== bitmap && !bitmap.isRecycled) bitmap.recycle()
+            bitmap = scaled
+            parent.setTag(R.id.imgProgImageNoGestures, bitmap)
+        }
 
         imageView.visibility = View.VISIBLE
         imageView.setImage(ImageSource.cachedBitmap(bitmap))
