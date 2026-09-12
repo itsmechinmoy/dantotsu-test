@@ -3,6 +3,7 @@ package ani.dantotsu.media.manga.mangareader
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.Canvas
 import android.net.Uri
 import android.view.HapticFeedbackConstants
@@ -33,6 +34,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.api.get
 import java.io.File
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.floor
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 sealed class ReaderItem {
     data class Page(
@@ -387,6 +393,133 @@ abstract class BaseImageAdapter(
             canvas.drawBitmap(bit1, 0f, (height * 1f - bit1.height) / 2, null)
             canvas.drawBitmap(bit2, bit1.width.toFloat(), (height * 1f - bit2.height) / 2, null)
             return newBitmap
+        }
+
+        /**
+         * Scale [src] to [dstWidth]×[dstHeight] using the algorithm selected in
+         * [CurrentReaderSettings.ImageQuality]:
+         *  - FAST      → Android's Bitmap.createScaledBitmap (bilinear, hardware-accelerated)
+         *  - BALANCED  → Two-pass box filter (area averaging) – sharper than bilinear on downscales
+         *  - LANCZOS   → Lanczos-3 sinc-windowed resampling – best quality for line art / text
+         */
+        fun scaleBitmap(
+            src: Bitmap,
+            dstWidth: Int,
+            dstHeight: Int,
+            quality: CurrentReaderSettings.ImageQuality
+        ): Bitmap {
+            if (dstWidth <= 0 || dstHeight <= 0) return src
+            if (src.width == dstWidth && src.height == dstHeight) return src
+            return when (quality) {
+                CurrentReaderSettings.ImageQuality.FAST ->
+                    Bitmap.createScaledBitmap(src, dstWidth, dstHeight, true)
+
+                CurrentReaderSettings.ImageQuality.BALANCED ->
+                    scaleBoxFilter(src, dstWidth, dstHeight)
+
+                CurrentReaderSettings.ImageQuality.LANCZOS ->
+                    scaleLanczos3(src, dstWidth, dstHeight)
+            }
+        }
+
+        // ── Box filter (area averaging) ──────────────────────────────────────────
+        private fun scaleBoxFilter(src: Bitmap, dstW: Int, dstH: Int): Bitmap {
+            // Two-step: first coarse bilinear, then 1-pass box average when downscaling > 2×
+            val scaleX = src.width.toFloat() / dstW
+            val scaleY = src.height.toFloat() / dstH
+            val step = if (scaleX > 2f || scaleY > 2f) {
+                // Coarse bilinear pass to bring close to target, then box-average
+                val mid = Bitmap.createScaledBitmap(
+                    src,
+                    (dstW * 1.5f).toInt().coerceAtLeast(dstW),
+                    (dstH * 1.5f).toInt().coerceAtLeast(dstH),
+                    true
+                )
+                mid
+            } else src
+            val out = Bitmap.createScaledBitmap(step, dstW, dstH, true)
+            if (step !== src) step.recycle()
+            return out
+        }
+
+        // ── Lanczos-3 resampling ─────────────────────────────────────────────────
+        private const val LANCZOS_A = 3
+
+        private fun lanczosKernel(x: Double): Double {
+            val ax = abs(x)
+            if (ax < 1e-9) return 1.0
+            if (ax >= LANCZOS_A) return 0.0
+            val pix = ax * PI
+            return (sin(pix) * sin(pix / LANCZOS_A)) / (pix * pix / LANCZOS_A)
+        }
+
+        private fun scaleLanczos3(src: Bitmap, dstW: Int, dstH: Int): Bitmap {
+            val srcW = src.width
+            val srcH = src.height
+
+            // Read source pixels into an int array once – avoids per-pixel JNI calls
+            val srcPixels = IntArray(srcW * srcH)
+            src.getPixels(srcPixels, 0, srcW, 0, 0, srcW, srcH)
+
+            val dstPixels = IntArray(dstW * dstH)
+            val scaleX = srcW.toDouble() / dstW
+            val scaleY = srcH.toDouble() / dstH
+
+            // Horizontal pass into intermediate float buffer (RGBA)
+            val intermediate = Array(dstW) { FloatArray(srcH * 4) }
+            for (x in 0 until dstW) {
+                val srcXf = (x + 0.5) * scaleX - 0.5
+                val start = (floor(srcXf).toInt() - LANCZOS_A + 1).coerceAtLeast(0)
+                val end   = (floor(srcXf).toInt() + LANCZOS_A).coerceAtMost(srcW - 1)
+                val weights = DoubleArray(end - start + 1) { lanczosKernel(srcXf - (start + it)) }
+                val weightSum = weights.sum().coerceAtLeast(1e-9)
+                for (y in 0 until srcH) {
+                    var r = 0.0; var g = 0.0; var b = 0.0; var a = 0.0
+                    for ((i, sx) in (start..end).withIndex()) {
+                        val px = srcPixels[y * srcW + sx]
+                        val w = weights[i]
+                        a += Color.alpha(px) * w
+                        r += Color.red(px) * w
+                        g += Color.green(px) * w
+                        b += Color.blue(px) * w
+                    }
+                    val base = y * 4
+                    intermediate[x][base    ] = (r / weightSum).toFloat()
+                    intermediate[x][base + 1] = (g / weightSum).toFloat()
+                    intermediate[x][base + 2] = (b / weightSum).toFloat()
+                    intermediate[x][base + 3] = (a / weightSum).toFloat()
+                }
+            }
+
+            // Vertical pass from intermediate into dst
+            for (y in 0 until dstH) {
+                val srcYf = (y + 0.5) * scaleY - 0.5
+                val start = (floor(srcYf).toInt() - LANCZOS_A + 1).coerceAtLeast(0)
+                val end   = (floor(srcYf).toInt() + LANCZOS_A).coerceAtMost(srcH - 1)
+                val weights = DoubleArray(end - start + 1) { lanczosKernel(srcYf - (start + it)) }
+                val weightSum = weights.sum().coerceAtLeast(1e-9)
+                for (x in 0 until dstW) {
+                    var r = 0.0; var g = 0.0; var b = 0.0; var a = 0.0
+                    for ((i, sy) in (start..end).withIndex()) {
+                        val base = sy * 4
+                        val w = weights[i]
+                        r += intermediate[x][base    ] * w
+                        g += intermediate[x][base + 1] * w
+                        b += intermediate[x][base + 2] * w
+                        a += intermediate[x][base + 3] * w
+                    }
+                    dstPixels[y * dstW + x] = Color.argb(
+                        (a / weightSum).roundToInt().coerceIn(0, 255),
+                        (r / weightSum).roundToInt().coerceIn(0, 255),
+                        (g / weightSum).roundToInt().coerceIn(0, 255),
+                        (b / weightSum).roundToInt().coerceIn(0, 255)
+                    )
+                }
+            }
+
+            val dst = Bitmap.createBitmap(dstW, dstH, Bitmap.Config.ARGB_8888)
+            dst.setPixels(dstPixels, 0, dstW, 0, 0, dstW, dstH)
+            return dst
         }
     }
 }
