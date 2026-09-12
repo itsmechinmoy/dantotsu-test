@@ -1378,8 +1378,11 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="continuous_side_padding">Continuous Side Padding</string>
     <string name="e_ink_flash">E-Ink Screen Flash</string>
     <string name="e_ink_flash_info">Briefly flash screen on page change to eliminate e-ink ghosting</string>
-    <string name="high_quality_renderer">High Quality Renderer (WebGPU &amp; libvips)</string>
-    <string name="high_quality_renderer_info">Hardware-accelerated rendering and libvips native decoding</string>
+    <string name="image_quality">Image Quality</string>
+    <string name="image_quality_info">Controls the algorithm used to scale manga pages. Higher quality takes more CPU time on first load but is cached afterwards.</string>
+    <string name="image_quality_fast">Fast (Bilinear)</string>
+    <string name="image_quality_balanced">Balanced (Box)</string>
+    <string name="image_quality_lanczos">Lanczos (HQ)</string>
     <string name="preload_amount">Page Preload Amount</string>
     <string name="always_show_chapter_transition">Always Show Chapter Transition</string>
     <string name="manga_translator">Manga Translator</string>
