@@ -2,7 +2,6 @@ package ani.dantotsu.media.manga.mangareader
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
@@ -35,47 +34,19 @@ import java.io.File
 
 abstract class BaseImageAdapter(
     val activity: MangaReaderActivity,
-    val chapter: MangaChapter
+    chapter: MangaChapter
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     val settings = activity.defaultSettings
-    val chapterImages = chapter.images()
-    var images = chapterImages.toMutableList()
-    val chapterOffsets = mutableListOf(0 to chapter)
-
-    open fun appendChapter(nextChap: MangaChapter) {
-        val newImages = nextChap.images()
-        if (newImages.isEmpty()) return
-        if (chapterOffsets.any { it.second.uniqueNumber() == nextChap.uniqueNumber() }) return
-        val insertStart = images.size
-        chapterOffsets.add(insertStart to nextChap)
-        images.addAll(newImages)
-        notifyItemRangeInserted(insertStart, newImages.size)
-    }
-
-    open fun getChapterForPosition(position: Int): Pair<MangaChapter, Int> {
-        var resultChapter = chapterOffsets.firstOrNull()?.second ?: chapter
-        var localPos = position
-        for (i in chapterOffsets.indices.reversed()) {
-            val (offset, chap) = chapterOffsets[i]
-            if (position >= offset) {
-                resultChapter = chap
-                localPos = position - offset
-                break
-            }
-        }
-        return resultChapter to localPos
-    }
+    private val chapterImages = chapter.images()
+    var images = chapterImages
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
-        if (images.isEmpty()) {
-            val baseList = if (settings.layout == CurrentReaderSettings.Layouts.PAGED
-                && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP
-            ) {
-                chapterImages.reversed()
-            } else {
-                chapterImages
-            }
-            images = baseList.toMutableList()
+        images = if (settings.layout == CurrentReaderSettings.Layouts.PAGED
+            && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP
+        ) {
+            chapterImages.reversed()
+        } else {
+            chapterImages
         }
         super.onAttachedToRecyclerView(recyclerView)
     }
@@ -106,7 +77,6 @@ abstract class BaseImageAdapter(
         view.controller.also {
             if (settings.layout == CurrentReaderSettings.Layouts.PAGED) {
                 it.settings.enableGestures()
-                it.settings.isDoubleTapEnabled = settings.oneHandZoom
             }
             it.settings.isRotationEnabled = settings.rotation
         }
@@ -212,7 +182,6 @@ abstract class BaseImageAdapter(
                         }
                         .submit()
                         .get()
-                        ?.let { downsampleIfNeeded(it) }
                 }
             }
         }
@@ -223,10 +192,6 @@ abstract class BaseImageAdapter(
         ): Bitmap? {
             return tryWithSuspend {
                 val mangaCache = uy.kohesive.injekt.Injekt.get<MangaCache>()
-                val cached = mangaCache.getBitmap(link.url)
-                if (cached != null && !cached.isRecycled) {
-                    return@tryWithSuspend cached
-                }
                 withContext(Dispatchers.IO) {
                     val localFile = File(link.url)
                     val baseBitmap = when {
@@ -270,7 +235,7 @@ abstract class BaseImageAdapter(
                         }
                     } ?: return@withContext null
 
-                    val resultBitmap = if (transforms.isEmpty()) {
+                    if (transforms.isEmpty()) {
                         baseBitmap
                     } else {
                         val transformed = Glide.with(this@loadBitmap)
@@ -286,24 +251,7 @@ abstract class BaseImageAdapter(
                         }
                         transformed
                     }
-                    resultBitmap?.let { downsampleIfNeeded(it) }
-                        ?.also { mangaCache.putBitmap(link.url, it) }
                 }
-            }
-        }
-
-        fun downsampleIfNeeded(bitmap: Bitmap): Bitmap {
-            val maxAllowedWidth = (Resources.getSystem().displayMetrics.widthPixels * 2).coerceAtLeast(1080)
-            return if (bitmap.width > maxAllowedWidth) {
-                val scale = maxAllowedWidth.toFloat() / bitmap.width.toFloat()
-                val targetHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
-                val scaled = Bitmap.createScaledBitmap(bitmap, maxAllowedWidth, targetHeight, true)
-                if (scaled != bitmap && !bitmap.isRecycled) {
-                    bitmap.recycle()
-                }
-                scaled
-            } else {
-                bitmap
             }
         }
 

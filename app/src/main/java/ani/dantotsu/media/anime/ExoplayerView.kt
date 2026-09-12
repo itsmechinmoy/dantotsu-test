@@ -220,6 +220,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private val client = OkHttpClient()
 
     private val getContent = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        playerView.useController = true
         uri?.let { applyLocalSubtitle(it) }
     }
 
@@ -235,6 +236,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     private val onChangeSettings = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { _: ActivityResult ->
+        playerView.useController = true
         if (!hasExtSubtitles) {
             playerManager.exoPlayer?.currentTracks?.groups?.forEach { trackGroup ->
                 when (trackGroup.type) {
@@ -1226,6 +1228,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
     }
 
     private fun sourceClick() {
+        if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) return
         changingServer = true
 
         media.selected?.server = null
@@ -1783,7 +1786,10 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
     override fun onResume() {
         super.onResume()
+        orientationListener?.enable()
         hideSystemBarsExtendView()
+        playerView.onResume()
+        playerView.useController = true
         if (playerManager.isInitialized) {
             playerManager.exoPlayer?.play()
         }
@@ -1791,9 +1797,11 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
     override fun onPause() {
         super.onPause()
+        orientationListener?.disable()
         if (playerManager.isInitialized) {
             playerManager.exoPlayer?.pause()
         }
+        playerView.onPause()
         aniSkipManager.stopTracking()
         progressManager.stopTracking()
     }
@@ -1837,7 +1845,11 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 if (torrentManager.isRunning()) {
                     torrentManager.pauseActiveTorrent()
                     torrentManager.pruneCache()
+                    torrentManager.stop()
                 }
+            } catch (_: Exception) {}
+            try {
+                ani.dantotsu.addons.torrent.TorrentServerService.stop()
             } catch (_: Exception) {}
         }
         aniSkipManager.stopTracking()
