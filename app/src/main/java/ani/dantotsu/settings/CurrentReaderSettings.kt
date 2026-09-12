@@ -86,8 +86,17 @@ data class CurrentReaderSettings(
         }
     }
 
+    @Suppress("SENSELESS_COMPARISON")
+    private fun readResolve(): Any {
+        if (imageQuality == null) imageQuality = ImageQuality.FAST
+        if (direction == null) direction = Directions.TOP_TO_BOTTOM
+        if (layout == null) layout = Layouts.CONTINUOUS
+        if (dualPageMode == null) dualPageMode = DualPageModes.Automatic
+        return this
+    }
+
     companion object {
-        private const val serialVersionUID: Long = 1L
+        private const val serialVersionUID: Long = 2L
 
         fun applyWebtoon(settings: CurrentReaderSettings) {
             settings.apply {
