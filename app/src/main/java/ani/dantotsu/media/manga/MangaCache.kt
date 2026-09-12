@@ -37,6 +37,10 @@ data class ImageData(
                 var bitmap: Bitmap? = null
                 var success = false
 
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                }
+
                 if (compressedUrl != originalUrl) {
                     try {
                         page.imageUrl = compressedUrl
@@ -44,12 +48,15 @@ data class ImageData(
                         Logger.log("DataSaver Response: ${response.code} - ${response.message}")
                         if (response.isSuccessful) {
                             bitmap = response.use {
-                                val bytes = it.body.bytes()
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                it.body.byteStream().use { inputStream ->
+                                    BitmapFactory.decodeStream(inputStream, null, decodeOptions)
+                                }
                             }
                             if (bitmap != null) {
                                 success = true
                             }
+                        } else {
+                            response.close()
                         }
                     } catch (e: Exception) {
                         Logger.log("DataSaver failed, falling back to original: ${e.message}")
@@ -64,9 +71,14 @@ data class ImageData(
                     }
                     val response = httpSource.getImage(page)
                     Logger.log("Response: ${response.code} - ${response.message}")
-                    bitmap = response.use {
-                        val bytes = it.body.bytes()
-                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (response.isSuccessful) {
+                        bitmap = response.use {
+                            it.body.byteStream().use { inputStream ->
+                                BitmapFactory.decodeStream(inputStream, null, decodeOptions)
+                            }
+                        }
+                    } else {
+                        response.close()
                     }
                 }
 
@@ -133,7 +145,7 @@ fun saveImage(
 }
 
 class MangaCache {
-    private val maxEntries = 60
+    private val maxEntries = 500
     private val cache = LruCache<String, ImageData>(maxEntries)
     private val bitmapCache = object : LruCache<String, Bitmap>(30) {
         override fun sizeOf(key: String, value: Bitmap): Int {
