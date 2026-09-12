@@ -92,8 +92,10 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
+import ani.dantotsu.media.manga.mangareader.BaseImageAdapter.Companion.loadBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.FileInputStream
@@ -418,7 +420,7 @@ class MangaReaderActivity : AppCompatActivity() {
             if (currentImage != null) {
                 snackString(getString(R.string.translating_page))
                 scope.launch(Dispatchers.IO) {
-                    val loadedBitmap = BaseImageAdapter.loadBitmap(this@MangaReaderActivity, currentImage, emptyList())
+                    val loadedBitmap = loadBitmap(currentImage.url, emptyList<BitmapTransformation>())
                     if (loadedBitmap != null) {
                         val softwareBitmap = if (loadedBitmap.config == Bitmap.Config.HARDWARE) {
                             loadedBitmap.copy(Bitmap.Config.ARGB_8888, false)
