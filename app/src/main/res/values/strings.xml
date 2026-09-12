@@ -1391,4 +1391,6 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="transition_finished">Finished:</string>
     <string name="transition_next">Next:</string>
     <string name="transition_read_next">Read Next Chapter</string>
+    <string name="transition_no_next">There\'s no next chapter</string>
+    <string name="transition_loading_next">Loading next chapter…</string>
 </resources>
