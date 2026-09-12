@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.FileUrl
 import ani.dantotsu.GesturesListener
 import ani.dantotsu.R
+import ani.dantotsu.databinding.ItemChapterTransitionBinding
 import ani.dantotsu.media.manga.MangaCache
 import ani.dantotsu.media.manga.MangaChapter
 import ani.dantotsu.px
@@ -71,8 +72,52 @@ abstract class BaseImageAdapter(
         super.onDetachedFromRecyclerView(recyclerView)
     }
 
+    inner class TransitionViewHolder(
+        val binding: ItemChapterTransitionBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+        fun bind() {
+            if (settings.layout != CurrentReaderSettings.Layouts.PAGED) {
+                if (settings.direction == CurrentReaderSettings.Directions.LEFT_TO_RIGHT ||
+                    settings.direction == CurrentReaderSettings.Directions.RIGHT_TO_LEFT
+                ) {
+                    itemView.updateLayoutParams {
+                        width = 380f.px.toInt()
+                        height = ViewGroup.LayoutParams.MATCH_PARENT
+                    }
+                } else {
+                    itemView.updateLayoutParams {
+                        width = ViewGroup.LayoutParams.MATCH_PARENT
+                        height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                }
+            }
+            val finishedTitle = activity.getFinishedChapterTitle()
+            val nextTitle = activity.getNextChapterTitle()
+
+            binding.transitionFinishedTitle.text = finishedTitle
+
+            if (!nextTitle.isNullOrBlank()) {
+                binding.transitionNextHeader.visibility = View.VISIBLE
+                binding.transitionNextTitle.visibility = View.VISIBLE
+                binding.transitionNextTitle.text = nextTitle
+                binding.transitionNextButton.visibility = View.VISIBLE
+                binding.transitionNextButton.setOnClickListener {
+                    activity.binding.mangaReaderNextChapter.performClick()
+                }
+            } else {
+                binding.transitionNextHeader.visibility = View.GONE
+                binding.transitionNextTitle.visibility = View.GONE
+                binding.transitionNextButton.visibility = View.GONE
+            }
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (getItemViewType(position) == VIEW_TYPE_TRANSITION) {
+            (holder as? TransitionViewHolder)?.bind()
+            return
+        }
         val view = holder.itemView as GestureFrameLayout
         view.controller.also {
             if (settings.layout == CurrentReaderSettings.Layouts.PAGED) {
@@ -156,6 +201,9 @@ abstract class BaseImageAdapter(
     abstract suspend fun loadImage(position: Int, parent: View): Boolean
 
     companion object {
+        const val VIEW_TYPE_IMAGE = 0
+        const val VIEW_TYPE_TRANSITION = 1
+
         suspend fun Context.loadBitmapOld(
             link: FileUrl,
             transforms: List<BitmapTransformation>
