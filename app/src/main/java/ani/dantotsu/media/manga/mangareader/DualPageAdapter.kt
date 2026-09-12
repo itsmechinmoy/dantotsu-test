@@ -8,26 +8,83 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 
 class DualPageAdapter(
     activity: MangaReaderActivity,
-    chapter: MangaChapter
-) : ImageAdapter(activity, chapter) {
+    chapter: MangaChapter,
+    nextChapter: MangaChapter? = null
+) : ImageAdapter(activity, chapter, nextChapter) {
 
-    private val pages = chapter.dualPages().toMutableList()
+    override fun buildInitialItems(chap: MangaChapter, nextChap: MangaChapter?) {
+        items.clear()
+        val dualPages = chap.dualPages()
+        val totalPages = dualPages.size
+        dualPages.forEachIndexed { index, pair ->
+            items.add(ReaderItem.DualPage(pair.first, pair.second, chap, index + 1, totalPages))
+        }
 
-    override fun appendChapter(nextChap: MangaChapter) {
-        super.appendChapter(nextChap)
+        if (hasTransition()) {
+            val isLoading = nextChap != null && nextChap.images().isEmpty()
+            items.add(ReaderItem.Transition(chap, nextChap, isLoading = isLoading))
+            if (nextChap != null && nextChap.images().isNotEmpty()) {
+                val nextDual = nextChap.dualPages()
+                nextDual.forEachIndexed { index, pair ->
+                    items.add(ReaderItem.DualPage(pair.first, pair.second, nextChap, index + 1, nextDual.size))
+                }
+            }
+        }
+    }
+
+    override fun appendChapter(nextChap: MangaChapter, afterNextChap: MangaChapter?) {
+        val alreadyHas = items.any { it is ReaderItem.DualPage && it.chapter.uniqueNumber() == nextChap.uniqueNumber() }
+        if (alreadyHas) return
+
         val newDual = nextChap.dualPages()
         if (newDual.isEmpty()) return
-        val start = pages.size
-        pages.addAll(newDual)
-        notifyItemRangeInserted(start, newDual.size)
+
+        val transitionIndex = items.indexOfLast {
+            it is ReaderItem.Transition && it.toChapter?.uniqueNumber() == nextChap.uniqueNumber()
+        }
+
+        if (transitionIndex != -1) {
+            val trans = items[transitionIndex] as ReaderItem.Transition
+            trans.isLoading = false
+            notifyItemChanged(transitionIndex)
+
+            val insertPos = transitionIndex + 1
+            val newItems = mutableListOf<ReaderItem>()
+            newDual.forEachIndexed { index, pair ->
+                newItems.add(ReaderItem.DualPage(pair.first, pair.second, nextChap, index + 1, newDual.size))
+            }
+            if (hasTransition()) {
+                val nextLoading = afterNextChap != null && afterNextChap.images().isEmpty()
+                newItems.add(ReaderItem.Transition(nextChap, afterNextChap, isLoading = nextLoading))
+            }
+            items.addAll(insertPos, newItems)
+            notifyItemRangeInserted(insertPos, newItems.size)
+        } else {
+            val start = items.size
+            val newItems = mutableListOf<ReaderItem>()
+            if (hasTransition()) {
+                val prevChap = (items.lastOrNull() as? ReaderItem.DualPage)?.chapter ?: initialChapter
+                newItems.add(ReaderItem.Transition(prevChap, nextChap, isLoading = false))
+            }
+            newDual.forEachIndexed { index, pair ->
+                newItems.add(ReaderItem.DualPage(pair.first, pair.second, nextChap, index + 1, newDual.size))
+            }
+            if (hasTransition()) {
+                val nextLoading = afterNextChap != null && afterNextChap.images().isEmpty()
+                newItems.add(ReaderItem.Transition(nextChap, afterNextChap, isLoading = nextLoading))
+            }
+            items.addAll(newItems)
+            notifyItemRangeInserted(start, newItems.size)
+        }
     }
 
     override suspend fun loadBitmap(position: Int, parent: View): Bitmap? {
-        val img1 = pages[position].first
+        val dualItem = items.getOrNull(position) as? ReaderItem.DualPage ?: return null
+        val img1 = dualItem.first
         val link1 = img1.url
         if (link1.url.isEmpty()) return null
 
-        val img2 = pages[position].second
+        val img2 = dualItem.second
         val link2 = img2?.url
         if (link2?.url?.isEmpty() == true) return null
 
@@ -61,6 +118,4 @@ class DualPageAdapter(
             merged
         } else bitmap1
     }
-
-    override fun getItemCount(): Int = pages.size
 }
