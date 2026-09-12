@@ -15,6 +15,7 @@ import ani.dantotsu.databinding.DialogOcrTranslationBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.Dispatchers
@@ -91,22 +92,52 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private suspend fun recognizeText(bitmap: Bitmap): String = withContext(Dispatchers.Default) {
-        val image = InputImage.fromBitmap(bitmap, 0)
-        val recognizer = try {
-            TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
-        } catch (e: Exception) {
-            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        }
+    private suspend fun processWithRecognizer(
+        recognizer: TextRecognizer,
+        image: InputImage
+    ): String = suspendCancellableCoroutine { continuation ->
+        recognizer.process(image)
+            .addOnSuccessListener { visionText ->
+                continuation.resume(visionText.text)
+            }
+            .addOnFailureListener { e ->
+                continuation.resumeWithException(e)
+            }
+    }
 
-        suspendCancellableCoroutine { continuation ->
-            recognizer.process(image)
-                .addOnSuccessListener { visionText ->
-                    continuation.resume(visionText.text)
+    private suspend fun recognizeText(bitmap: Bitmap): String = withContext(Dispatchers.Default) {
+        val safeBitmap = if (bitmap.config == Bitmap.Config.HARDWARE) {
+            bitmap.copy(Bitmap.Config.ARGB_8888, false)
+        } else {
+            bitmap
+        }
+        val isCopy = safeBitmap !== bitmap
+        try {
+            val image = InputImage.fromBitmap(safeBitmap, 0)
+
+            // 1. Attempt Japanese text recognition first
+            var text = try {
+                val jpRecognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+                processWithRecognizer(jpRecognizer, image)
+            } catch (_: Exception) {
+                ""
+            }
+
+            // 2. Fallback to default Latin recognizer if Japanese produces blank text or fails
+            if (text.isBlank()) {
+                text = try {
+                    val latinRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                    processWithRecognizer(latinRecognizer, image)
+                } catch (_: Exception) {
+                    ""
                 }
-                .addOnFailureListener { e ->
-                    continuation.resumeWithException(e)
-                }
+            }
+
+            text
+        } finally {
+            if (isCopy) {
+                safeBitmap.recycle()
+            }
         }
     }
 
