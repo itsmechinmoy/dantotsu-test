@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.RecyclerView
 import ani.dantotsu.R
+import ani.dantotsu.databinding.ItemChapterTransitionBinding
 import ani.dantotsu.databinding.ItemImageBinding
 import ani.dantotsu.media.manga.MangaChapter
 import ani.dantotsu.settings.CurrentReaderSettings.Directions.LEFT_TO_RIGHT
@@ -26,9 +27,16 @@ open class ImageAdapter(
     chapter: MangaChapter
 ) : BaseImageAdapter(activity, chapter) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
-        val binding = ItemImageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ImageViewHolder(binding)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == VIEW_TYPE_TRANSITION) {
+            val binding = ItemChapterTransitionBinding.inflate(
+                LayoutInflater.from(parent.context), parent, false
+            )
+            TransitionViewHolder(binding)
+        } else {
+            val binding = ItemImageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            ImageViewHolder(binding)
+        }
     }
 
     inner class ImageViewHolder(binding: ItemImageBinding) : RecyclerView.ViewHolder(binding.root)
@@ -109,7 +117,27 @@ open class ImageAdapter(
         return true
     }
 
-    override fun getItemCount(): Int = images.size
+    open fun appendChapter(nextChap: MangaChapter) {
+        val newImages = nextChap.images()
+        if (newImages.isEmpty()) return
+        val start = images.size
+        images = (images + newImages).toMutableList()
+        notifyItemRangeInserted(start, newImages.size)
+    }
+
+    open fun hasTransition(): Boolean {
+        return settings.layout != PAGED || settings.alwaysShowChapterTransition
+    }
+
+    override fun getItemCount(): Int = if (hasTransition()) images.size + 1 else images.size
+
+    override fun getItemViewType(position: Int): Int {
+        return if (hasTransition() && position == images.size) {
+            VIEW_TYPE_TRANSITION
+        } else {
+            VIEW_TYPE_IMAGE
+        }
+    }
 
     override fun isZoomed(): Boolean {
         val imageView =
