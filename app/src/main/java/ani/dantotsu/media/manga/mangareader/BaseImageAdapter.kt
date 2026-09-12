@@ -323,36 +323,32 @@ abstract class BaseImageAdapter(
                     val localFile = File(link.url)
                     val baseBitmap = when {
                         localFile.exists() -> {
-                            val libvipsBitmap = try {
+                            val glideBitmap = try {
+                                Glide.with(this@loadBitmap)
+                                    .asBitmap()
+                                    .load(localFile.absoluteFile)
+                                    .skipMemoryCache(true)
+                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                    .submit()
+                                    .get()
+                            } catch (_: Exception) { null }
+                            glideBitmap ?: try {
                                 localFile.inputStream().use { decodeWithLibvips(it) }
                             } catch (_: Exception) { null }
-                            libvipsBitmap ?: run {
-                                try {
-                                    Glide.with(this@loadBitmap)
-                                        .asBitmap()
-                                        .load(localFile.absoluteFile)
-                                        .skipMemoryCache(true)
-                                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                                        .submit()
-                                        .get()
-                                } catch (_: Exception) { null }
-                            }
                         }
                         link.url.startsWith("content://") -> {
-                            val libvipsBitmap = try {
+                            val glideBitmap = try {
+                                Glide.with(this@loadBitmap)
+                                    .asBitmap()
+                                    .load(Uri.parse(link.url))
+                                    .skipMemoryCache(true)
+                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                    .submit()
+                                    .get()
+                            } catch (_: Exception) { null }
+                            glideBitmap ?: try {
                                 contentResolver.openInputStream(Uri.parse(link.url))?.use { decodeWithLibvips(it) }
                             } catch (_: Exception) { null }
-                            libvipsBitmap ?: run {
-                                try {
-                                    Glide.with(this@loadBitmap)
-                                        .asBitmap()
-                                        .load(Uri.parse(link.url))
-                                        .skipMemoryCache(true)
-                                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                                        .submit()
-                                        .get()
-                                } catch (_: Exception) { null }
-                            }
                         }
                         else -> {
                             val imageData = mangaCache.get(link.url)
