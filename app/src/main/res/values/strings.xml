@@ -1388,4 +1388,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="copy_translation">Copy Translation</string>
     <string name="translating_page">Recognizing &amp; translating page text…</string>
     <string name="no_text_detected">No text detected on page</string>
+    <string name="transition_finished">Finished:</string>
+    <string name="transition_next">Next:</string>
+    <string name="transition_read_next">Read Next Chapter</string>
 </resources>
