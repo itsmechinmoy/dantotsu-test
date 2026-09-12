@@ -38,7 +38,8 @@ data class CurrentReaderSettings(
     var defaultRotation: Int = PrefManager.getVal(PrefName.DefaultRotation),
     var continuousSidePadding: Int = PrefManager.getVal(PrefName.ContinuousSidePadding),
     var eInkFlash: Boolean = PrefManager.getVal(PrefName.EInkFlashPageChange),
-    var highQualityRenderer: Boolean = PrefManager.getVal(PrefName.HighQualityRenderer),
+    var imageQuality: ImageQuality = ImageQuality[PrefManager.getVal(PrefName.ImageQuality)]
+        ?: ImageQuality.FAST,
     var preloadAmount: Int = PrefManager.getVal(PrefName.PagePreloadAmount),
     var alwaysShowChapterTransition: Boolean = PrefManager.getVal(PrefName.AlwaysShowChapterTransition)
 ) : Serializable {
@@ -66,6 +67,19 @@ data class CurrentReaderSettings(
 
     enum class DualPageModes {
         No, Automatic, Force;
+
+        companion object {
+            operator fun get(value: Int) = values().firstOrNull { it.ordinal == value }
+        }
+    }
+
+    enum class ImageQuality {
+        /** Android bilinear (hardware-accelerated, fastest). */
+        FAST,
+        /** Two-pass box filter — noticeably sharper on large downscales. */
+        BALANCED,
+        /** Lanczos-3 sinc-windowed resampling — highest quality, best for line art. */
+        LANCZOS;
 
         companion object {
             operator fun get(value: Int) = values().firstOrNull { it.ordinal == value }
