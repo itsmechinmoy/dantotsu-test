@@ -73,6 +73,8 @@ data class CurrentReaderSettings(
     }
 
     companion object {
+        private const val serialVersionUID: Long = 1L
+
         fun applyWebtoon(settings: CurrentReaderSettings) {
             settings.apply {
                 layout = Layouts.CONTINUOUS
