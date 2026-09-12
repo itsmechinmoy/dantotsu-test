@@ -102,7 +102,7 @@ abstract class BaseImageAdapter(
                 binding.transitionNextTitle.text = nextTitle
                 binding.transitionNextButton.visibility = View.VISIBLE
                 binding.transitionNextButton.setOnClickListener {
-                    activity.binding.mangaReaderNextChapter.performClick()
+                    activity.loadNextChapter()
                 }
             } else {
                 binding.transitionNextHeader.visibility = View.GONE
