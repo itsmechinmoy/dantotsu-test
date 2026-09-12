@@ -46,17 +46,6 @@ object Anilist {
     var tags: Map<Boolean, List<String>>? = null
 
     var rateLimitReset: Long = 0
-    @PublishedApi
-    internal var lastRateLimitToastTime: Long = 0
-
-    @PublishedApi
-    internal fun showRateLimitToast(msg: String) {
-        val now = System.currentTimeMillis()
-        if (now - lastRateLimitToastTime > 4000) {
-            lastRateLimitToastTime = now
-            toast(msg)
-        }
-    }
 
     var initialized = false
     var adult: Boolean = false
@@ -351,15 +340,11 @@ object Anilist {
         lastError = null
         return try {
             if (show) Logger.log("Anilist Query: $query")
-            val nowSec = System.currentTimeMillis() / 1000
-            val secondsRemaining = rateLimitReset - nowSec
-            if (secondsRemaining > 0) {
-                val rateMsg = "Rate limited. Try after $secondsRemaining seconds"
-                showRateLimitToast(rateMsg)
+            if (rateLimitReset > System.currentTimeMillis() / 1000) {
+                val rateMsg = "Rate limited. Try after ${rateLimitReset - (System.currentTimeMillis() / 1000)} seconds"
+                toast(rateMsg)
                 lastError = rateMsg
                 throw Exception(rateMsg)
-            } else {
-                rateLimitReset = 0
             }
             val headers = mutableMapOf(
                 "Content-Type" to "application/json; charset=utf-8",
@@ -388,27 +373,17 @@ object Anilist {
                     requestBody = requestBody,
                     cacheTime = if (force) 0 else (cache ?: 10)
                 )
-                val remaining = json.headers["X-RateLimit-Remaining"]?.toIntOrNull()
-                if (remaining != null) {
-                    Logger.log("Remaining requests: $remaining")
-                }
+                val remaining = json.headers["X-RateLimit-Remaining"]?.toIntOrNull() ?: -1
+                Logger.log("Remaining requests: $remaining")
                 if (json.code == 429) {
-                    val currentSec = System.currentTimeMillis() / 1000
-                    val retryHeader = json.headers["Retry-After"]?.toIntOrNull()
-                    var resetHeader = json.headers["X-RateLimit-Reset"]?.toLongOrNull() ?: 0L
-                    if (resetHeader > 10_000_000_000L) {
-                        resetHeader /= 1000
+                    val retry = json.headers["Retry-After"]?.toIntOrNull() ?: -1
+                    val passedLimitReset = json.headers["X-RateLimit-Reset"]?.toLongOrNull() ?: 0
+                    if (retry > 0) {
+                        rateLimitReset = passedLimitReset
                     }
-                    val waitFromReset = if (resetHeader > currentSec) (resetHeader - currentSec).toInt() else 0
-                    val waitSeconds = when {
-                        retryHeader != null && retryHeader > 0 -> retryHeader
-                        waitFromReset > 0 -> waitFromReset
-                        else -> 60
-                    }.coerceAtLeast(1)
 
-                    rateLimitReset = currentSec + waitSeconds
-                    val rateMsg = "Rate limited. Try after $waitSeconds seconds"
-                    showRateLimitToast(rateMsg)
+                    val rateMsg = "Rate limited. Try after $retry seconds"
+                    toast(rateMsg)
                     lastError = rateMsg
                     throw Exception(rateMsg)
                 }
