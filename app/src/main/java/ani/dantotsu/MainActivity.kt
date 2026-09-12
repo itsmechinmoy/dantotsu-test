@@ -477,14 +477,7 @@ class MainActivity : AppCompatActivity() {
             AudioHelper.run(this, R.raw.audio)
             PrefManager.setVal(PrefName.OC, false)
         }
-        val torrentManager = Injekt.get<TorrentServerManager>()
-        if (torrentManager.isAvailable() && PrefManager.getVal(PrefName.TorrentEnabled)) {
-            launchIO {
-                if (!TorrentServerService.isRunning()) {
-                    TorrentServerService.start()
-                }
-            }
-        }
+
     }
 
     override fun onRestart() {
