@@ -29,7 +29,7 @@ leakcanary = "2.14"
 webgpuviewer = "40"
 image-decoder = "10"
 mlkit-text-japanese = "16.0.1"
-mlkit-text = "19.0.1"
+mlkit-text = "16.0.1"
 
 [libraries]
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
@@ -165,8 +165,8 @@ sqldelight-androidxPaging = { module = "app.cash.sqldelight:androidx-paging3-ext
 androidx-profileInstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "androidx-profileInstaller" }
 webgpuviewer = { module = "ca.mpreg:webgpuviewer", version.ref = "webgpuviewer" }
 image-decoder = { module = "ca.mpreg:imagedecoder", version.ref = "image-decoder" }
-mlkit-text-japanese = { module = "com.google.android.gms:play-services-mlkit-text-recognition-japanese", version.ref = "mlkit-text-japanese" }
-mlkit-text = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "mlkit-text" }
+mlkit-text-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "mlkit-text-japanese" }
+mlkit-text = { module = "com.google.mlkit:text-recognition", version.ref = "mlkit-text" }
 
 [plugins]
 android = { id = "com.android.application", version.ref = "agp" }
