@@ -24,8 +24,37 @@ import kotlinx.coroutines.delay
 
 open class ImageAdapter(
     activity: MangaReaderActivity,
-    chapter: MangaChapter
+    chapter: MangaChapter,
+    nextChapter: MangaChapter? = null
 ) : BaseImageAdapter(activity, chapter) {
+
+    init {
+        buildInitialItems(chapter, nextChapter)
+    }
+
+    protected open fun buildInitialItems(chap: MangaChapter, nextChap: MangaChapter?) {
+        items.clear()
+        val chapImages = if (settings.layout == PAGED && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP) {
+            chap.images().reversed()
+        } else {
+            chap.images()
+        }
+        val totalPages = chapImages.size
+        chapImages.forEachIndexed { index, image ->
+            items.add(ReaderItem.Page(image, chap, index + 1, totalPages))
+        }
+
+        if (hasTransition()) {
+            val isLoading = nextChap != null && nextChap.images().isEmpty()
+            items.add(ReaderItem.Transition(chap, nextChap, isLoading = isLoading))
+            if (nextChap != null && nextChap.images().isNotEmpty()) {
+                val nextImages = nextChap.images()
+                nextImages.forEachIndexed { index, image ->
+                    items.add(ReaderItem.Page(image, nextChap, index + 1, nextImages.size))
+                }
+            }
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return if (viewType == VIEW_TYPE_TRANSITION) {
@@ -42,11 +71,12 @@ open class ImageAdapter(
     inner class ImageViewHolder(binding: ItemImageBinding) : RecyclerView.ViewHolder(binding.root)
 
     open suspend fun loadBitmap(position: Int, parent: View): Bitmap? {
-        val link = images.getOrNull(position)?.url ?: return null
+        val pageItem = items.getOrNull(position) as? ReaderItem.Page ?: return null
+        val link = pageItem.image.url
         if (link.url.isEmpty()) return null
 
         val transforms = mutableListOf<BitmapTransformation>()
-        val parserTransformation = activity.getTransformation(images[position])
+        val parserTransformation = activity.getTransformation(pageItem.image)
 
         if (parserTransformation != null) transforms.add(parserTransformation)
         if (settings.cropBorders) {
@@ -117,26 +147,54 @@ open class ImageAdapter(
         return true
     }
 
-    open fun appendChapter(nextChap: MangaChapter) {
+    override fun appendChapter(nextChap: MangaChapter, afterNextChap: MangaChapter?) {
+        val alreadyHas = items.any { it is ReaderItem.Page && it.chapter.uniqueNumber() == nextChap.uniqueNumber() }
+        if (alreadyHas) return
+
         val newImages = nextChap.images()
         if (newImages.isEmpty()) return
-        val start = images.size
-        images = (images + newImages).toMutableList()
-        notifyItemRangeInserted(start, newImages.size)
+
+        val transitionIndex = items.indexOfLast {
+            it is ReaderItem.Transition && it.toChapter?.uniqueNumber() == nextChap.uniqueNumber()
+        }
+
+        if (transitionIndex != -1) {
+            val trans = items[transitionIndex] as ReaderItem.Transition
+            trans.isLoading = false
+            notifyItemChanged(transitionIndex)
+
+            val insertPos = transitionIndex + 1
+            val newItems = mutableListOf<ReaderItem>()
+            newImages.forEachIndexed { index, img ->
+                newItems.add(ReaderItem.Page(img, nextChap, index + 1, newImages.size))
+            }
+            if (hasTransition()) {
+                val nextLoading = afterNextChap != null && afterNextChap.images().isEmpty()
+                newItems.add(ReaderItem.Transition(nextChap, afterNextChap, isLoading = nextLoading))
+            }
+            items.addAll(insertPos, newItems)
+            notifyItemRangeInserted(insertPos, newItems.size)
+        } else {
+            val start = items.size
+            val newItems = mutableListOf<ReaderItem>()
+            if (hasTransition()) {
+                val prevChap = (items.lastOrNull() as? ReaderItem.Page)?.chapter ?: initialChapter
+                newItems.add(ReaderItem.Transition(prevChap, nextChap, isLoading = false))
+            }
+            newImages.forEachIndexed { index, img ->
+                newItems.add(ReaderItem.Page(img, nextChap, index + 1, newImages.size))
+            }
+            if (hasTransition()) {
+                val nextLoading = afterNextChap != null && afterNextChap.images().isEmpty()
+                newItems.add(ReaderItem.Transition(nextChap, afterNextChap, isLoading = nextLoading))
+            }
+            items.addAll(newItems)
+            notifyItemRangeInserted(start, newItems.size)
+        }
     }
 
     open fun hasTransition(): Boolean {
         return settings.layout != PAGED || settings.alwaysShowChapterTransition
-    }
-
-    override fun getItemCount(): Int = if (hasTransition()) images.size + 1 else images.size
-
-    override fun getItemViewType(position: Int): Int {
-        return if (hasTransition() && position == images.size) {
-            VIEW_TYPE_TRANSITION
-        } else {
-            VIEW_TYPE_IMAGE
-        }
     }
 
     override fun isZoomed(): Boolean {
