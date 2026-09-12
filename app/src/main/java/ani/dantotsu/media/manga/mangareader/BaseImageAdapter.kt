@@ -80,6 +80,26 @@ abstract class BaseImageAdapter(
         super.onAttachedToRecyclerView(recyclerView)
     }
 
+    private val loadJobs = java.util.concurrent.ConcurrentHashMap<RecyclerView.ViewHolder, kotlinx.coroutines.Job>()
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        loadJobs.remove(holder)?.cancel()
+        val subsamplingView = holder.itemView.findViewById<com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView>(R.id.imgProgImageNoGestures)
+        subsamplingView?.recycle()
+        val oldBitmap = holder.itemView.getTag(R.id.imgProgImageNoGestures) as? Bitmap
+        holder.itemView.setTag(R.id.imgProgImageNoGestures, null)
+        if (oldBitmap != null && !oldBitmap.isRecycled) {
+            oldBitmap.recycle()
+        }
+        super.onViewRecycled(holder)
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        loadJobs.values.forEach { it.cancel() }
+        loadJobs.clear()
+        super.onDetachedFromRecyclerView(recyclerView)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val view = holder.itemView as GestureFrameLayout
@@ -154,7 +174,10 @@ abstract class BaseImageAdapter(
                 }
             }
         }
-        activity.lifecycleScope.launch { loadImage(holder.bindingAdapterPosition, view) }
+        loadJobs.remove(holder)?.cancel()
+        val targetPos = holder.bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION } ?: position
+        val job = activity.lifecycleScope.launch { loadImage(targetPos, view) }
+        loadJobs[holder] = job
     }
 
     abstract fun isZoomed(): Boolean
@@ -205,41 +228,65 @@ abstract class BaseImageAdapter(
                     return@tryWithSuspend cached
                 }
                 withContext(Dispatchers.IO) {
-                    Glide.with(this@loadBitmap)
-                        .asBitmap()
-                        .let {
-                            val localFile = File(link.url)
-                            if (localFile.exists()) {
-                                it.load(localFile.absoluteFile)
-                                    .skipMemoryCache(true)
-                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
-                            } else if (link.url.startsWith("content://")) {
-                                it.load(Uri.parse(link.url))
-                                    .skipMemoryCache(true)
-                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
-                            } else {
-                                mangaCache.get(link.url)?.let { imageData ->
-                                    val bitmap = imageData.fetchAndProcessImage(
-                                        imageData.page,
-                                        imageData.source
-                                    )
-                                    it.load(bitmap)
+                    val localFile = File(link.url)
+                    val baseBitmap = when {
+                        localFile.exists() -> {
+                            Glide.with(this@loadBitmap)
+                                .asBitmap()
+                                .load(localFile.absoluteFile)
+                                .skipMemoryCache(true)
+                                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                .submit()
+                                .get()
+                        }
+                        link.url.startsWith("content://") -> {
+                            Glide.with(this@loadBitmap)
+                                .asBitmap()
+                                .load(Uri.parse(link.url))
+                                .skipMemoryCache(true)
+                                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                .submit()
+                                .get()
+                        }
+                        else -> {
+                            val imageData = mangaCache.get(link.url)
+                            val cachedBitmap = imageData?.fetchAndProcessImage(
+                                imageData.page,
+                                imageData.source
+                            )
+                            cachedBitmap ?: run {
+                                try {
+                                    Glide.with(this@loadBitmap)
+                                        .asBitmap()
+                                        .load(GlideUrl(link.url) { link.headers })
                                         .skipMemoryCache(true)
                                         .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                        .submit()
+                                        .get()
+                                } catch (_: Exception) {
+                                    null
                                 }
+                            }
+                        }
+                    } ?: return@withContext null
 
-                            }
+                    val resultBitmap = if (transforms.isEmpty()) {
+                        baseBitmap
+                    } else {
+                        val transformed = Glide.with(this@loadBitmap)
+                            .asBitmap()
+                            .load(baseBitmap)
+                            .skipMemoryCache(true)
+                            .diskCacheStrategy(DiskCacheStrategy.NONE)
+                            .transform(*transforms.toTypedArray())
+                            .submit()
+                            .get()
+                        if (transformed != null && transformed != baseBitmap && !baseBitmap.isRecycled) {
+                            baseBitmap.recycle()
                         }
-                        ?.let {
-                            if (transforms.isNotEmpty()) {
-                                it.transform(*transforms.toTypedArray())
-                            } else {
-                                it
-                            }
-                        }
-                        ?.submit()
-                        ?.get()
-                        ?.let { downsampleIfNeeded(it) }
+                        transformed
+                    }
+                    resultBitmap?.let { downsampleIfNeeded(it) }
                         ?.also { mangaCache.putBitmap(link.url, it) }
                 }
             }
@@ -270,7 +317,7 @@ abstract class BaseImageAdapter(
                         Bitmap.createScaledBitmap(bitmap2, width2.toInt(), height, false))
             }
             val width = bit1.width + bit2.width
-            val newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
             val canvas = Canvas(newBitmap)
             canvas.drawBitmap(bit1, 0f, (height * 1f - bit1.height) / 2, null)
             canvas.drawBitmap(bit2, bit1.width.toFloat(), (height * 1f - bit2.height) / 2, null)
