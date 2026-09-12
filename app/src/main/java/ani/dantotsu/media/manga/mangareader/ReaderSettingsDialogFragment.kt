@@ -289,6 +289,7 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         binding.readerEInkFlash.setOnCheckedChangeListener { _, isChecked ->
             settings.eInkFlash = isChecked
             PrefManager.setVal(PrefName.EInkFlashPageChange, isChecked)
+            activity.saveCurrentSettings()
         }
 
         binding.readerTrueColors.isChecked = settings.trueColors
@@ -344,6 +345,7 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         binding.readerAlwaysShowChapterTransition.setOnCheckedChangeListener { _, isChecked ->
             settings.alwaysShowChapterTransition = isChecked
             PrefManager.setVal(PrefName.AlwaysShowChapterTransition, isChecked)
+            activity.saveCurrentSettings()
         }
 
         // Data Saver Modes
@@ -419,6 +421,7 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
     }
 
     override fun onDestroyView() {
+        (activity as? MangaReaderActivity)?.saveCurrentSettings()
         _binding = null
         super.onDestroyView()
     }
