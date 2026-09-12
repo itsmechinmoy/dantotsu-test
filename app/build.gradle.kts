@@ -19,20 +19,18 @@ fun computeGitCommitHash(): String {
     }
     val gitHash = try {
         providers.exec {
-            isIgnoreExitValue = true
             commandLine("git", "rev-parse", "HEAD")
         }.standardOutput.asText.get().trim().take(7)
-    } catch (_: Exception) {
+    } catch (e: Exception) {
         try {
             providers.exec {
-                isIgnoreExitValue = true
                 commandLine("git", "rev-parse", "--verify", "--short=7", "HEAD")
             }.standardOutput.asText.get().trim()
-        } catch (_: Exception) {
+        } catch (e2: Exception) {
             ""
         }
     }
-    if (gitHash.isNotEmpty() && !gitHash.startsWith("fatal:")) {
+    if (gitHash.isNotEmpty()) {
         return gitHash
     }
     val fallbackHash = System.getenv("GITHUB_SHA")
@@ -135,20 +133,6 @@ android {
             pickFirsts.add("**/libavutil.so")
             pickFirsts.add("**/libswresample.so")
             pickFirsts.add("**/libswscale.so")
-        }
-        resources {
-            excludes += setOf(
-                "kotlin-tooling-metadata.json",
-                "LICENSE.txt",
-                "META-INF/**/*.properties",
-                "META-INF/**/LICENSE.txt",
-                "META-INF/*.properties",
-                "META-INF/*.version",
-                "META-INF/DEPENDENCIES",
-                "META-INF/LICENSE",
-                "META-INF/NOTICE",
-                "META-INF/README.md"
-            )
         }
     }
 
