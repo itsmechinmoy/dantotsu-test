@@ -127,7 +127,8 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
             var text = try {
                 val jpRecognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
                 processWithRecognizer(jpRecognizer, image)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                e.printStackTrace()
                 ""
             }
 
@@ -136,7 +137,8 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
                 text = try {
                     val latinRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
                     processWithRecognizer(latinRecognizer, image)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    e.printStackTrace()
                     ""
                 }
             }
