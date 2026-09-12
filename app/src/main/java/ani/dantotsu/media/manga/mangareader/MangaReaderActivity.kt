@@ -1491,6 +1491,14 @@ class MangaReaderActivity : AppCompatActivity() {
         return chaptersTitleArr.getOrNull(nextIndex)
     }
 
+    fun loadNextChapter() {
+        binding.mangaReaderNextChapter.performClick()
+    }
+
+    fun loadPreviousChapter() {
+        binding.mangaReaderPreviousChapter.performClick()
+    }
+
     fun triggerEInkFlash() {
         if (!defaultSettings.eInkFlash) return
         binding.mangaReaderEInkOverlay.apply {
