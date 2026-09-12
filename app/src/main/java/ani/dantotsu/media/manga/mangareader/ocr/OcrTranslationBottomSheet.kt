@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -48,7 +49,7 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
 
         val bitmap = currentBitmap
         if (bitmap == null || bitmap.isRecycled) {
-            Toast.makeText(context, "No page image available for translation", Toast.LENGTH_SHORT).show()
+            if (isAdded) Toast.makeText(context, "No page image available for translation", Toast.LENGTH_SHORT).show()
             dismiss()
             return
         }
@@ -57,6 +58,8 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
             try {
                 // 1. Recognize text using ML Kit on-device Japanese recognizer
                 val detectedText = recognizeText(bitmap)
+
+                if (!isAdded) return@launch
 
                 if (detectedText.isBlank()) {
                     binding.ocrProgressBar.visibility = View.GONE
@@ -69,6 +72,8 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
                 // 2. Translate text via Google Translate API
                 val translatedText = translateText(detectedText)
 
+                if (!isAdded) return@launch
+
                 // 3. Update UI
                 binding.ocrProgressBar.visibility = View.GONE
                 binding.ocrResultsContainer.visibility = View.VISIBLE
@@ -76,18 +81,21 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
                 binding.ocrTranslatedText.text = translatedText
 
                 binding.ocrCopyButton.setOnClickListener {
-                    val clipboard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    val ctx = context ?: return@setOnClickListener
+                    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                     val clip = ClipData.newPlainText("Manga Translation", translatedText)
                     clipboard?.setPrimaryClip(clip)
-                    Toast.makeText(context, getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
+                    if (isAdded) Toast.makeText(ctx, getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
                 }
 
                 binding.ocrCloseButton.setOnClickListener {
                     dismiss()
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Translation error: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
-                dismiss()
+                if (isAdded) {
+                    Toast.makeText(context, "Translation error: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                    dismiss()
+                }
             }
         }
     }
@@ -141,26 +149,81 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
+    /**
+     * Translate [text] to English using a 3-engine fallback chain:
+     *   1. Google Translate (gtx, free/unauthenticated)
+     *   2. MyMemory         (free, 5 000 chars/day, no key)
+     *   3. LibreTranslate   (argosopentech public mirror, no key)
+     */
     private suspend fun translateText(text: String): String = withContext(Dispatchers.IO) {
-        try {
-            val encodedText = URLEncoder.encode(text, "UTF-8")
-            val url = URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val jsonArray = JSONArray(response)
-            val firstArray = jsonArray.getJSONArray(0)
-            val result = StringBuilder()
-            for (i in 0 until firstArray.length()) {
-                result.append(firstArray.getJSONArray(i).getString(0))
-            }
-            result.toString()
-        } catch (e: Exception) {
-            "Translation failed: ${e.localizedMessage ?: e.message}"
-        }
+        translateWithGoogle(text)
+            ?: translateWithMyMemory(text)
+            ?: translateWithLibreTranslate(text)
+            ?: "Translation unavailable — all engines failed or are rate-limited. Please try again later."
     }
+
+    /** Returns null on rate-limit or any error, so the caller can fall through. */
+    private fun translateWithGoogle(text: String): String? = try {
+        val encoded = URLEncoder.encode(text, "UTF-8")
+        val response = httpGet(
+            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=$encoded"
+        )
+        // Google returns a /sorry page when rate-limited instead of JSON
+        if (response.contains("google.com/sorry") || !response.trimStart().startsWith("[")) return null
+        val firstArray = JSONArray(response).getJSONArray(0)
+        val result = StringBuilder()
+        for (i in 0 until firstArray.length()) result.append(firstArray.getJSONArray(i).getString(0))
+        result.toString().takeIf { it.isNotBlank() }
+    } catch (_: Exception) { null }
+
+    /** MyMemory free tier — 5 000 chars/day, no API key required. */
+    private fun translateWithMyMemory(text: String): String? = try {
+        val encoded = URLEncoder.encode(text, "UTF-8")
+        val response = httpGet(
+            "https://api.mymemory.translated.net/get?q=$encoded&langpair=auto|en"
+        )
+        val json = JSONObject(response)
+        val status = json.optInt("responseStatus", 0)
+        if (status != 200) return null
+        json.getJSONObject("responseData")
+            .getString("translatedText")
+            .takeIf { it.isNotBlank() && !it.equals(text, ignoreCase = true) }
+    } catch (_: Exception) { null }
+
+    /**
+     * LibreTranslate public mirror (argosopentech) — no API key, but may be slow.
+     * Uses POST with JSON body as required by the LibreTranslate spec.
+     */
+    private fun translateWithLibreTranslate(text: String): String? = try {
+        val url = URL("https://translate.argosopentech.com/translate")
+        val body = JSONObject().apply {
+            put("q", text)
+            put("source", "auto")
+            put("target", "en")
+        }.toString().toByteArray(Charsets.UTF_8)
+
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.setRequestProperty("Accept", "application/json")
+        connection.connectTimeout = 15000
+        connection.readTimeout = 15000
+        connection.doOutput = true
+        connection.outputStream.use { it.write(body) }
+
+        val response = connection.inputStream.bufferedReader().use { it.readText() }
+        JSONObject(response).getString("translatedText").takeIf { it.isNotBlank() }
+    } catch (_: Exception) { null }
+
+    /** Shared GET helper — throws on non-2xx or network error. */
+    private fun httpGet(urlString: String): String {
+        val connection = URL(urlString).openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 10000
+        connection.readTimeout = 10000
+        return connection.inputStream.bufferedReader().use { it.readText() }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()
