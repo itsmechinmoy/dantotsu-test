@@ -191,7 +191,7 @@ enum class PrefName(val data: Pref) {
     DefaultRotation(Pref(Location.Reader, Int::class, 0)), // 0=Free, 1=Portrait, 2=Landscape
     ContinuousSidePadding(Pref(Location.Reader, Int::class, 0)), // Percentage (0-25%)
     EInkFlashPageChange(Pref(Location.Reader, Boolean::class, false)),
-    HighQualityRenderer(Pref(Location.Reader, Boolean::class, false)),
+    ImageQuality(Pref(Location.Reader, Int::class, 0)), // 0=FAST, 1=BALANCED, 2=LANCZOS
     PagePreloadAmount(Pref(Location.Reader, Int::class, 3)),
     AlwaysShowChapterTransition(Pref(Location.Reader, Boolean::class, false)),
     
