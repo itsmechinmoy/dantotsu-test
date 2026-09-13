@@ -9,11 +9,15 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 class DualPageAdapter(
     activity: MangaReaderActivity,
     chapter: MangaChapter,
-    nextChapter: MangaChapter? = null
-) : ImageAdapter(activity, chapter, nextChapter) {
+    nextChapter: MangaChapter? = null,
+    prevChapter: MangaChapter? = null
+) : ImageAdapter(activity, chapter, nextChapter, prevChapter) {
 
-    override fun buildInitialItems(chap: MangaChapter, nextChap: MangaChapter?) {
+    override fun buildInitialItems(chap: MangaChapter, nextChap: MangaChapter?, prevChap: MangaChapter?) {
         items.clear()
+        if (hasTransition() && settings.layout != PAGED) {
+            items.add(ReaderItem.Transition(chap, prevChap, isLoading = false, isPrevious = true))
+        }
         val dualPages = chap.dualPages()
         val totalPages = dualPages.size
         dualPages.forEachIndexed { index, pair ->
@@ -22,7 +26,7 @@ class DualPageAdapter(
 
         if (hasTransition()) {
             val isLoading = nextChap != null && nextChap.images().isEmpty()
-            items.add(ReaderItem.Transition(chap, nextChap, isLoading = isLoading))
+            items.add(ReaderItem.Transition(chap, nextChap, isLoading = isLoading, isPrevious = false))
             if (nextChap != null && nextChap.images().isNotEmpty()) {
                 val nextDual = nextChap.dualPages()
                 nextDual.forEachIndexed { index, pair ->
