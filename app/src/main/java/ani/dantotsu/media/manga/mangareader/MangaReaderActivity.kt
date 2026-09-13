@@ -629,8 +629,13 @@ class MangaReaderActivity : AppCompatActivity() {
                 chaptersArr.getOrNull(nextIndex)?.let { chapters[it] }
             } else null
 
+            val prevIndex = if (directionRLBT) currentChapterIndex + 1 else currentChapterIndex - 1
+            val prevChapter = if (defaultSettings.layout != PAGED) {
+                chaptersArr.getOrNull(prevIndex)?.let { chapters[it] }
+            } else null
+
             imageAdapter =
-                dualPage { DualPageAdapter(this, chapter, nextChapter) } ?: ImageAdapter(this, chapter, nextChapter)
+                dualPage { DualPageAdapter(this, chapter, nextChapter, prevChapter) } ?: ImageAdapter(this, chapter, nextChapter, prevChapter)
 
             if (defaultSettings.layout != PAGED && nextChapter != null) {
                 preloadChapterAndAppend(nextChapter)
@@ -847,7 +852,7 @@ class MangaReaderActivity : AppCompatActivity() {
                                 )))
                             ) {
                                 handleController(true)
-                            } else handleController(false)
+                            } else if (!isContVisible) handleController(false)
                         }
 
                         val visiblePos = if (directionRLBT) {
@@ -880,8 +885,10 @@ class MangaReaderActivity : AppCompatActivity() {
                                     }
                                 }
                                 is ReaderItem.Transition -> {
-                                    item.toChapter?.let { toChap ->
-                                        preloadChapterAndAppend(toChap)
+                                    if (!item.isPrevious) {
+                                        item.toChapter?.let { toChap ->
+                                            preloadChapterAndAppend(toChap)
+                                        }
                                     }
                                 }
                                 null -> {}
@@ -1340,6 +1347,7 @@ class MangaReaderActivity : AppCompatActivity() {
     private var lastSubscriptionPromptChapter: String? = null
 
     private fun maybeHandleSubscriptionAfterChapterCompletion() {
+        if (isFinishing || isDestroyed) return
         val chapterKey = chapter.uniqueNumber()
         if (lastSubscriptionPromptChapter == chapterKey) return
         lastSubscriptionPromptChapter = chapterKey
