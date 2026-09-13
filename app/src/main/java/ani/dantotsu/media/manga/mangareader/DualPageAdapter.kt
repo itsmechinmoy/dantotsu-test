@@ -83,6 +83,45 @@ class DualPageAdapter(
         }
     }
 
+    override fun prependChapter(prevChap: MangaChapter, beforePrevChap: MangaChapter?): Int {
+        val alreadyHas = items.any { it is ReaderItem.DualPage && it.chapter.uniqueNumber() == prevChap.uniqueNumber() }
+        if (alreadyHas) return 0
+
+        val newDual = prevChap.dualPages()
+        if (newDual.isEmpty()) return 0
+
+        val newItems = mutableListOf<ReaderItem>()
+        if (hasTransition()) {
+            val prevLoading = beforePrevChap != null && beforePrevChap.images().isEmpty()
+            newItems.add(ReaderItem.Transition(prevChap, beforePrevChap, isLoading = prevLoading, isPrevious = true))
+        }
+        val totalPages = newDual.size
+        newDual.forEachIndexed { index, pair ->
+            newItems.add(ReaderItem.DualPage(pair.first, pair.second, prevChap, index + 1, totalPages))
+        }
+
+        val transitionIndex = items.indexOfFirst {
+            it is ReaderItem.Transition && it.isPrevious && it.toChapter?.uniqueNumber() == prevChap.uniqueNumber()
+        }
+
+        return if (transitionIndex != -1) {
+            val oldTrans = items[transitionIndex] as ReaderItem.Transition
+            items[transitionIndex] = ReaderItem.Transition(prevChap, oldTrans.fromChapter, isLoading = false, isPrevious = false)
+            items.addAll(transitionIndex, newItems)
+            notifyItemRangeInserted(transitionIndex, newItems.size)
+            notifyItemChanged(transitionIndex + newItems.size)
+            newItems.size
+        } else {
+            if (hasTransition()) {
+                val nextChap = (items.firstOrNull() as? ReaderItem.DualPage)?.chapter ?: initialChapter
+                newItems.add(ReaderItem.Transition(prevChap, nextChap, isLoading = false, isPrevious = false))
+            }
+            items.addAll(0, newItems)
+            notifyItemRangeInserted(0, newItems.size)
+            newItems.size
+        }
+    }
+
     override suspend fun loadBitmap(position: Int, parent: View): Bitmap? {
         val dualItem = items.getOrNull(position) as? ReaderItem.DualPage ?: return null
         val img1 = dualItem.first
