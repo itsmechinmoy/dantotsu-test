@@ -107,6 +107,8 @@ abstract class BaseImageAdapter(
 
     open fun appendChapter(nextChap: MangaChapter, afterNextChap: MangaChapter? = null) {}
 
+    open fun prependChapter(prevChap: MangaChapter, beforePrevChap: MangaChapter? = null): Int = 0
+
     private val loadJobs = java.util.concurrent.ConcurrentHashMap<RecyclerView.ViewHolder, kotlinx.coroutines.Job>()
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
@@ -166,9 +168,14 @@ abstract class BaseImageAdapter(
                 binding.transitionNextTitle.visibility = View.VISIBLE
                 binding.transitionNextTitle.text = activity.getChapterDisplayTitle(fromChap)
 
-                binding.transitionLoadingContainer.visibility = View.GONE
+                if (transition.isLoading) {
+                    binding.transitionLoadingContainer.visibility = View.VISIBLE
+                    binding.transitionLoadingText.text = itemView.context.getString(R.string.transition_loading_previous)
+                } else {
+                    binding.transitionLoadingContainer.visibility = View.GONE
+                }
 
-                if (toChap != null) {
+                if (settings.layout == CurrentReaderSettings.Layouts.PAGED && toChap != null) {
                     binding.transitionNextButton.visibility = View.VISIBLE
                     binding.transitionNextButton.text = itemView.context.getString(R.string.transition_read_previous)
                     binding.transitionNextButton.setIconResource(R.drawable.ic_round_arrow_back_ios_new_24)
