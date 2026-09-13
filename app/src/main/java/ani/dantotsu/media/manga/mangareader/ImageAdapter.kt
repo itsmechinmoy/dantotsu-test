@@ -28,15 +28,19 @@ import kotlinx.coroutines.withContext
 open class ImageAdapter(
     activity: MangaReaderActivity,
     chapter: MangaChapter,
-    nextChapter: MangaChapter? = null
+    nextChapter: MangaChapter? = null,
+    prevChapter: MangaChapter? = null
 ) : BaseImageAdapter(activity, chapter) {
 
     init {
-        buildInitialItems(chapter, nextChapter)
+        buildInitialItems(chapter, nextChapter, prevChapter)
     }
 
-    protected open fun buildInitialItems(chap: MangaChapter, nextChap: MangaChapter?) {
+    protected open fun buildInitialItems(chap: MangaChapter, nextChap: MangaChapter?, prevChap: MangaChapter? = null) {
         items.clear()
+        if (hasTransition() && settings.layout != PAGED) {
+            items.add(ReaderItem.Transition(chap, prevChap, isLoading = false, isPrevious = true))
+        }
         val chapImages = if (settings.layout == PAGED && settings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP) {
             chap.images().reversed()
         } else {
@@ -49,7 +53,7 @@ open class ImageAdapter(
 
         if (hasTransition()) {
             val isLoading = nextChap != null && nextChap.images().isEmpty()
-            items.add(ReaderItem.Transition(chap, nextChap, isLoading = isLoading))
+            items.add(ReaderItem.Transition(chap, nextChap, isLoading = isLoading, isPrevious = false))
             if (nextChap != null && nextChap.images().isNotEmpty()) {
                 val nextImages = nextChap.images()
                 nextImages.forEachIndexed { index, image ->
