@@ -63,7 +63,8 @@ sealed class ReaderItem {
     data class Transition(
         val fromChapter: MangaChapter,
         val toChapter: MangaChapter?,
-        var isLoading: Boolean = false
+        var isLoading: Boolean = false,
+        val isPrevious: Boolean = false
     ) : ReaderItem()
 }
 
@@ -152,35 +153,68 @@ abstract class BaseImageAdapter(
             val fromChap = transition.fromChapter
             val toChap = transition.toChapter
 
-            val finishedTitle = activity.getChapterDisplayTitle(fromChap)
-            binding.transitionFinishedTitle.text = finishedTitle
-
-            if (toChap != null) {
-                val nextTitle = activity.getChapterDisplayTitle(toChap)
-                binding.transitionNextHeader.visibility = View.VISIBLE
-                binding.transitionNextTitle.visibility = View.VISIBLE
-                binding.transitionNextTitle.text = nextTitle
-
-                if (transition.isLoading) {
-                    binding.transitionLoadingContainer.visibility = View.VISIBLE
+            if (transition.isPrevious) {
+                binding.transitionFinishedHeader.text = itemView.context.getString(R.string.transition_previous)
+                if (toChap != null) {
+                    binding.transitionFinishedTitle.text = activity.getChapterDisplayTitle(toChap)
                 } else {
-                    binding.transitionLoadingContainer.visibility = View.GONE
+                    binding.transitionFinishedTitle.text = itemView.context.getString(R.string.transition_no_previous)
                 }
 
-                if (settings.layout == CurrentReaderSettings.Layouts.PAGED) {
+                binding.transitionNextHeader.visibility = View.VISIBLE
+                binding.transitionNextHeader.text = itemView.context.getString(R.string.transition_current)
+                binding.transitionNextTitle.visibility = View.VISIBLE
+                binding.transitionNextTitle.text = activity.getChapterDisplayTitle(fromChap)
+
+                binding.transitionLoadingContainer.visibility = View.GONE
+
+                if (toChap != null) {
                     binding.transitionNextButton.visibility = View.VISIBLE
+                    binding.transitionNextButton.text = itemView.context.getString(R.string.transition_read_previous)
+                    binding.transitionNextButton.setIconResource(R.drawable.ic_round_arrow_back_ios_new_24)
+                    binding.transitionNextButton.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
                     binding.transitionNextButton.setOnClickListener {
-                        activity.loadNextChapter()
+                        activity.loadPreviousChapter()
                     }
                 } else {
                     binding.transitionNextButton.visibility = View.GONE
                 }
             } else {
-                binding.transitionNextHeader.visibility = View.VISIBLE
-                binding.transitionNextTitle.visibility = View.VISIBLE
-                binding.transitionNextTitle.text = itemView.context.getString(R.string.transition_no_next)
-                binding.transitionLoadingContainer.visibility = View.GONE
-                binding.transitionNextButton.visibility = View.GONE
+                val finishedTitle = activity.getChapterDisplayTitle(fromChap)
+                binding.transitionFinishedHeader.text = itemView.context.getString(R.string.transition_finished)
+                binding.transitionFinishedTitle.text = finishedTitle
+
+                binding.transitionNextHeader.text = itemView.context.getString(R.string.transition_next)
+                if (toChap != null) {
+                    val nextTitle = activity.getChapterDisplayTitle(toChap)
+                    binding.transitionNextHeader.visibility = View.VISIBLE
+                    binding.transitionNextTitle.visibility = View.VISIBLE
+                    binding.transitionNextTitle.text = nextTitle
+
+                    if (transition.isLoading) {
+                        binding.transitionLoadingContainer.visibility = View.VISIBLE
+                    } else {
+                        binding.transitionLoadingContainer.visibility = View.GONE
+                    }
+
+                    if (settings.layout == CurrentReaderSettings.Layouts.PAGED) {
+                        binding.transitionNextButton.visibility = View.VISIBLE
+                        binding.transitionNextButton.text = itemView.context.getString(R.string.transition_read_next)
+                        binding.transitionNextButton.setIconResource(R.drawable.ic_round_arrow_forward_ios_24)
+                        binding.transitionNextButton.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_END
+                        binding.transitionNextButton.setOnClickListener {
+                            activity.loadNextChapter()
+                        }
+                    } else {
+                        binding.transitionNextButton.visibility = View.GONE
+                    }
+                } else {
+                    binding.transitionNextHeader.visibility = View.VISIBLE
+                    binding.transitionNextTitle.visibility = View.VISIBLE
+                    binding.transitionNextTitle.text = itemView.context.getString(R.string.transition_no_next)
+                    binding.transitionLoadingContainer.visibility = View.GONE
+                    binding.transitionNextButton.visibility = View.GONE
+                }
             }
         }
     }
