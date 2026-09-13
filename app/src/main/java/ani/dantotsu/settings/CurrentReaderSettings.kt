@@ -30,7 +30,18 @@ data class CurrentReaderSettings(
     var dataSaverIgnoreJpeg: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreJpeg),
     var dataSaverIgnoreGif: Boolean = PrefManager.getVal(PrefName.DataSaverIgnoreGif),
     var dataSaverServer: String = PrefManager.getVal(PrefName.DataSaverServer),
-    var dataSaverColorBW: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW)
+    var dataSaverColorBW: Boolean = PrefManager.getVal(PrefName.DataSaverColorBW),
+    var oneHandZoom: Boolean = PrefManager.getVal(PrefName.OneHandZoom),
+    var autoScroll: Boolean = PrefManager.getVal(PrefName.AutoScroll),
+    var autoScrollSpeed: Float = PrefManager.getVal(PrefName.AutoScrollSpeed),
+    var backgroundColor: Int = PrefManager.getVal(PrefName.ReaderBackgroundColor),
+    var defaultRotation: Int = PrefManager.getVal(PrefName.DefaultRotation),
+    var continuousSidePadding: Int = PrefManager.getVal(PrefName.ContinuousSidePadding),
+    var eInkFlash: Boolean = PrefManager.getVal(PrefName.EInkFlashPageChange),
+    var imageQuality: ImageQuality = ImageQuality[PrefManager.getVal(PrefName.ImageQuality)]
+        ?: ImageQuality.FAST,
+    var preloadAmount: Int = PrefManager.getVal(PrefName.PagePreloadAmount),
+    var alwaysShowChapterTransition: Boolean = PrefManager.getVal(PrefName.AlwaysShowChapterTransition)
 ) : Serializable {
 
     enum class Directions {
@@ -62,7 +73,31 @@ data class CurrentReaderSettings(
         }
     }
 
+    enum class ImageQuality {
+        /** Android bilinear (hardware-accelerated, fastest). */
+        FAST,
+        /** Two-pass box filter — noticeably sharper on large downscales. */
+        BALANCED,
+        /** Lanczos-3 sinc-windowed resampling — highest quality, best for line art. */
+        LANCZOS;
+
+        companion object {
+            operator fun get(value: Int) = values().firstOrNull { it.ordinal == value }
+        }
+    }
+
+    @Suppress("SENSELESS_COMPARISON")
+    private fun readResolve(): Any {
+        if (imageQuality == null) imageQuality = ImageQuality.FAST
+        if (direction == null) direction = Directions.TOP_TO_BOTTOM
+        if (layout == null) layout = Layouts.CONTINUOUS
+        if (dualPageMode == null) dualPageMode = DualPageModes.Automatic
+        return this
+    }
+
     companion object {
+        private const val serialVersionUID: Long = 2L
+
         fun applyWebtoon(settings: CurrentReaderSettings) {
             settings.apply {
                 layout = Layouts.CONTINUOUS
@@ -73,4 +108,3 @@ data class CurrentReaderSettings(
         }
     }
 }
-

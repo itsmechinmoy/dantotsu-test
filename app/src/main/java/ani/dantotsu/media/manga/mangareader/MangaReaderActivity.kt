@@ -4,11 +4,14 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.KeyEvent.ACTION_DOWN
@@ -34,6 +37,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -89,8 +93,10 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
+import ani.dantotsu.media.manga.mangareader.BaseImageAdapter.Companion.loadBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.FileInputStream
@@ -110,6 +116,7 @@ class MangaReaderActivity : AppCompatActivity() {
     private val scope = lifecycleScope
 
     var defaultSettings = CurrentReaderSettings()
+    val autoScrollHelper = MangaReaderAutoScroll()
 
     private lateinit var media: Media
     private lateinit var chapter: MangaChapter
@@ -167,7 +174,27 @@ class MangaReaderActivity : AppCompatActivity() {
             hideSystemBarsExtendView()
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (autoScrollHelper.isRunning) {
+            autoScrollHelper.stop()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hideSystemBars()
+        if (defaultSettings.autoScroll && ::binding.isInitialized && defaultSettings.layout != PAGED) {
+            autoScrollHelper.speed = defaultSettings.autoScrollSpeed
+            autoScrollHelper.attach(binding.mangaReaderRecycler, defaultSettings.direction)
+            autoScrollHelper.stop()
+            binding.mangaReaderAutoScrollPlayBar.isVisible = true
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+        }
+    }
+
     override fun onDestroy() {
+        autoScrollHelper.destroy()
         mangaCache.clear()
         RPCManager.clearPresence(this)
         ani.dantotsu.widgets.continue_widget.ContinueWidget.updateReadingState(this, null, null, null, isExiting = true)
@@ -258,10 +285,16 @@ class MangaReaderActivity : AppCompatActivity() {
         binding.mangaReaderSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 sliding = true
-                if (defaultSettings.layout != PAGED)
-                    binding.mangaReaderRecycler.scrollToPosition((value.toInt() - 1) / (dualPage { 2 }
-                        ?: 1))
-                else
+                if (defaultSettings.layout != PAGED) {
+                    val pos = imageAdapter?.findPositionForPage(chapter, value.toInt())
+                    if (pos != null && pos >= 0) {
+                        binding.mangaReaderRecycler.scrollToPosition(pos)
+                    } else {
+                        binding.mangaReaderRecycler.scrollToPosition(
+                            ((value.toInt() - 1) / (dualPage { 2 } ?: 1)).coerceAtLeast(0)
+                        )
+                    }
+                } else {
                     if (defaultSettings.direction == CurrentReaderSettings.Directions.BOTTOM_TO_TOP) {
                         binding.mangaReaderPager.currentItem =
                             (maxChapterPage.toInt() - value.toInt()) / (dualPage { 2 } ?: 1)
@@ -269,6 +302,7 @@ class MangaReaderActivity : AppCompatActivity() {
                         binding.mangaReaderPager.currentItem =
                             (value.toInt() - 1) / (dualPage { 2 } ?: 1)
                     }
+                }
                 pageSliderHide()
             }
         }
@@ -370,6 +404,14 @@ class MangaReaderActivity : AppCompatActivity() {
                     p3: Long
                 ) {
                     if (position != currentChapterIndex) {
+                        if (defaultSettings.layout != PAGED) {
+                            val selectedChap = chapters[chaptersArr.getOrNull(position)]
+                            val pos = selectedChap?.let { imageAdapter?.findPositionForPage(it, 1) }
+                            if (pos != null && pos >= 0) {
+                                binding.mangaReaderRecycler.scrollToPosition(pos)
+                                return
+                            }
+                        }
                         val isForward = if (directionRLBT) position < currentChapterIndex else position > currentChapterIndex
                         progress(isForward) { change(position) }
                     }
@@ -380,6 +422,59 @@ class MangaReaderActivity : AppCompatActivity() {
 
         binding.mangaReaderSettings.setSafeOnClickListener {
             ReaderSettingsDialogFragment.newInstance().show(supportFragmentManager, "settings")
+        }
+
+        binding.mangaReaderTranslate.setSafeOnClickListener {
+            if (!::chapter.isInitialized) return@setSafeOnClickListener
+            val chapImages = if (directionPagedBT) {
+                chapter.images().reversed()
+            } else {
+                chapter.images()
+            }
+            val pageIndex = (currentChapterPage.toInt() - 1).coerceIn(0, (chapImages.size - 1).coerceAtLeast(0))
+            val currentImage = chapImages.getOrNull(pageIndex)
+            if (currentImage != null) {
+                snackString(getString(R.string.translating_page))
+                scope.launch(Dispatchers.IO) {
+                    val loadedBitmap = loadBitmap(currentImage.url, emptyList<BitmapTransformation>())
+                    if (loadedBitmap != null) {
+                        val softwareBitmap = if (loadedBitmap.config == Bitmap.Config.HARDWARE) {
+                            loadedBitmap.copy(Bitmap.Config.ARGB_8888, false)
+                        } else {
+                            loadedBitmap
+                        }
+                        withContext(Dispatchers.Main) {
+                            ani.dantotsu.media.manga.mangareader.ocr.OcrTranslationBottomSheet.newInstance(softwareBitmap)
+                                .show(supportFragmentManager, "ocr_translate")
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            snackString(getString(R.string.error_loading_data, "page image"))
+                        }
+                    }
+                }
+            } else {
+                snackString(getString(R.string.error_loading_data, "current page"))
+            }
+        }
+
+        binding.autoScrollPlayPause.setOnClickListener {
+            val isRunning = autoScrollHelper.toggle()
+            binding.autoScrollPlayPause.setImageResource(
+                if (isRunning) R.drawable.ic_round_pause_24 else R.drawable.ic_round_play_arrow_24
+            )
+        }
+
+        binding.autoScrollSpeedUp.setOnClickListener {
+            val newSpeed = (autoScrollHelper.speed + 0.5f).coerceAtMost(10f)
+            updateAutoScrollSpeed(newSpeed)
+            snackString("${newSpeed}x")
+        }
+
+        binding.autoScrollSpeedDown.setOnClickListener {
+            val newSpeed = (autoScrollHelper.speed - 0.5f).coerceAtLeast(0.5f)
+            updateAutoScrollSpeed(newSpeed)
+            snackString("${newSpeed}x")
         }
 
         //Next Chapter
@@ -530,8 +625,25 @@ class MangaReaderActivity : AppCompatActivity() {
             }
             cleanChapNum?.let { PrefManager.setCustomVal("${media.id}_${it}_max", maxChapterPage) }
 
+            val nextIndex = if (directionRLBT) currentChapterIndex - 1 else currentChapterIndex + 1
+            val nextChapter = if (defaultSettings.layout != PAGED) {
+                chaptersArr.getOrNull(nextIndex)?.let { chapters[it] }
+            } else null
+
+            val prevIndex = if (directionRLBT) currentChapterIndex + 1 else currentChapterIndex - 1
+            val prevChapter = if (defaultSettings.layout != PAGED) {
+                chaptersArr.getOrNull(prevIndex)?.let { chapters[it] }
+            } else null
+
             imageAdapter =
-                dualPage { DualPageAdapter(this, chapter) } ?: ImageAdapter(this, chapter)
+                dualPage { DualPageAdapter(this, chapter, nextChapter, prevChapter) } ?: ImageAdapter(this, chapter, nextChapter, prevChapter)
+
+            if (defaultSettings.layout != PAGED && nextChapter != null) {
+                preloadChapterAndAppend(nextChapter)
+            }
+            if (defaultSettings.layout != PAGED && prevChapter != null) {
+                preloadChapterAndPrepend(prevChapter)
+            }
 
             if (chapImages.size > 1) {
                 binding.mangaReaderSlider.apply {
@@ -553,6 +665,17 @@ class MangaReaderActivity : AppCompatActivity() {
                 isExiting = false
             )
 
+        }
+
+        if (defaultSettings.autoScroll && defaultSettings.layout != PAGED) {
+            autoScrollHelper.speed = defaultSettings.autoScrollSpeed
+            autoScrollHelper.attach(binding.mangaReaderRecycler, defaultSettings.direction)
+            autoScrollHelper.stop()
+            binding.mangaReaderAutoScrollPlayBar.isVisible = true
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+        } else {
+            autoScrollHelper.stop()
+            binding.mangaReaderAutoScrollPlayBar.isVisible = false
         }
 
         val currentPage = if (directionPagedBT) {
@@ -657,12 +780,13 @@ class MangaReaderActivity : AppCompatActivity() {
                 override fun onLongPress(e: MotionEvent) {
                     if (binding.mangaReaderRecycler.findChildViewUnder(e.x, e.y).let { child ->
                             child ?: return@let false
+                            val frameLayout = child as? GestureFrameLayout ?: return@let false
                             val pos = binding.mangaReaderRecycler.getChildAdapterPosition(child)
                             val callback: (ImageViewDialog) -> Unit = { dialog ->
                                 lifecycleScope.launch {
                                     imageAdapter?.loadImage(
                                         pos,
-                                        child as GestureFrameLayout
+                                        frameLayout
                                     )
                                 }
                                 binding.mangaReaderRecycler.performHapticFeedback(
@@ -732,11 +856,66 @@ class MangaReaderActivity : AppCompatActivity() {
                                 )))
                             ) {
                                 handleController(true)
-                            } else handleController(false)
+                            } else if (!isContVisible) handleController(false)
                         }
-                        updatePageNumber(
-                            manager.findLastVisibleItemPosition().toLong() * (dualPage { 2 }
-                                ?: 1) + 1)
+
+                        val visiblePos = if (directionRLBT) {
+                            manager.findFirstVisibleItemPosition()
+                        } else {
+                            manager.findLastVisibleItemPosition()
+                        }.takeIf { it != RecyclerView.NO_POSITION } ?: manager.findFirstVisibleItemPosition()
+
+                        if (visiblePos != RecyclerView.NO_POSITION) {
+                            val item = imageAdapter?.getItem(visiblePos)
+                            when (item) {
+                                is ReaderItem.Page -> {
+                                    onChapterScrolledTo(item.chapter, item.pageNumber, item.totalPages)
+                                    if (item.totalPages - item.pageNumber <= 5) {
+                                        val nextIdx = if (directionRLBT) currentChapterIndex - 1 else currentChapterIndex + 1
+                                        val nextChap = chaptersArr.getOrNull(nextIdx)?.let { chapters[it] }
+                                        if (nextChap != null) {
+                                            preloadChapterAndAppend(nextChap)
+                                        }
+                                    }
+                                    if (item.pageNumber <= 5) {
+                                        val prevIdx = if (directionRLBT) currentChapterIndex + 1 else currentChapterIndex - 1
+                                        val prevChap = chaptersArr.getOrNull(prevIdx)?.let { chapters[it] }
+                                        if (prevChap != null) {
+                                            preloadChapterAndPrepend(prevChap)
+                                        }
+                                    }
+                                }
+                                is ReaderItem.DualPage -> {
+                                    onChapterScrolledTo(item.chapter, item.pageNumber, item.totalPages)
+                                    if (item.totalPages - item.pageNumber <= 3) {
+                                        val nextIdx = if (directionRLBT) currentChapterIndex - 1 else currentChapterIndex + 1
+                                        val nextChap = chaptersArr.getOrNull(nextIdx)?.let { chapters[it] }
+                                        if (nextChap != null) {
+                                            preloadChapterAndAppend(nextChap)
+                                        }
+                                    }
+                                    if (item.pageNumber <= 3) {
+                                        val prevIdx = if (directionRLBT) currentChapterIndex + 1 else currentChapterIndex - 1
+                                        val prevChap = chaptersArr.getOrNull(prevIdx)?.let { chapters[it] }
+                                        if (prevChap != null) {
+                                            preloadChapterAndPrepend(prevChap)
+                                        }
+                                    }
+                                }
+                                is ReaderItem.Transition -> {
+                                    if (!item.isPrevious) {
+                                        item.toChapter?.let { toChap ->
+                                            preloadChapterAndAppend(toChap)
+                                        }
+                                    } else {
+                                        item.toChapter?.let { toChap ->
+                                            preloadChapterAndPrepend(toChap)
+                                        }
+                                    }
+                                }
+                                null -> {}
+                            }
+                        }
                         super.onScrolled(v, dx, dy)
                     }
                 })
@@ -792,7 +971,9 @@ class MangaReaderActivity : AppCompatActivity() {
                     }
                 }
 
-                scrollToPosition(currentPage / (dualPage { 2 } ?: 1) - 1)
+                val initialPos = imageAdapter?.findPositionForPage(chapter, currentPage)?.takeIf { it >= 0 }
+                    ?: ((currentPage / (dualPage { 2 } ?: 1)) - 1).coerceAtLeast(0)
+                scrollToPosition(initialPos)
             }
         } else {
             binding.mangaReaderRecyclerContainer.visibility = View.GONE
@@ -1091,8 +1272,12 @@ class MangaReaderActivity : AppCompatActivity() {
         if (directionPagedBT) {
             page = maxChapterPage - pageNumber + 1
         }
+        if (maxChapterPage > 0) {
+            page = clamp(page, 1L, maxChapterPage)
+        }
         if (currentChapterPage != page) {
             currentChapterPage = page
+            triggerEInkFlash()
             PrefManager.setCustomVal("${media.id}_${chapter.number}", page)
             val cleanChapNum = MediaNameAdapter.findChapterNumber(chapter.number)?.let {
                 if (it % 1 == 0f) it.toInt().toString() else it.toString()
@@ -1184,6 +1369,7 @@ class MangaReaderActivity : AppCompatActivity() {
     private var lastSubscriptionPromptChapter: String? = null
 
     private fun maybeHandleSubscriptionAfterChapterCompletion() {
+        if (isFinishing || isDestroyed) return
         val chapterKey = chapter.uniqueNumber()
         if (lastSubscriptionPromptChapter == chapterKey) return
         lastSubscriptionPromptChapter = chapterKey
@@ -1318,5 +1504,268 @@ class MangaReaderActivity : AppCompatActivity() {
             show(supportFragmentManager, "image")
         }
         return true
+    }
+
+    fun saveCurrentSettings() {
+        if (::media.isInitialized) {
+            saveReaderSettings("${media.id}_current_settings", defaultSettings)
+        }
+    }
+
+    fun applySidePadding(paddingPercent: Int) {
+        defaultSettings.continuousSidePadding = paddingPercent
+        saveCurrentSettings()
+        if (defaultSettings.layout != PAGED) {
+            val screenWidth = Resources.getSystem().displayMetrics.widthPixels
+            val paddingPx = ((paddingPercent / 100f) * (screenWidth / 2f)).toInt()
+            if (defaultSettings.direction == TOP_TO_BOTTOM || defaultSettings.direction == BOTTOM_TO_TOP) {
+                binding.mangaReaderRecycler.updatePadding(left = paddingPx, right = paddingPx)
+            } else {
+                binding.mangaReaderRecycler.updatePadding(top = paddingPx, bottom = paddingPx)
+            }
+        }
+    }
+
+    fun applyOneHandZoom(enabled: Boolean) {
+        defaultSettings.oneHandZoom = enabled
+        saveCurrentSettings()
+    }
+
+    fun applyBackgroundColor(colorIndex: Int) {
+        defaultSettings.backgroundColor = colorIndex
+        saveCurrentSettings()
+        val color = when (colorIndex) {
+            1 -> Color.BLACK
+            2 -> Color.parseColor("#222222")
+            3 -> Color.WHITE
+            else -> ContextCompat.getColor(this, R.color.nav_bg)
+        }
+        binding.root.setBackgroundColor(color)
+        binding.mangaReaderRecycler.setBackgroundColor(color)
+        binding.mangaReaderPager.setBackgroundColor(color)
+    }
+
+    fun applyOrientationLock(orientationIndex: Int) {
+        defaultSettings.defaultRotation = orientationIndex
+        saveCurrentSettings()
+        requestedOrientation = when (orientationIndex) {
+            1 -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            2 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    fun updatePreloadAmount(amount: Int) {
+        defaultSettings.preloadAmount = amount
+        saveCurrentSettings()
+        val layoutManager = binding.mangaReaderRecycler.layoutManager as? PreloadLinearLayoutManager
+        layoutManager?.preloadItemCount = amount
+    }
+
+    fun updateAutoScrollState(enabled: Boolean) {
+        defaultSettings.autoScroll = enabled
+        saveCurrentSettings()
+        if (::binding.isInitialized) {
+            binding.mangaReaderAutoScrollPlayBar.isVisible = enabled && defaultSettings.layout != PAGED
+            if (enabled && defaultSettings.layout != PAGED) {
+                autoScrollHelper.speed = defaultSettings.autoScrollSpeed
+                autoScrollHelper.attach(binding.mangaReaderRecycler, defaultSettings.direction)
+                autoScrollHelper.stop()
+                binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+            } else {
+                autoScrollHelper.stop()
+                binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+            }
+        }
+    }
+
+    fun updateAutoScrollSpeed(speed: Float) {
+        defaultSettings.autoScrollSpeed = speed
+        saveCurrentSettings()
+        autoScrollHelper.speed = speed
+    }
+
+    fun getChapterDisplayTitle(chap: MangaChapter?): String {
+        if (chap == null) return ""
+        val index = chaptersArr.indexOf(chap.uniqueNumber())
+        if (index != -1) {
+            val title = chaptersTitleArr.getOrNull(index)
+            if (!title.isNullOrEmpty()) return title
+        }
+        val t = chap.title
+        return if (!t.isNullOrEmpty() && t != "null") {
+            "Chapter ${chap.number} : $t"
+        } else {
+            "Chapter ${chap.number}"
+        }
+    }
+
+    fun getFinishedChapterTitle(): String {
+        return getChapterDisplayTitle(if (::chapter.isInitialized) chapter else null)
+    }
+
+    fun getNextChapterTitle(): String? {
+        val nextIndex = if (directionRLBT) currentChapterIndex - 1 else currentChapterIndex + 1
+        return chaptersArr.getOrNull(nextIndex)?.let { chapters[it] }?.let { getChapterDisplayTitle(it) }
+    }
+
+    private val loadingChapters = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private fun preloadChapterAndAppend(targetChapter: MangaChapter) {
+        val chapterKey = targetChapter.uniqueNumber()
+        if (loadingChapters.contains(chapterKey)) return
+
+        val targetIndex = chaptersArr.indexOf(chapterKey)
+        val afterNextIndex = if (directionRLBT) targetIndex - 1 else targetIndex + 1
+        val afterNextChapter = chaptersArr.getOrNull(afterNextIndex)?.let { chapters[it] }
+
+        if (targetChapter.images().isNotEmpty()) {
+            imageAdapter?.appendChapter(targetChapter, afterNextChapter)
+            return
+        }
+
+        loadingChapters.add(chapterKey)
+        scope.launch(Dispatchers.IO) {
+            try {
+                model.loadMangaChapterImages(targetChapter, media.selected!!, false)
+                withContext(Dispatchers.Main) {
+                    if (targetChapter.images().isNotEmpty()) {
+                        imageAdapter?.appendChapter(targetChapter, afterNextChapter)
+                    }
+                }
+            } catch (e: Exception) {
+                logError(e)
+            } finally {
+                loadingChapters.remove(chapterKey)
+            }
+        }
+    }
+
+    private fun preloadChapterAndPrepend(targetChapter: MangaChapter) {
+        val chapterKey = targetChapter.uniqueNumber()
+        if (loadingChapters.contains(chapterKey)) return
+
+        val targetIndex = chaptersArr.indexOf(chapterKey)
+        val beforePrevIndex = if (directionRLBT) targetIndex + 1 else targetIndex - 1
+        val beforePrevChapter = chaptersArr.getOrNull(beforePrevIndex)?.let { chapters[it] }
+
+        val applyPrepend = {
+            val layoutManager = binding.mangaReaderRecycler.layoutManager as? LinearLayoutManager
+            val firstVisiblePos = layoutManager?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+            val firstView = if (firstVisiblePos != RecyclerView.NO_POSITION) layoutManager?.findViewByPosition(firstVisiblePos) else null
+            val offset = if (defaultSettings.direction == LEFT_TO_RIGHT || defaultSettings.direction == RIGHT_TO_LEFT) {
+                firstView?.left ?: 0
+            } else {
+                firstView?.top ?: 0
+            }
+
+            val insertedCount = imageAdapter?.prependChapter(targetChapter, beforePrevChapter) ?: 0
+            if (insertedCount > 0 && firstVisiblePos != RecyclerView.NO_POSITION && layoutManager != null) {
+                layoutManager.scrollToPositionWithOffset(firstVisiblePos + insertedCount, offset)
+            }
+        }
+
+        if (targetChapter.images().isNotEmpty()) {
+            applyPrepend()
+            return
+        }
+
+        loadingChapters.add(chapterKey)
+        scope.launch(Dispatchers.IO) {
+            try {
+                model.loadMangaChapterImages(targetChapter, media.selected!!, false)
+                withContext(Dispatchers.Main) {
+                    if (targetChapter.images().isNotEmpty()) {
+                        applyPrepend()
+                    }
+                }
+            } catch (e: Exception) {
+                logError(e)
+            } finally {
+                loadingChapters.remove(chapterKey)
+            }
+        }
+    }
+
+    private fun onChapterScrolledTo(newChapter: MangaChapter, pageNum: Int, totalPages: Int) {
+        if (newChapter.uniqueNumber() != chapter.uniqueNumber()) {
+            val oldChapter = chapter
+            // Mark previous chapter as read (100% completed)
+            PrefManager.setCustomVal("${media.id}_${oldChapter.number}", maxChapterPage)
+            val cleanOldChapNum = MediaNameAdapter.findChapterNumber(oldChapter.number)?.let {
+                if (it % 1 == 0f) it.toInt().toString() else it.toString()
+            }
+            cleanOldChapNum?.let { PrefManager.setCustomVal("${media.id}_$it", maxChapterPage) }
+
+            // Sync progress if allowed
+            val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
+            if (!incognito && PrefManager.getCustomVal("${media.id}_save_progress", true)
+                && if (media.isAdult) PrefManager.getVal(PrefName.UpdateForHReader) else true
+            ) {
+                val oldChapNumStr = cleanOldChapNum ?: oldChapter.number
+                if (oldChapNumStr.isNotEmpty()) {
+                    updateProgress(media, oldChapNumStr)
+                }
+            }
+
+            chapter = newChapter
+            media.manga?.selectedChapter = chapter
+            currentChapterIndex = chaptersArr.indexOf(chapter.uniqueNumber())
+            PrefManager.setCustomVal("${media.id}_current_chp", chapter.number)
+            val cleanChapNum = MediaNameAdapter.findChapterNumber(chapter.number)?.let {
+                if (it % 1 == 0f) it.toInt().toString() else it.toString()
+            }
+            cleanChapNum?.let { PrefManager.setCustomVal("${media.id}_current_chp_num", it) }
+
+            if (binding.mangaReaderChapterSelect.selectedItemPosition != currentChapterIndex && currentChapterIndex >= 0) {
+                binding.mangaReaderChapterSelect.setSelection(currentChapterIndex)
+            }
+
+            if (directionRLBT) {
+                binding.mangaReaderNextChap.text =
+                    chaptersTitleArr.getOrNull(currentChapterIndex - 1) ?: ""
+                binding.mangaReaderPrevChap.text =
+                    chaptersTitleArr.getOrNull(currentChapterIndex + 1) ?: ""
+            } else {
+                binding.mangaReaderNextChap.text =
+                    chaptersTitleArr.getOrNull(currentChapterIndex + 1) ?: ""
+                binding.mangaReaderPrevChap.text =
+                    chaptersTitleArr.getOrNull(currentChapterIndex - 1) ?: ""
+            }
+
+            maxChapterPage = totalPages.toLong()
+            PrefManager.setCustomVal("${media.id}_${chapter.number}_max", maxChapterPage)
+            cleanChapNum?.let { PrefManager.setCustomVal("${media.id}_${it}_max", maxChapterPage) }
+
+            if (totalPages > 1) {
+                binding.mangaReaderSlider.visibility = View.VISIBLE
+                binding.mangaReaderSlider.valueTo = maxChapterPage.toFloat()
+            } else {
+                binding.mangaReaderSlider.visibility = View.GONE
+            }
+        }
+
+        updatePageNumber(pageNum.toLong())
+    }
+
+    fun loadNextChapter() {
+        binding.mangaReaderNextChapter.performClick()
+    }
+
+    fun loadPreviousChapter() {
+        binding.mangaReaderPreviousChapter.performClick()
+    }
+
+    fun triggerEInkFlash() {
+        if (!defaultSettings.eInkFlash) return
+        binding.mangaReaderEInkOverlay.apply {
+            visibility = View.VISIBLE
+            alpha = 1f
+            postDelayed({
+                animate().alpha(0f).setDuration(120).withEndAction {
+                    visibility = View.GONE
+                }.start()
+            }, 80)
+        }
     }
 }

@@ -184,6 +184,16 @@ enum class PrefName(val data: Pref) {
     LongClickImage(Pref(Location.Reader, Boolean::class, true)),
     CropBorders(Pref(Location.Reader, Boolean::class, false)),
     CropBorderThreshold(Pref(Location.Reader, Int::class, 10)),
+    OneHandZoom(Pref(Location.Reader, Boolean::class, true)),
+    AutoScroll(Pref(Location.Reader, Boolean::class, false)),
+    AutoScrollSpeed(Pref(Location.Reader, Float::class, 3.0f)),
+    ReaderBackgroundColor(Pref(Location.Reader, Int::class, 0)), // 0=Auto, 1=Black, 2=Gray, 3=White
+    DefaultRotation(Pref(Location.Reader, Int::class, 0)), // 0=Free, 1=Portrait, 2=Landscape
+    ContinuousSidePadding(Pref(Location.Reader, Int::class, 0)), // Percentage (0-25%)
+    EInkFlashPageChange(Pref(Location.Reader, Boolean::class, false)),
+    ImageQuality(Pref(Location.Reader, Int::class, 0)), // 0=FAST, 1=BALANCED, 2=LANCZOS
+    PagePreloadAmount(Pref(Location.Reader, Int::class, 3)),
+    AlwaysShowChapterTransition(Pref(Location.Reader, Boolean::class, false)),
     
     // Data Saver
     DataSaverMode(Pref(Location.Reader, Int::class, 0)), // 0=NONE, 1=BANDWIDTH_HERO, 2=WSRV_NL

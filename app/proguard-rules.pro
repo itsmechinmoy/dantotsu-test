@@ -159,3 +159,17 @@
 #############################################
 -keep class com.antonkarpenko.ffmpegkit.** { *; }
 -dontwarn com.antonkarpenko.ffmpegkit.**
+
+#############################################
+# WebGPU Viewer (ca.mpreg:webgpuviewer)
+#############################################
+-keep class ca.mpreg.webgpuviewer.** { *; }
+-dontwarn ca.mpreg.webgpuviewer.**
+
+#############################################
+# ML Kit Text Recognition
+#############################################
+-keep class com.google.mlkit.vision.** { *; }
+-dontwarn com.google.mlkit.vision.**
+-keep class com.google.android.gms.internal.mlkit_vision_text** { *; }
+-dontwarn com.google.android.gms.internal.mlkit_vision_text**

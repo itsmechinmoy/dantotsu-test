@@ -14,6 +14,7 @@ import ani.dantotsu.util.Logger
 import ani.dantotsu.util.createDataSaver
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -83,9 +84,10 @@ data class ImageData(
                 }
 
                 return@withContext bitmap
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Logger.log("An error occurred: ${e.message}")
-                snackString("An error occurred: ${e.message}")
+                Logger.log("MangaCache image fetch error: ${e.message}")
                 return@withContext null
             }
         }
@@ -147,6 +149,11 @@ fun saveImage(
 class MangaCache {
     private val maxEntries = 500
     private val cache = LruCache<String, ImageData>(maxEntries)
+    private val bitmapCache = object : LruCache<String, Bitmap>(30) {
+        override fun sizeOf(key: String, value: Bitmap): Int {
+            return (value.byteCount / 1024).coerceAtLeast(1)
+        }
+    }
 
     @Synchronized
     fun put(key: String, imageDate: ImageData) {
@@ -159,11 +166,26 @@ class MangaCache {
     @Synchronized
     fun remove(key: String) {
         cache.remove(key)
+        bitmapCache.remove(key)
     }
 
     @Synchronized
     fun clear() {
         cache.evictAll()
+        bitmapCache.evictAll()
+    }
+
+    @Synchronized
+    fun putBitmap(key: String, bitmap: Bitmap) {
+        bitmapCache.put(key, bitmap)
+    }
+
+    @Synchronized
+    fun getBitmap(key: String): Bitmap? = bitmapCache.get(key)
+
+    @Synchronized
+    fun clearBitmaps() {
+        bitmapCache.evictAll()
     }
 
     fun size(): Int = cache.size()

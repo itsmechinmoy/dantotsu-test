@@ -340,11 +340,15 @@ object Anilist {
         lastError = null
         return try {
             if (show) Logger.log("Anilist Query: $query")
-            if (rateLimitReset > System.currentTimeMillis() / 1000) {
-                val rateMsg = "Rate limited. Try after ${rateLimitReset - (System.currentTimeMillis() / 1000)} seconds"
+            val nowSec = System.currentTimeMillis() / 1000
+            val secondsRemaining = rateLimitReset - nowSec
+            if (secondsRemaining > 0) {
+                val rateMsg = "Rate limited. Try after $secondsRemaining seconds"
                 toast(rateMsg)
                 lastError = rateMsg
                 throw Exception(rateMsg)
+            } else {
+                rateLimitReset = 0
             }
             val headers = mutableMapOf(
                 "Content-Type" to "application/json; charset=utf-8",
@@ -376,13 +380,22 @@ object Anilist {
                 val remaining = json.headers["X-RateLimit-Remaining"]?.toIntOrNull() ?: -1
                 Logger.log("Remaining requests: $remaining")
                 if (json.code == 429) {
+                    val currentSec = System.currentTimeMillis() / 1000
                     val retry = json.headers["Retry-After"]?.toIntOrNull() ?: -1
-                    val passedLimitReset = json.headers["X-RateLimit-Reset"]?.toLongOrNull() ?: 0
-                    if (retry > 0) {
-                        rateLimitReset = passedLimitReset
+                    var passedLimitReset = json.headers["X-RateLimit-Reset"]?.toLongOrNull() ?: 0L
+                    if (passedLimitReset > 10_000_000_000L) {
+                        passedLimitReset /= 1000
                     }
+                    val waitFromReset = if (passedLimitReset > currentSec) (passedLimitReset - currentSec).toInt() else 0
+                    val actualWait = when {
+                        retry > 0 -> retry
+                        waitFromReset > 0 -> waitFromReset
+                        else -> 60
+                    }.coerceAtLeast(1)
 
-                    val rateMsg = "Rate limited. Try after $retry seconds"
+                    rateLimitReset = currentSec + actualWait
+
+                    val rateMsg = "Rate limited. Try after $actualWait seconds"
                     toast(rateMsg)
                     lastError = rateMsg
                     throw Exception(rateMsg)

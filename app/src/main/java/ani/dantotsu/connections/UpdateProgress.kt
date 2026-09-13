@@ -73,8 +73,8 @@ fun updateProgress(media: Media, number: String) {
                     )
                     toast(currContext()?.getString(R.string.setting_progress, a))
                 }
+                media.userProgress = a
             }
-            media.userProgress = progressInt
             Anilist.query.invalidateHomePageCache()
             Anilist.query.invalidateUserStatusCache()
             Refresh.all()
@@ -94,8 +94,8 @@ fun updateProgress(media: Media, number: String) {
                         if (media.userStatus == "REPEATING") media.userStatus!! else "CURRENT"
                     )
                     toast(currContext()?.getString(R.string.setting_progress, a))
+                    media.userProgress = a
                 }
-                media.userProgress = a
                 Anilist.query.invalidateHomePageCache()
                 Anilist.query.invalidateUserStatusCache()
                 Refresh.all()

@@ -48,7 +48,12 @@ private class BandwidthHeroDataSaver : DataSaver {
     }
 
     private fun getUrl(imageUrl: String): String {
-        return "$dataSavedServer/?jpg=$format&l=$quality&bw=$colorBW&url=$imageUrl"
+        val encoded = try {
+            java.net.URLEncoder.encode(imageUrl, "UTF-8")
+        } catch (_: Exception) {
+            imageUrl
+        }
+        return "$dataSavedServer/?jpg=$format&l=$quality&bw=$colorBW&url=$encoded"
     }
 }
 
@@ -69,7 +74,12 @@ private class WsrvNlDataSaver : DataSaver {
     }
 
     private fun getUrl(imageUrl: String): String {
-        return "https://wsrv.nl/?url=$imageUrl" +
+        val encoded = try {
+            java.net.URLEncoder.encode(imageUrl, "UTF-8")
+        } catch (_: Exception) {
+            imageUrl
+        }
+        return "https://wsrv.nl/?url=$encoded" +
             if (imageUrl.contains(".webp", true) || imageUrl.contains(".gif", true)) {
                 if (!format) {
                     // Preserve output image extension for animated images(.webp and .gif)
