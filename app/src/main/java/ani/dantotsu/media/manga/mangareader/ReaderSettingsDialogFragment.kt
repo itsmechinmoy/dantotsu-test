@@ -20,9 +20,23 @@ import com.google.android.material.slider.Slider
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+
 class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
     private var _binding: BottomSheetCurrentReaderSettingsBinding? = null
     private val binding get() = _binding!!
+
+    override fun onStart() {
+        super.onStart()
+        // Lock the bottom sheet to expanded so tab switches don't change its height/position
+        val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+        if (bottomSheet != null) {
+            val behavior = BottomSheetBehavior.from(bottomSheet)
+            behavior.skipCollapsed = true
+            behavior.isFitToContents = false
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
