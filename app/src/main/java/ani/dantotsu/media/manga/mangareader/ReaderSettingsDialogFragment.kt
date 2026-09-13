@@ -32,8 +32,8 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         val bottomSheet = dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
         if (bottomSheet != null) {
             val behavior = BottomSheetBehavior.from(bottomSheet)
+            behavior.isFitToContents = true
             behavior.skipCollapsed = true
-            behavior.isFitToContents = false
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
     }
@@ -97,6 +97,7 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             tabContents.forEachIndexed { idx, layout ->
                 layout.visibility = if (idx == selectedIdx) View.VISIBLE else View.GONE
             }
+            binding.readerSettingsScrollView.scrollTo(0, 0)
         }
 
         tabButtons.forEachIndexed { idx, btn ->
