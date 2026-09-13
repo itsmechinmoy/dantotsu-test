@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.view.View
 import ani.dantotsu.media.manga.MangaChapter
 import ani.dantotsu.settings.CurrentReaderSettings.Directions.LEFT_TO_RIGHT
+import ani.dantotsu.settings.CurrentReaderSettings.Layouts.PAGED
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 
 class DualPageAdapter(
