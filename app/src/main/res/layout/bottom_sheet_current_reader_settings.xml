@@ -159,7 +159,7 @@
     <androidx.core.widget.NestedScrollView
         android:id="@+id/readerSettingsScrollView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="340dp"
         android:fillViewport="true"
         android:overScrollMode="never">
 
