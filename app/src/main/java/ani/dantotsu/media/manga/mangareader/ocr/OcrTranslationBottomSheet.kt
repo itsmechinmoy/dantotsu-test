@@ -55,9 +55,10 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
+            var detectedText = ""
             try {
-                // 1. Recognize text using ML Kit on-device Japanese recognizer
-                val detectedText = recognizeText(bitmap)
+                // 1. Recognize text using ML Kit on-device recognizer
+                detectedText = recognizeText(bitmap)
 
                 if (!isAdded) return@launch
 
@@ -69,8 +70,15 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
                     return@launch
                 }
 
-                // 2. Translate text via Google Translate API
-                val translatedText = translateText(detectedText)
+                // 2. Check if text is already Latin/English (all ASCII ≤ 127)
+                //    If so, skip translation — just show the detected text directly.
+                val isLikelyLatin = detectedText.all { it.code <= 127 }
+
+                val translatedText = if (isLikelyLatin) {
+                    detectedText  // Don't translate English → English
+                } else {
+                    translateText(detectedText)
+                }
 
                 if (!isAdded) return@launch
 
@@ -92,10 +100,21 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
                     dismiss()
                 }
             } catch (e: Exception) {
-                if (isAdded) {
-                    Toast.makeText(context, "Translation error: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
-                    dismiss()
+                e.printStackTrace()
+                if (!isAdded) return@launch
+                // Don't dismiss — show whatever we detected so user can still copy it
+                binding.ocrProgressBar.visibility = View.GONE
+                binding.ocrResultsContainer.visibility = View.VISIBLE
+                binding.ocrDetectedText.text = detectedText.ifBlank { getString(R.string.no_text_detected) }
+                binding.ocrTranslatedText.text = "Translation failed: ${e.localizedMessage ?: "Network error"}"
+                binding.ocrCopyButton.setOnClickListener {
+                    val ctx = context ?: return@setOnClickListener
+                    val textToCopy = detectedText.ifBlank { return@setOnClickListener }
+                    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("Manga OCR", textToCopy))
+                    if (isAdded) Toast.makeText(ctx, getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
                 }
+                binding.ocrCloseButton.setOnClickListener { dismiss() }
             }
         }
     }
