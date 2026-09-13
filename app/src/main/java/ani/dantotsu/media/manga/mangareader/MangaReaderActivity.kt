@@ -37,6 +37,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -640,6 +641,9 @@ class MangaReaderActivity : AppCompatActivity() {
             if (defaultSettings.layout != PAGED && nextChapter != null) {
                 preloadChapterAndAppend(nextChapter)
             }
+            if (defaultSettings.layout != PAGED && prevChapter != null) {
+                preloadChapterAndPrepend(prevChapter)
+            }
 
             if (chapImages.size > 1) {
                 binding.mangaReaderSlider.apply {
@@ -873,6 +877,13 @@ class MangaReaderActivity : AppCompatActivity() {
                                             preloadChapterAndAppend(nextChap)
                                         }
                                     }
+                                    if (item.pageNumber <= 5) {
+                                        val prevIdx = if (directionRLBT) currentChapterIndex + 1 else currentChapterIndex - 1
+                                        val prevChap = chaptersArr.getOrNull(prevIdx)?.let { chapters[it] }
+                                        if (prevChap != null) {
+                                            preloadChapterAndPrepend(prevChap)
+                                        }
+                                    }
                                 }
                                 is ReaderItem.DualPage -> {
                                     onChapterScrolledTo(item.chapter, item.pageNumber, item.totalPages)
@@ -883,11 +894,22 @@ class MangaReaderActivity : AppCompatActivity() {
                                             preloadChapterAndAppend(nextChap)
                                         }
                                     }
+                                    if (item.pageNumber <= 3) {
+                                        val prevIdx = if (directionRLBT) currentChapterIndex + 1 else currentChapterIndex - 1
+                                        val prevChap = chaptersArr.getOrNull(prevIdx)?.let { chapters[it] }
+                                        if (prevChap != null) {
+                                            preloadChapterAndPrepend(prevChap)
+                                        }
+                                    }
                                 }
                                 is ReaderItem.Transition -> {
                                     if (!item.isPrevious) {
                                         item.toChapter?.let { toChap ->
                                             preloadChapterAndAppend(toChap)
+                                        }
+                                    } else {
+                                        item.toChapter?.let { toChap ->
+                                            preloadChapterAndPrepend(toChap)
                                         }
                                     }
                                 }
@@ -1609,6 +1631,52 @@ class MangaReaderActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     if (targetChapter.images().isNotEmpty()) {
                         imageAdapter?.appendChapter(targetChapter, afterNextChapter)
+                    }
+                }
+            } catch (e: Exception) {
+                logError(e)
+            } finally {
+                loadingChapters.remove(chapterKey)
+            }
+        }
+    }
+
+    private fun preloadChapterAndPrepend(targetChapter: MangaChapter) {
+        val chapterKey = targetChapter.uniqueNumber()
+        if (loadingChapters.contains(chapterKey)) return
+
+        val targetIndex = chaptersArr.indexOf(chapterKey)
+        val beforePrevIndex = if (directionRLBT) targetIndex + 1 else targetIndex - 1
+        val beforePrevChapter = chaptersArr.getOrNull(beforePrevIndex)?.let { chapters[it] }
+
+        val applyPrepend = {
+            val layoutManager = binding.mangaReaderRecycler.layoutManager as? LinearLayoutManager
+            val firstVisiblePos = layoutManager?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+            val firstView = if (firstVisiblePos != RecyclerView.NO_POSITION) layoutManager?.findViewByPosition(firstVisiblePos) else null
+            val offset = if (defaultSettings.direction == LEFT_TO_RIGHT || defaultSettings.direction == RIGHT_TO_LEFT) {
+                firstView?.left ?: 0
+            } else {
+                firstView?.top ?: 0
+            }
+
+            val insertedCount = imageAdapter?.prependChapter(targetChapter, beforePrevChapter) ?: 0
+            if (insertedCount > 0 && firstVisiblePos != RecyclerView.NO_POSITION && layoutManager != null) {
+                layoutManager.scrollToPositionWithOffset(firstVisiblePos + insertedCount, offset)
+            }
+        }
+
+        if (targetChapter.images().isNotEmpty()) {
+            applyPrepend()
+            return
+        }
+
+        loadingChapters.add(chapterKey)
+        scope.launch(Dispatchers.IO) {
+            try {
+                model.loadMangaChapterImages(targetChapter, media.selected!!, false)
+                withContext(Dispatchers.Main) {
+                    if (targetChapter.images().isNotEmpty()) {
+                        applyPrepend()
                     }
                 }
             } catch (e: Exception) {
