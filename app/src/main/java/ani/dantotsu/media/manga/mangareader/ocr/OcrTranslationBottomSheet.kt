@@ -171,23 +171,30 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
     }
 
     /**
-     * Translate [text] to English using a 3-engine fallback chain:
-     *   1. Google Translate (gtx, free/unauthenticated)
-     *   2. MyMemory         (free, 5 000 chars/day, no key)
-     *   3. LibreTranslate   (argosopentech public mirror, no key)
+     * Translate [text] to English using a fallback chain:
+     *   1. Google Translate (client=dict-chrome-ex, unauthenticated & unblocked)
+     *   2. MyMemory         (free, 5 000 chars/day, with detected language)
      */
     private suspend fun translateText(text: String): String = withContext(Dispatchers.IO) {
         translateWithGoogle(text)
             ?: translateWithMyMemory(text)
-            ?: translateWithLibreTranslate(text)
             ?: "Translation unavailable — all engines failed or are rate-limited. Please try again later."
+    }
+
+    private fun detectLanguage(text: String): String {
+        return when {
+            text.any { it in '\uAC00'..'\uD7AF' || it in '\u1100'..'\u11FF' } -> "ko"
+            text.any { it in '\u3040'..'\u309F' || it in '\u30A0'..'\u30FF' } -> "ja"
+            text.any { it in '\u4E00'..'\u9FFF' } -> "zh"
+            else -> "ja"
+        }
     }
 
     /** Returns null on rate-limit or any error, so the caller can fall through. */
     private fun translateWithGoogle(text: String): String? = try {
         val encoded = URLEncoder.encode(text, "UTF-8")
         val response = httpGet(
-            "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=$encoded"
+            "https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=auto&tl=en&dt=t&q=$encoded"
         )
         // Google returns a /sorry page when rate-limited instead of JSON
         if (response.contains("google.com/sorry") || !response.trimStart().startsWith("[")) return null
@@ -200,8 +207,9 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
     /** MyMemory free tier — 5 000 chars/day, no API key required. */
     private fun translateWithMyMemory(text: String): String? = try {
         val encoded = URLEncoder.encode(text, "UTF-8")
+        val sourceLang = detectLanguage(text)
         val response = httpGet(
-            "https://api.mymemory.translated.net/get?q=$encoded&langpair=auto|en"
+            "https://api.mymemory.translated.net/get?q=$encoded&langpair=$sourceLang|en"
         )
         val json = JSONObject(response)
         val status = json.optInt("responseStatus", 0)
@@ -211,37 +219,16 @@ class OcrTranslationBottomSheet : BottomSheetDialogFragment() {
             .takeIf { it.isNotBlank() && !it.equals(text, ignoreCase = true) }
     } catch (_: Exception) { null }
 
-    /**
-     * LibreTranslate public mirror (argosopentech) — no API key, but may be slow.
-     * Uses POST with JSON body as required by the LibreTranslate spec.
-     */
-    private fun translateWithLibreTranslate(text: String): String? = try {
-        val url = URL("https://translate.argosopentech.com/translate")
-        val body = JSONObject().apply {
-            put("q", text)
-            put("source", "auto")
-            put("target", "en")
-        }.toString().toByteArray(Charsets.UTF_8)
-
-        val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Content-Type", "application/json")
-        connection.setRequestProperty("Accept", "application/json")
-        connection.connectTimeout = 15000
-        connection.readTimeout = 15000
-        connection.doOutput = true
-        connection.outputStream.use { it.write(body) }
-
-        val response = connection.inputStream.bufferedReader().use { it.readText() }
-        JSONObject(response).getString("translatedText").takeIf { it.isNotBlank() }
-    } catch (_: Exception) { null }
-
     /** Shared GET helper — throws on non-2xx or network error. */
     private fun httpGet(urlString: String): String {
         val connection = URL(urlString).openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.connectTimeout = 10000
         connection.readTimeout = 10000
+        connection.setRequestProperty(
+            "User-Agent",
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+        )
         return connection.inputStream.bufferedReader().use { it.readText() }
     }
 
