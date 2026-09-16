@@ -26,13 +26,13 @@ class CloudflareInterceptor(
         if (response.request.url.host.contains("anilist.co")) return false
         if (response.code !in ERROR_CODES) return false
 
-        val isCloudflareServer = response.header("Server") in SERVER_CHECK ||
-                response.header("cf-ray") != null ||
-                response.header("cf-mitigated") != null
+        val isServerCloudflare = response.header("Server") in SERVER_CHECK
+        val isMitigatedChallenge = response.header("cf-mitigated") == "challenge"
 
-        if (!isCloudflareServer) return false
+        if (isMitigatedChallenge && isServerCloudflare) return true
+        if (!isServerCloudflare) return false
 
-        val bodyString = runCatching { response.peekBody(Long.MAX_VALUE).string() }.getOrNull().orEmpty()
+        val bodyString = runCatching { response.peekBody(1024 * 64).string() }.getOrNull().orEmpty()
         val isCloudflareContent = bodyString.contains("challenge-error-title") ||
                 bodyString.contains("challenge-error-text") ||
                 bodyString.contains("challenge-running") ||
@@ -45,6 +45,7 @@ class CloudflareInterceptor(
 
         return isCloudflareContent
     }
+
 
     override fun intercept(
         chain: Interceptor.Chain,
