@@ -159,49 +159,41 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             ?: extension.sources.firstOrNull()) as? AnimeSource
             ?: return@withContext emptyList()
         try {
-            val (res, networkAnime) = coroutineScope {
-                val detailsDeferred = async {
-                    runCatching { source.getAnimeDetails(sAnime) }.getOrNull()
-                }
-                val seasonsDeferred = async {
-                    runCatching { source.getSeasonListCompat(sAnime) }.getOrNull()
-                }
-                val episodesDeferred = async {
-                    runCatching { source.getEpisodeListCompat(sAnime) }.getOrDefault(emptyList())
-                }
-
-                val seasons = seasonsDeferred.await()
-                val episodes = if (!seasons.isNullOrEmpty()) {
-                    val allEpisodes = mutableListOf<SEpisode>()
-                    for (season in seasons) {
-                        val seasonAnime = runCatching {
-                            if (source is AnimeHttpSource) source.getAnimeDetails(season) else season
-                        }.getOrDefault(season)
-                        val seasonEpisodes = runCatching {
-                            source.getEpisodeListCompat(seasonAnime)
-                        }.getOrDefault(emptyList())
-                        seasonEpisodes.forEach { ep ->
-                            if (ep.scanlator.isNullOrBlank()) {
-                                ep.scanlator = seasonAnime.title.ifBlank { null } ?: season.title
-                            }
-                        }
-                        allEpisodes.addAll(seasonEpisodes)
-                    }
-                    if (allEpisodes.isEmpty()) {
-                        episodesDeferred.await()
-                    } else {
-                        allEpisodes
-                    }
-                } else {
-                    episodesDeferred.await()
-                }
-
-                Pair(episodes, detailsDeferred.await())
-            }
-
+            val networkAnime = runCatching {
+                source.getAnimeDetails(sAnime)
+            }.getOrNull()
             if (networkAnime != null) {
                 sAnime.copyFrom(networkAnime)
             }
+            val seasons = runCatching {
+                source.getSeasonListCompat(sAnime)
+            }.getOrNull()
+
+            val res = if (!seasons.isNullOrEmpty()) {
+                val allEpisodes = mutableListOf<SEpisode>()
+                for (season in seasons) {
+                    val seasonAnime = runCatching {
+                        if (source is AnimeHttpSource) source.getAnimeDetails(season) else season
+                    }.getOrDefault(season)
+                    val seasonEpisodes = runCatching {
+                        source.getEpisodeListCompat(seasonAnime)
+                    }.getOrDefault(emptyList())
+                    seasonEpisodes.forEach { ep ->
+                        if (ep.scanlator.isNullOrBlank()) {
+                            ep.scanlator = seasonAnime.title.ifBlank { null } ?: season.title
+                        }
+                    }
+                    allEpisodes.addAll(seasonEpisodes)
+                }
+                if (allEpisodes.isEmpty()) {
+                    source.getEpisodeListCompat(sAnime)
+                } else {
+                    allEpisodes
+                }
+            } else {
+                source.getEpisodeListCompat(sAnime)
+            }
+
 
 
             if (res.isEmpty()) return@withContext emptyList()
