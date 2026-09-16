@@ -87,8 +87,6 @@ abstract class WatchSources : BaseSources() {
     }
 }
 
-}
-
 abstract class MangaReadSources : BaseSources() {
 
     override operator fun get(i: Int): MangaParser {
