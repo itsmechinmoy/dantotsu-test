@@ -63,8 +63,8 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
             android:layout_marginBottom="16dp"
             app:cardBackgroundColor="@color/nav_bg_inv"
             app:cardCornerRadius="16dp"
@@ -117,12 +117,17 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <androidx.recyclerview.widget.RecyclerView
+        <ani.dantotsu.FadingEdgeRecyclerView
             android:id="@+id/dataSettingsRecyclerView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginHorizontal="24dp"
+            android:nestedScrollingEnabled="false"
+            android:requiresFadingEdge="vertical"
             android:clipToPadding="false"
-            android:paddingBottom="32dp" />
+            android:paddingBottom="32dp"
+            tools:itemCount="5"
+            tools:listitem="@layout/item_settings" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
