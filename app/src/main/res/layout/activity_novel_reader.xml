@@ -123,6 +123,16 @@
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
 
                         <ImageButton
+                            android:id="@+id/novelReaderAutoScroll"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:backgroundTint="#00FFFFFF"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_round_swipe_vertical_24"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
+
+                        <ImageButton
                             android:id="@+id/novelReaderSettings"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
@@ -230,25 +240,32 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <FrameLayout
+            <LinearLayout
                 android:id="@+id/novelReaderSliderContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
                 android:layout_margin="16dp"
+                android:background="@drawable/rounded_top_nav"
+                android:orientation="vertical"
+                android:paddingTop="6dp"
+                android:paddingBottom="2dp"
                 tools:ignore="UselessParent">
 
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    app:srcCompat="@drawable/rounded_top_nav"
-                    tools:ignore="ContentDescription,ImageContrastCheck" />
+                <TextView
+                    android:id="@+id/novelReaderPageNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    tools:text="1 / 100 (1%)" />
 
                 <com.google.android.material.slider.Slider
                     android:id="@+id/novelReaderSlider"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
                     android:contentDescription="@string/current_page"
@@ -262,7 +279,7 @@
                     app:trackColorInactive="@color/grey_60"
                     app:trackHeight="2dp" />
 
-            </FrameLayout>
+            </LinearLayout>
 
         </FrameLayout>
 
@@ -386,4 +403,55 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/novelReaderAutoScrollPlayBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="16dp"
+        android:visibility="gone"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:strokeColor="?attr/colorSecondary"
+        app:strokeWidth="1dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <ImageButton
+                android:id="@+id/autoScrollSpeedUp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_add"
+                android:contentDescription="Speed Up"
+                app:tint="?attr/colorPrimary" />
+
+            <ImageButton
+                android:id="@+id/autoScrollPlayPause"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_round_play_arrow_24"
+                android:contentDescription="Play/Pause"
+                app:tint="?attr/colorPrimary" />
+
+            <ImageButton
+                android:id="@+id/autoScrollSpeedDown"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_minus"
+                android:contentDescription="Speed Down"
+                app:tint="?attr/colorPrimary" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 </FrameLayout>
