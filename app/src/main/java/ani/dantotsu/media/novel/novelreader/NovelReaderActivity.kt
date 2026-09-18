@@ -47,7 +47,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 import org.json.JSONObject
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
@@ -76,6 +78,8 @@ import org.readium.r2.navigator.preferences.Theme as ReadiumTheme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.locateProgression
+import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
@@ -126,6 +130,8 @@ class NovelReaderActivity : AppCompatActivity() {
     private val ttsSpeeds = listOf(0.75, 1.0, 1.25, 1.5, 2.0)
 
     private var locatorJob: Job? = null
+    private var isSliderDragging = false
+    private var totalPositionsCount: Int = 0
 
     val themes = arrayListOf(
         NovelReaderTheme(
@@ -254,18 +260,83 @@ class NovelReaderActivity : AppCompatActivity() {
             }
         }
 
+        binding.novelReaderAutoScroll.setOnClickListener {
+            toggleAutoScroll()
+        }
+
+        binding.autoScrollPlayPause.setOnClickListener {
+            if (autoScroll.isRunning) {
+                autoScroll.stop()
+                binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+            } else {
+                startAutoScroll()
+            }
+        }
+
+        binding.autoScrollSpeedUp.setOnClickListener {
+            val newSpeed = (autoScroll.speed + 0.5f).coerceAtMost(10f)
+            autoScroll.speed = newSpeed
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, newSpeed)
+            snackString("${newSpeed}x")
+        }
+
+        binding.autoScrollSpeedDown.setOnClickListener {
+            val newSpeed = (autoScroll.speed - 0.5f).coerceAtLeast(0.5f)
+            autoScroll.speed = newSpeed
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, newSpeed)
+            snackString("${newSpeed}x")
+        }
+
+        binding.novelReaderSlider.setLabelFormatter { value ->
+            val total = totalPositionsCount
+            if (total > 0) {
+                val pos = (value * total).toInt().coerceIn(1, total)
+                "$pos / $total (${(value * 100).toInt()}%)"
+            } else {
+                "${(value * 100).toInt()}%"
+            }
+        }
+
+        binding.novelReaderSlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                val total = totalPositionsCount
+                val text = if (total > 0) {
+                    val pos = (value * total).toInt().coerceIn(1, total)
+                    "$pos / $total  (${(value * 100).toInt()}%)"
+                } else {
+                    "${(value * 100).toInt()}%"
+                }
+                binding.novelReaderPageNumber.text = text
+            }
+        }
+
         binding.novelReaderSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
-            override fun onStartTrackingTouch(slider: Slider) {}
+            override fun onStartTrackingTouch(slider: Slider) {
+                isSliderDragging = true
+            }
 
             override fun onStopTrackingTouch(slider: Slider) {
                 val targetProgression = slider.value.toDouble()
                 scope.launch {
-                    val pub = currentPublication ?: return@launch
-                    val readingOrder = pub.readingOrder
-                    if (readingOrder.isEmpty()) return@launch
-                    val targetIndex = (targetProgression * (readingOrder.size - 1)).toInt().coerceIn(0, readingOrder.size - 1)
-                    val link = readingOrder[targetIndex]
-                    visualNavigator?.go(link)
+                    try {
+                        val pub = currentPublication ?: return@launch
+                        val targetLocator = pub.locateProgression(targetProgression)
+                        if (targetLocator != null) {
+                            visualNavigator?.go(targetLocator)
+                        } else {
+                            val readingOrder = pub.readingOrder
+                            if (readingOrder.isNotEmpty()) {
+                                val contentLinks = readingOrder.filter { link ->
+                                    val type = link.mediaType.toString()
+                                    type.contains("html") || type.contains("xml")
+                                }.ifEmpty { readingOrder }
+                                val targetIndex = (targetProgression * (contentLinks.size - 1)).toInt().coerceIn(0, contentLinks.size - 1)
+                                visualNavigator?.go(contentLinks[targetIndex])
+                            }
+                        }
+                    } finally {
+                        isSliderDragging = false
+                    }
                 }
             }
         })
@@ -363,6 +434,23 @@ class NovelReaderActivity : AppCompatActivity() {
 
         binding.novelReaderTitle.text = pub.metadata.title
         binding.novelReaderSource.text = pub.metadata.authors.joinToString(", ") { it.name }
+
+        scope.launch {
+            runCatching {
+                val positions = pub.positions()
+                totalPositionsCount = positions.size
+                withContext(Dispatchers.Main) {
+                    val progression = binding.novelReaderSlider.value.toDouble()
+                    val total = totalPositionsCount
+                    if (total > 0) {
+                        val pos = (progression * total).toInt().coerceIn(1, total)
+                        binding.novelReaderPageNumber.text = "$pos / $total  (${(progression * 100).toInt()}%)"
+                    } else {
+                        binding.novelReaderPageNumber.text = "${(progression * 100).toInt()}%"
+                    }
+                }
+            }
+        }
 
         val savedLocatorJson = PrefManager.getNullableCustomVal("${sanitizedBookId}_locator", null, String::class.java)
         val savedLocator = savedLocatorJson?.let {
@@ -477,8 +565,18 @@ class NovelReaderActivity : AppCompatActivity() {
     private fun setupNavigatorObservers() {
         locatorJob?.cancel()
         locatorJob = visualNavigator?.currentLocator?.onEach { locator ->
-            val progression = locator.locations.progression ?: return@onEach
-            binding.novelReaderSlider.value = progression.toFloat().coerceIn(0f, 1f)
+            val progression = locator.locations.totalProgression ?: locator.locations.progression ?: return@onEach
+            if (!isSliderDragging) {
+                binding.novelReaderSlider.value = progression.toFloat().coerceIn(0f, 1f)
+            }
+            val total = totalPositionsCount
+            val text = if (total > 0) {
+                val pos = locator.locations.position ?: ((progression * total).toInt().coerceIn(1, total))
+                "$pos / $total  (${(progression * 100).toInt()}%)"
+            } else {
+                "${(progression * 100).toInt()}%"
+            }
+            binding.novelReaderPageNumber.text = text
             readerOverlay.progressFraction = progression.toFloat()
             PrefManager.setCustomVal("${sanitizedBookId}_locator", locator.toJSON().toString())
         }?.launchIn(scope)
@@ -487,6 +585,7 @@ class NovelReaderActivity : AppCompatActivity() {
             override fun onTap(event: TapEvent): Boolean {
                 if (autoScroll.isRunning) {
                     autoScroll.stop()
+                    binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
                     return true
                 }
                 handleController()
@@ -534,9 +633,8 @@ class NovelReaderActivity : AppCompatActivity() {
                         (visualNavigator as? SelectableNavigator)?.clearSelection()
                         mode.finish()
                         if (!text.isNullOrBlank()) {
-                            val targetLang = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_TRANSLATE_LANG, "en")
-                            val translated = NovelTextTranslator.translate(text, targetLang)
-                            snackString("$text → $translated")
+                            NovelTranslateDialog.newInstance(text)
+                                .show(supportFragmentManager, NovelTranslateDialog.TAG)
                         }
                     }
                     return true
@@ -545,10 +643,64 @@ class NovelReaderActivity : AppCompatActivity() {
                     scope.launch {
                         val selection = (visualNavigator as? SelectableNavigator)?.currentSelection()
                         val locator = selection?.locator
+                        val webView = findActiveWebView(binding.novelReaderFragmentContainer)
+                        val cssSelector = suspendCancellableCoroutine<String?> { cont ->
+                            if (webView != null) {
+                                val js = """
+                                    (function() {
+                                        try {
+                                            function getCssPath(el) {
+                                                if (!el || el.nodeType !== 1) return '';
+                                                var path = [];
+                                                while (el && el.nodeType === 1 && el.tagName.toLowerCase() !== 'html') {
+                                                    var selector = el.tagName.toLowerCase();
+                                                    if (el.id) {
+                                                        selector += '[id="' + el.id + '"]';
+                                                        path.unshift(selector);
+                                                        break;
+                                                    } else {
+                                                        var sibling = el;
+                                                        var nth = 1;
+                                                        while (sibling = sibling.previousElementSibling) {
+                                                            if (sibling.tagName.toLowerCase() === selector) nth++;
+                                                        }
+                                                        selector += ':nth-of-type(' + nth + ')';
+                                                    }
+                                                    path.unshift(selector);
+                                                    el = el.parentElement;
+                                                }
+                                                return path.join(' > ');
+                                            }
+                                            var sel = window.getSelection();
+                                            if (!sel || !sel.anchorNode) return '';
+                                            var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+                                            return getCssPath(el);
+                                        } catch(e) {
+                                            return '';
+                                        }
+                                    })()
+                                """.trimIndent()
+                                webView.evaluateJavascript(js) { result ->
+                                    val clean = result?.trim('"', '\'', ' ', '\\')
+                                    cont.resume(clean?.takeIf { it.isNotBlank() && it != "null" })
+                                }
+                            } else {
+                                cont.resume(null)
+                            }
+                        }
                         (visualNavigator as? SelectableNavigator)?.clearSelection()
                         mode.finish()
                         if (locator != null) {
-                            startTts(fromLocator = locator)
+                            val targetLocator = if (!cssSelector.isNullOrBlank()) {
+                                locator.copy(
+                                    locations = locator.locations.copy(
+                                        otherLocations = locator.locations.otherLocations + ("cssSelector" to cssSelector)
+                                    )
+                                )
+                            } else {
+                                locator
+                            }
+                            startTts(fromLocator = targetLocator)
                         }
                     }
                     return true
@@ -724,21 +876,60 @@ class NovelReaderActivity : AppCompatActivity() {
         val wordSpacingPx = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_WORD_SPACING_PX, 0).toDouble()
         val paraSpacingPx = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_PARAGRAPH_SPACING_PX, 0).toDouble()
 
+        val marginFactor = when {
+            defaultSettings.margin in 0.001f..0.4f -> (defaultSettings.margin / 0.06).toDouble().coerceIn(0.2, 4.0)
+            defaultSettings.margin > 0.4f -> defaultSettings.margin.toDouble().coerceIn(0.2, 4.0)
+            else -> 1.0
+        }
+
         return EpubPreferences(
             backgroundColor = ReadiumColor(bgInt),
             textColor = ReadiumColor(fgInt),
             theme = readiumTheme,
             fontSize = fontSizeMultiplier,
             lineHeight = defaultSettings.lineHeight.toDouble().takeIf { it > 0 },
-            pageMargins = defaultSettings.margin.toDouble().takeIf { it > 0 },
+            pageMargins = marginFactor,
             letterSpacing = letterSpacingEm.takeIf { it > 0 },
             wordSpacing = wordSpacingPx.takeIf { it > 0 },
             paragraphSpacing = paraSpacingPx.takeIf { it > 0 },
             scroll = isScrolled,
             columnCount = colCount,
             textAlign = readiumTextAlign,
-            hyphens = defaultSettings.hyphenation
+            hyphens = defaultSettings.hyphenation,
+            publisherStyles = false
         )
+    }
+
+    private fun toggleAutoScroll() {
+        if (autoScroll.isRunning || binding.novelReaderAutoScrollPlayBar.visibility == View.VISIBLE) {
+            autoScroll.stop()
+            binding.novelReaderAutoScrollPlayBar.visibility = View.GONE
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, false)
+        } else {
+            startAutoScroll()
+        }
+    }
+
+    private fun startAutoScroll() {
+        if (defaultSettings.layout == CurrentNovelReaderSettings.Layouts.PAGED) {
+            defaultSettings.layout = CurrentNovelReaderSettings.Layouts.SCROLLED
+            applySettings()
+            snackString("Switched to Continuous mode for auto-scroll")
+        }
+        if (ttsNavigator != null) stopTts()
+        val wv = findActiveWebView(binding.novelReaderFragmentContainer)
+        if (wv != null) {
+            autoScroll.attach(wv) { delta ->
+                findActiveWebView(binding.novelReaderFragmentContainer)?.scrollBy(0, delta)
+            }
+            autoScroll.start()
+            binding.novelReaderAutoScrollPlayBar.visibility = View.VISIBLE
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_pause_24)
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, true)
+        } else {
+            snackString("Cannot start auto-scroll")
+        }
     }
 
     fun applyExtraSettings() {
@@ -752,8 +943,12 @@ class NovelReaderActivity : AppCompatActivity() {
                 findActiveWebView(binding.novelReaderFragmentContainer)?.scrollBy(0, delta)
             }
             autoScroll.start()
+            binding.novelReaderAutoScrollPlayBar.visibility = View.VISIBLE
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_pause_24)
         } else if (!autoScrollEnabled && autoScroll.isRunning) {
             autoScroll.stop()
+            binding.novelReaderAutoScrollPlayBar.visibility = View.GONE
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
         }
 
         readerOverlay.showStatusBar = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_SHOW_STATUS_BAR, false)
