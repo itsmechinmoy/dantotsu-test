@@ -6,8 +6,8 @@
     android:layout_height="match_parent"
     tools:context=".media.novel.novelreader.NovelReaderActivity">
 
-    <com.vipulog.ebookreader.EbookReaderView
-        android:id="@+id/bookReader"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/novelReaderFragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
@@ -113,6 +113,16 @@
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
 
                         <ImageButton
+                            android:id="@+id/novelReaderTts"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:backgroundTint="#00FFFFFF"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_round_volume_up_24"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck,ImageContrastCheck" />
+
+                        <ImageButton
                             android:id="@+id/novelReaderSettings"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
@@ -148,6 +158,77 @@
             android:layout_marginTop="-24dp"
             android:layout_marginBottom="-24dp"
             android:layout_weight="1">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/novelReaderTtsCard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="90dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#E618181B"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="8dp"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="6dp">
+
+                    <ImageButton
+                        android:id="@+id/novelReaderTtsPrev"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#00FFFFFF"
+                        android:src="@drawable/ic_round_skip_previous_24"
+                        app:tint="#fff"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageButton
+                        android:id="@+id/novelReaderTtsPlayPause"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:backgroundTint="#00FFFFFF"
+                        android:src="@drawable/ic_round_play_arrow_24"
+                        app:tint="#fff"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageButton
+                        android:id="@+id/novelReaderTtsNext"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#00FFFFFF"
+                        android:src="@drawable/ic_round_skip_next_24"
+                        app:tint="#fff"
+                        tools:ignore="ContentDescription" />
+
+                    <TextView
+                        android:id="@+id/novelReaderTtsSpeed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="1.0x"
+                        android:textColor="#fff"
+                        android:textSize="13sp" />
+
+                    <ImageButton
+                        android:id="@+id/novelReaderTtsStop"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:backgroundTint="#00FFFFFF"
+                        android:src="@drawable/ic_round_close_24"
+                        app:tint="#FF5252"
+                        tools:ignore="ContentDescription" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
             <FrameLayout
                 android:id="@+id/novelReaderSliderContainer"
