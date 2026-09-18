@@ -60,6 +60,9 @@
         <package android:name="com.dv.adm" />
         <package android:name="moe.shizuku.privileged.api" />
         <package android:name="rikka.art.shizuku" />
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application
