@@ -11,6 +11,7 @@ import ani.dantotsu.R
 import ani.dantotsu.databinding.BottomSheetCurrentNovelReaderSettingsBinding
 import ani.dantotsu.settings.CurrentNovelReaderSettings
 import ani.dantotsu.settings.CurrentReaderSettings
+import ani.dantotsu.settings.saving.PrefManager
 
 class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
     private var _binding: BottomSheetCurrentNovelReaderSettingsBinding? = null
@@ -108,14 +109,16 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
 
         binding.incrementLineHeight.setOnClickListener {
             val value = binding.lineHeight.text.toString().toFloatOrNull() ?: 1.4f
-            settings.lineHeight = value + 0.1f
+            val newValue = Math.round((value + 0.1f) * 10f) / 10f
+            settings.lineHeight = newValue
             binding.lineHeight.setText(settings.lineHeight.toString())
             activity.applySettings()
         }
 
         binding.decrementLineHeight.setOnClickListener {
             val value = binding.lineHeight.text.toString().toFloatOrNull() ?: 1.4f
-            settings.lineHeight = value - 0.1f
+            val newValue = (Math.round((value - 0.1f) * 10f) / 10f).coerceAtLeast(0.5f)
+            settings.lineHeight = newValue
             binding.lineHeight.setText(settings.lineHeight.toString())
             activity.applySettings()
         }
@@ -132,14 +135,20 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
 
         binding.incrementMargin.setOnClickListener {
             val value = binding.margin.text.toString().toFloatOrNull() ?: 0.06f
-            settings.margin = value + 0.01f
+            val step = if (value < 0.4f) 0.01f else 0.1f
+            val factor = if (value < 0.4f) 100f else 10f
+            val newValue = Math.round((value + step) * factor) / factor
+            settings.margin = newValue
             binding.margin.setText(settings.margin.toString())
             activity.applySettings()
         }
 
         binding.decrementMargin.setOnClickListener {
             val value = binding.margin.text.toString().toFloatOrNull() ?: 0.06f
-            settings.margin = value - 0.01f
+            val step = if (value <= 0.4f) 0.01f else 0.1f
+            val factor = if (value <= 0.4f) 100f else 10f
+            val newValue = (Math.round((value - step) * factor) / factor).coerceAtLeast(0.01f)
+            settings.margin = newValue
             binding.margin.setText(settings.margin.toString())
             activity.applySettings()
         }
@@ -208,6 +217,31 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         binding.volumeButton.setOnCheckedChangeListener { _, isChecked ->
             settings.volumeButtons = isChecked
             activity.applySettings()
+        }
+
+        val autoScrollEnabled = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, false)
+        binding.autoScrollSwitch.isChecked = autoScrollEnabled
+        binding.autoScrollSwitch.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, isChecked)
+            if (isChecked && settings.layout == CurrentNovelReaderSettings.Layouts.PAGED) {
+                settings.layout = CurrentNovelReaderSettings.Layouts.SCROLLED
+                binding.layoutText.text = settings.layout.string
+                selected.alpha = 0.33f
+                selected = binding.continuous
+                selected.alpha = 1f
+            }
+            activity.applySettings()
+        }
+
+        val autoScrollSpeed = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, 3f).toFloat()
+        binding.autoScrollSpeedSlider.value = autoScrollSpeed.coerceIn(0.5f, 10f)
+        binding.autoScrollSpeedText.text = "${autoScrollSpeed}x"
+        binding.autoScrollSpeedSlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, value)
+                binding.autoScrollSpeedText.text = "${value}x"
+                activity.autoScroll.speed = value
+            }
         }
     }
 
