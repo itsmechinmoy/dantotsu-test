@@ -43,6 +43,10 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
     private val cancelledSessions = ConcurrentHashMap.newKeySet<Long>()
     private val uriMap = ConcurrentHashMap<String, Uri>()
 
+    companion object {
+        private val hostConcurrencyCap = ConcurrentHashMap<String, Int>()
+    }
+
     // aria2 process variables
     private var aria2Process: Process? = null
     private var rpcPort: Int = 6800
@@ -705,6 +709,12 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         val totalBytes: Long
     )
 
+    private class RateLimitedException(
+        val code: Int,
+        val retryAfterSeconds: Long?,
+        message: String = "HTTP $code: Too Many Requests"
+    ) : IOException(message)
+
     @RequiresApi(Build.VERSION_CODES.N)
     private suspend fun runParallelHlsDownload(
         playlistUrl: String,
@@ -723,65 +733,173 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         if (parsed.segments.isEmpty()) throw IOException("HLS segments list is empty")
 
         val secretKey = parsed.encryptionKeyUrl?.let { keyUrl ->
-            val req = Request.Builder().url(keyUrl).headers(okHeaders).build()
-            client.newCall(req).execute().use { res ->
-                SecretKeySpec(res.body.bytes(), "AES")
+            var keyAttempts = 0
+            var resolvedKey: SecretKeySpec? = null
+            while (resolvedKey == null) {
+                keyAttempts++
+                try {
+                    val req = Request.Builder().url(keyUrl).headers(okHeaders).build()
+                    resolvedKey = client.newCall(req).execute().use { res ->
+                        if (res.code == 429 || res.header("Retry-After") != null) {
+                            val retryAfter = parseRetryAfter(res.header("Retry-After"))
+                            throw RateLimitedException(res.code, retryAfter, "Key fetch rate limited: ${res.code}")
+                        }
+                        if (!res.isSuccessful) throw IOException("Failed to fetch AES key: ${res.code}")
+                        SecretKeySpec(res.body.bytes(), "AES")
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    if (keyAttempts >= 5) throw e
+                    val delayMs = if (e is RateLimitedException) {
+                        val retryAfterMs = (e.retryAfterSeconds ?: 0L) * 1000L
+                        maxOf(retryAfterMs, 1500L * keyAttempts) + (Math.random() * 500).toLong()
+                    } else {
+                        500L * keyAttempts
+                    }
+                    delay(delayMs.milliseconds)
+                }
             }
+            resolvedKey
         }
 
-        val segmentQueue = parsed.segments.mapIndexed { index, url -> index to url }.toMutableList()
+        data class SegmentTask(val index: Int, val url: String, var attempts: Int = 0)
+        val segmentQueue = parsed.segments.mapIndexed { index, url -> SegmentTask(index, url) }.toMutableList()
         val downloadedCount = java.util.concurrent.atomic.LongAdder()
         val downloadedBytes = AtomicLong(0L)
 
-        val host = playlistUrl.toUri().host ?: ""
-        val threadCount = calculateDynamicConcurrency(host)
+        val segmentHost = parsed.segments.firstOrNull()?.toUri()?.host?.takeIf { it.isNotBlank() }
+        val host = segmentHost ?: playlistUrl.toUri().host ?: ""
+        val initialConcurrency = calculateDynamicConcurrency(host)
+        val activeConcurrency = java.util.concurrent.atomic.AtomicInteger(initialConcurrency)
+        val runningWorkers = java.util.concurrent.atomic.AtomicInteger(0)
+        val rateLimitCooldownUntil = AtomicLong(0L)
+        val interSegmentDelayMs = AtomicLong(0L)
         val segmentFolder = File(context.cacheDir, "hls_parts_${sessionId}_${System.nanoTime()}")
         segmentFolder.mkdirs()
 
         try {
             coroutineScope {
-                repeat(threadCount) {
+                repeat(initialConcurrency) {
                     launch {
                         while (isActive) {
+                            // Check shared rate-limit cooldown
+                            val cooldownWait = rateLimitCooldownUntil.get() - android.os.SystemClock.elapsedRealtime()
+                            if (cooldownWait > 0) {
+                                delay(cooldownWait.milliseconds)
+                            }
+
+                            // Adaptive dynamic concurrency gating
+                            val maxPermits = activeConcurrency.get()
+                            val curRunning = runningWorkers.get()
+                            if (curRunning >= maxPermits) {
+                                delay(50.milliseconds)
+                                continue
+                            }
+                            if (!runningWorkers.compareAndSet(curRunning, curRunning + 1)) {
+                                continue
+                            }
+
                             val seg = synchronized(segmentQueue) {
                                 if (segmentQueue.isNotEmpty()) segmentQueue.removeAt(0) else null
-                            } ?: break
-                            val partFile = File(segmentFolder, "seg_${seg.first}.part")
+                            }
+                            if (seg == null) {
+                                runningWorkers.decrementAndGet()
+                                break
+                            }
 
-                            var success = false
-                            var attempts = 0
-                            while (!success) {
-                                attempts++
-                                try {
-                                    downloadHlsSegment(
-                                        client = client,
-                                        okHeaders = okHeaders,
-                                        segmentUrl = seg.second,
-                                        partFile = partFile,
-                                        secretKey = secretKey,
-                                        encryptionIv = parsed.encryptionIv,
-                                        mediaSequence = parsed.mediaSequence,
-                                        segmentIndex = seg.first
-                                    )
-                                    val dataSize = partFile.length()
-                                    downloadedCount.increment()
-                                    downloadedBytes.addAndGet(dataSize)
-                                    updateHlsSessionBytes(
-                                        sessionId,
-                                        downloadedBytes.get(),
-                                        downloadedCount.sum(),
-                                        parsed.segments.size
-                                    )
-                                    val percent =
-                                        (downloadedCount.sum().toDouble() * 100 / parsed.segments.size)
-                                            .toInt()
-                                            .coerceIn(0, 100)
-                                    progressCallback(percent, parsed.durationSeconds)
-                                    success = true
-                                } catch (e: Exception) {
-                                    if (attempts >= 5) throw e
-                                    delay(500.milliseconds)
+                            val partFile = File(segmentFolder, "seg_${seg.index}.part")
+                            try {
+                                val pacing = interSegmentDelayMs.get()
+                                if (pacing > 0) {
+                                    delay(pacing.milliseconds)
                                 }
+
+                                seg.attempts++
+                                downloadHlsSegment(
+                                    client = client,
+                                    okHeaders = okHeaders,
+                                    segmentUrl = seg.url,
+                                    partFile = partFile,
+                                    secretKey = secretKey,
+                                    encryptionIv = parsed.encryptionIv,
+                                    mediaSequence = parsed.mediaSequence,
+                                    segmentIndex = seg.index
+                                )
+                                val dataSize = partFile.length()
+                                downloadedCount.increment()
+                                downloadedBytes.addAndGet(dataSize)
+                                updateHlsSessionBytes(
+                                    sessionId,
+                                    downloadedBytes.get(),
+                                    downloadedCount.sum(),
+                                    parsed.segments.size
+                                )
+                                val percent =
+                                    (downloadedCount.sum().toDouble() * 100 / parsed.segments.size)
+                                        .toInt()
+                                        .coerceIn(0, 100)
+                                progressCallback(percent, parsed.durationSeconds)
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                if (!isActive) throw e
+
+                                val segHost = seg.url.toUri().host ?: host
+                                if (e is RateLimitedException) {
+                                    // 1. Downscale active concurrency
+                                    val oldLimit = activeConcurrency.get()
+                                    val newLimit = maxOf(1, oldLimit / 2)
+                                    if (activeConcurrency.compareAndSet(oldLimit, newLimit)) {
+                                        Logger.log("Built-in: HTTP ${e.code} rate limit on $segHost. Downscaling concurrency from $oldLimit to $newLimit")
+                                        hostConcurrencyCap[segHost.lowercase()] = newLimit
+                                    }
+
+                                    // 2. Introduce / increase inter-segment pacing delay
+                                    interSegmentDelayMs.updateAndGet { cur ->
+                                        if (cur == 0L) 250L else minOf(cur * 2, 2000L)
+                                    }
+
+                                    // 3. Exponential backoff with jitter and Retry-After
+                                    val retryAfterMs = (e.retryAfterSeconds ?: 0L) * 1000L
+                                    val expBackoffMs = (1500L * (1L shl (seg.attempts - 1)).coerceAtMost(16)).coerceAtMost(30_000L)
+                                    val jitterMs = (Math.random() * 800).toLong() + 200L
+                                    val backoffMs = if (retryAfterMs > 0) {
+                                        maxOf(retryAfterMs, expBackoffMs) + jitterMs
+                                    } else {
+                                        expBackoffMs + jitterMs
+                                    }
+
+                                    Logger.log("Built-in: Rate limited on seg ${seg.index} (attempt ${seg.attempts}/8). Backing off for ${backoffMs}ms")
+
+                                    // 4. Update shared cooldown so other workers pause as well
+                                    val cooldownUntil = android.os.SystemClock.elapsedRealtime() + backoffMs
+                                    rateLimitCooldownUntil.updateAndGet { cur -> maxOf(cur, cooldownUntil) }
+
+                                    if (seg.attempts >= 8) {
+                                        throw IOException("HTTP ${e.code} Too Many Requests on segment ${seg.index} after ${seg.attempts} attempts", e)
+                                    }
+
+                                    // Return segment to the front of queue to be retried
+                                    synchronized(segmentQueue) {
+                                        segmentQueue.add(0, seg)
+                                    }
+                                    delay(backoffMs.milliseconds)
+                                } else {
+                                    // General network/IO exception
+                                    if (seg.attempts >= 5) {
+                                        throw e
+                                    }
+                                    val expBackoffMs = (500L * (1L shl (seg.attempts - 1))).coerceAtMost(5000L)
+                                    val jitterMs = (Math.random() * 300).toLong()
+                                    val backoffMs = expBackoffMs + jitterMs
+                                    Logger.log("Built-in: Error on seg ${seg.index} (attempt ${seg.attempts}/5): ${e.message}. Retrying in ${backoffMs}ms")
+
+                                    synchronized(segmentQueue) {
+                                        segmentQueue.add(0, seg)
+                                    }
+                                    delay(backoffMs.milliseconds)
+                                }
+                            } finally {
+                                runningWorkers.decrementAndGet()
                             }
                         }
                     }
@@ -919,6 +1037,19 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
     ) {
         val req = Request.Builder().url(segmentUrl).headers(okHeaders).build()
         client.newCall(req).execute().use { res ->
+            val isRateLimited = res.code == 429 ||
+                res.header("Retry-After") != null ||
+                (res.code == 503 && res.message.contains("Slow Down", ignoreCase = true)) ||
+                res.message.contains("Too Many Requests", ignoreCase = true)
+
+            if (isRateLimited) {
+                val retryAfter = parseRetryAfter(res.header("Retry-After"))
+                throw RateLimitedException(
+                    code = res.code,
+                    retryAfterSeconds = retryAfter,
+                    message = "Res code: ${res.code} ${res.message}".trim()
+                )
+            }
             if (!res.isSuccessful) throw IOException("Res code: ${res.code}")
             res.body.byteStream().use { input ->
                 FileOutputStream(partFile).use { fileOut ->
@@ -932,6 +1063,21 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                     }
                 }
             }
+        }
+    }
+
+    private fun parseRetryAfter(header: String?): Long? {
+        if (header.isNullOrBlank()) return null
+        header.trim().toLongOrNull()?.let {
+            if (it >= 0) return it
+        }
+        return try {
+            val date = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME.parse(header.trim())
+            val instant = java.time.Instant.from(date)
+            val diffSeconds = java.time.Duration.between(java.time.Instant.now(), instant).seconds
+            diffSeconds.coerceAtLeast(0L)
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -959,9 +1105,35 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
     }
 
     private fun calculateDynamicConcurrency(host: String): Int {
-        if (host.contains("animepahe") || host.contains("sibnet") || host.contains("video.sibnet")) return 1
+        val lowerHost = host.lowercase()
+        if (lowerHost.contains("animepahe") || lowerHost.contains("sibnet") || lowerHost.contains("video.sibnet")) return 1
+
+        val isRateLimitSensitiveHost = lowerHost.contains("vidstream") ||
+            lowerHost.contains("megacloud") ||
+            lowerHost.contains("mewcdn") ||
+            lowerHost.contains("megaplay") ||
+            lowerHost.contains("vizcloud") ||
+            lowerHost.contains("anikoto") ||
+            lowerHost.contains("anizone") ||
+            lowerHost.contains("kwik") ||
+            lowerHost.contains("streamtape") ||
+            lowerHost.contains("filemoon")
+
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-        return if (activityManager?.isLowRamDevice == true) 4 else 16
+        val isLowRam = activityManager?.isLowRamDevice == true
+
+        val maxAllowed = when {
+            isRateLimitSensitiveHost -> if (isLowRam) 2 else 4
+            isLowRam -> 4
+            else -> 8
+        }
+
+        val learnedCap = hostConcurrencyCap[lowerHost]
+        return if (learnedCap != null) {
+            minOf(learnedCap, maxAllowed).coerceAtLeast(1)
+        } else {
+            maxAllowed
+        }
     }
 
     // ==========================================
