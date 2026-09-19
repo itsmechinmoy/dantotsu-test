@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import androidx.lifecycle.lifecycleScope
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.NoPaddingArrayAdapter
 import ani.dantotsu.R
@@ -12,6 +13,10 @@ import ani.dantotsu.databinding.BottomSheetCurrentNovelReaderSettingsBinding
 import ani.dantotsu.settings.CurrentNovelReaderSettings
 import ani.dantotsu.settings.CurrentReaderSettings
 import ani.dantotsu.settings.saving.PrefManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
     private var _binding: BottomSheetCurrentNovelReaderSettingsBinding? = null
@@ -35,7 +40,8 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         val themeLabels = activity.themes.map { it.name }
         binding.themeSelect.adapter =
             NoPaddingArrayAdapter(activity, R.layout.item_dropdown, themeLabels)
-        binding.themeSelect.setSelection(themeLabels.indexOfFirst { it == settings.currentThemeName })
+        var initialThemeSet = true
+        var themeDebounceJob: Job? = null
         binding.themeSelect.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
                 parent: AdapterView<*>?,
@@ -43,8 +49,19 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
                 position: Int,
                 id: Long
             ) {
-                settings.currentThemeName = themeLabels[position]
-                activity.applySettings()
+                if (initialThemeSet) {
+                    initialThemeSet = false
+                    return
+                }
+                val newTheme = themeLabels[position]
+                if (newTheme != settings.currentThemeName) {
+                    settings.currentThemeName = newTheme
+                    themeDebounceJob?.cancel()
+                    themeDebounceJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                        delay(150)
+                        activity.applySettings()
+                    }
+                }
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
