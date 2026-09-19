@@ -21,6 +21,8 @@ import android.view.animation.OvershootInterpolator
 import android.webkit.WebView
 import android.widget.AdapterView
 import android.widget.FrameLayout
+import android.widget.TextView
+import ani.dantotsu.getThemeColor
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
@@ -73,6 +75,7 @@ import org.readium.r2.navigator.pdf.PdfNavigatorFactory
 import org.readium.r2.navigator.pdf.PdfNavigatorFragment
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.ColumnCount
+import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.TextAlign as ReadiumTextAlign
 import org.readium.r2.navigator.preferences.Theme as ReadiumTheme
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -510,29 +513,82 @@ class NovelReaderActivity : AppCompatActivity() {
         loaded = true
     }
 
+    private var chapterSelectAdapter: ChapterSelectAdapter? = null
+    private var suppressChapterSpinnerEvent = false
+
+    private fun updateSelectedChapterInSpinner(index: Int) {
+        val adapter = chapterSelectAdapter ?: return
+        if (index in 0 until adapter.count && adapter.selectedIndex != index) {
+            adapter.selectedIndex = index
+            adapter.notifyDataSetChanged()
+            suppressChapterSpinnerEvent = true
+            binding.novelReaderChapterSelect.setSelection(index, false)
+        }
+    }
+
+    class ChapterSelectAdapter(
+        context: Context,
+        private val items: List<String>,
+        var selectedIndex: Int = 0
+    ) : NoPaddingArrayAdapter<String>(context, R.layout.item_dropdown, items) {
+
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = super.getDropDownView(position, convertView, parent)
+            val textView = (view as? TextView) ?: view.findViewById<TextView>(android.R.id.text1)
+            val isSelected = (position == selectedIndex)
+
+            if (textView != null) {
+                if (isSelected) {
+                    val primaryColor = context.getThemeColor(androidx.appcompat.R.attr.colorPrimary)
+                    textView.setTextColor(primaryColor)
+                    textView.setTypeface(textView.typeface, android.graphics.Typeface.BOLD)
+
+                    val alphaBg = android.graphics.Color.argb(
+                        40,
+                        android.graphics.Color.red(primaryColor),
+                        android.graphics.Color.green(primaryColor),
+                        android.graphics.Color.blue(primaryColor)
+                    )
+                    textView.setBackgroundColor(alphaBg)
+                    val original = items.getOrElse(position) { "" }
+                    textView.text = "✓  $original"
+                } else {
+                    val secondaryColor = context.getThemeColor(android.R.attr.textColorSecondary)
+                    textView.setTextColor(secondaryColor)
+                    textView.setTypeface(android.graphics.Typeface.create(textView.typeface, android.graphics.Typeface.NORMAL))
+                    textView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    textView.text = items.getOrElse(position) { "" }
+                }
+            }
+            return view
+        }
+    }
+
     private fun setupChapterSelect(pub: Publication) {
         val session = ani.dantotsu.media.novel.NovelReaderSession
         if (session.isActive()) {
             val chapterLabels = session.chapters.mapIndexed { index, fileUrl ->
                 fileUrl.headers?.get("X-Chapter-Name") ?: "Chapter ${index + 1}"
             }
-            binding.novelReaderChapterSelect.adapter =
-                NoPaddingArrayAdapter(this, R.layout.item_dropdown, chapterLabels)
+            chapterSelectAdapter = ChapterSelectAdapter(this, chapterLabels, session.currentIndex)
+            binding.novelReaderChapterSelect.adapter = chapterSelectAdapter
+            suppressChapterSpinnerEvent = true
             binding.novelReaderChapterSelect.setSelection(session.currentIndex, false)
             binding.novelReaderChapterSelect.onItemSelectedListener =
                 object : AdapterView.OnItemSelectedListener {
-                    private var suppressSpinnerEvent = true
                     override fun onItemSelected(
                         parent: AdapterView<*>?,
                         view: View?,
                         position: Int,
                         id: Long
                     ) {
-                        if (suppressSpinnerEvent) {
-                            suppressSpinnerEvent = false
+                        if (suppressChapterSpinnerEvent) {
+                            suppressChapterSpinnerEvent = false
                             return
                         }
                         if (position != session.currentIndex) {
+                            chapterSelectAdapter?.selectedIndex = position
+                            chapterSelectAdapter?.notifyDataSetChanged()
                             session.currentIndex = position
                             loadStreamingChapter(direction = 0)
                         }
@@ -546,8 +602,11 @@ class NovelReaderActivity : AppCompatActivity() {
             } else {
                 pub.readingOrder.mapIndexed { index, link -> link.title ?: "Section ${index + 1}" }
             }
-            binding.novelReaderChapterSelect.adapter =
-                NoPaddingArrayAdapter(this, R.layout.item_dropdown, tocLabels)
+            val initialIndex = chapterSelectAdapter?.selectedIndex ?: 0
+            chapterSelectAdapter = ChapterSelectAdapter(this, tocLabels, initialIndex)
+            binding.novelReaderChapterSelect.adapter = chapterSelectAdapter
+            suppressChapterSpinnerEvent = true
+            binding.novelReaderChapterSelect.setSelection(initialIndex, false)
             binding.novelReaderChapterSelect.onItemSelectedListener =
                 object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(
@@ -556,8 +615,14 @@ class NovelReaderActivity : AppCompatActivity() {
                         position: Int,
                         id: Long
                     ) {
+                        if (suppressChapterSpinnerEvent) {
+                            suppressChapterSpinnerEvent = false
+                            return
+                        }
                         val link = toc.getOrNull(position) ?: pub.readingOrder.getOrNull(position)
                         if (link != null) {
+                            chapterSelectAdapter?.selectedIndex = position
+                            chapterSelectAdapter?.notifyDataSetChanged()
                             visualNavigator?.go(link)
                         }
                     }
@@ -572,6 +637,26 @@ class NovelReaderActivity : AppCompatActivity() {
             latestLocator = locator
             val session = ani.dantotsu.media.novel.NovelReaderSession
             val pub = currentPublication
+            if (session.isActive()) {
+                updateSelectedChapterInSpinner(session.currentIndex)
+            } else if (pub != null) {
+                val toc = pub.tableOfContents
+                val currentHref = locator.href.toString()
+                val idx = if (toc.isNotEmpty()) {
+                    toc.indexOfFirst {
+                        val h = it.href.toString()
+                        h == currentHref || currentHref.endsWith(h) || currentHref.contains(h)
+                    }
+                } else {
+                    pub.readingOrder.indexOfFirst {
+                        val h = it.href.toString()
+                        h == currentHref || currentHref.endsWith(h) || currentHref.contains(h)
+                    }
+                }
+                if (idx >= 0) {
+                    updateSelectedChapterInSpinner(idx)
+                }
+            }
             val rawProgression = locator.locations.totalProgression
             val progression = if (rawProgression != null) {
                 rawProgression
@@ -901,6 +986,17 @@ class NovelReaderActivity : AppCompatActivity() {
         val wordSpacingPx = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_WORD_SPACING_PX, 0).toDouble()
         val paraSpacingPx = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_PARAGRAPH_SPACING_PX, 0).toDouble()
 
+        val fontName = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, "Default")
+        val readiumFontFamily = when (fontName) {
+            "Default" -> null
+            "Sans-Serif" -> FontFamily.SANS_SERIF
+            "Serif" -> FontFamily.SERIF
+            "Monospace" -> FontFamily.MONOSPACE
+            "Cursive" -> FontFamily.CURSIVE
+            "OpenDyslexic" -> FontFamily.OPEN_DYSLEXIC
+            else -> FontFamily(fontName)
+        }
+
         val marginFactor = when {
             defaultSettings.margin in 0.001f..0.4f -> (defaultSettings.margin / 0.06).toDouble().coerceIn(0.2, 4.0)
             defaultSettings.margin > 0.4f -> defaultSettings.margin.toDouble().coerceIn(0.2, 4.0)
@@ -911,6 +1007,7 @@ class NovelReaderActivity : AppCompatActivity() {
             backgroundColor = ReadiumColor(bgInt),
             textColor = ReadiumColor(fgInt),
             theme = readiumTheme,
+            fontFamily = readiumFontFamily,
             fontSize = fontSizeMultiplier,
             lineHeight = defaultSettings.lineHeight.toDouble().takeIf { it > 0 },
             pageMargins = marginFactor,
