@@ -38,7 +38,7 @@
 
             <ani.dantotsu.SpinnerNoSwipe
                 android:id="@+id/themeSelect"
-                android:layout_width="wrap_content"
+                android:layout_width="170dp"
                 android:layout_height="48dp"
                 android:entries="@array/themes"
                 android:popupBackground="@drawable/round_corner"
@@ -60,7 +60,7 @@
 
             <ani.dantotsu.SpinnerNoSwipe
                 android:id="@+id/fontSelect"
-                android:layout_width="wrap_content"
+                android:layout_width="170dp"
                 android:layout_height="48dp"
                 android:popupBackground="@drawable/round_corner"
                 tools:ignore="SpeakableTextPresentCheck" />
@@ -613,6 +613,25 @@
             android:fontFamily="@font/poppins_bold"
             android:minHeight="64dp"
             android:text="@string/use_oled_theme"
+            android:textAlignment="viewStart"
+            android:textColor="?attr/colorOnBackground"
+            app:cornerRadius="0dp"
+            app:drawableTint="?attr/colorPrimary"
+            app:showText="false"
+            app:thumbTint="@color/button_switch_track"
+            tools:ignore="VisualLintButtonSize" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/boldFont"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:drawableStart="@drawable/format_bold_24"
+            android:drawablePadding="16dp"
+            android:elegantTextHeight="true"
+            android:fontFamily="@font/poppins_bold"
+            android:minHeight="64dp"
+            android:text="Bold Text"
             android:textAlignment="viewStart"
             android:textColor="?attr/colorOnBackground"
             app:cornerRadius="0dp"
