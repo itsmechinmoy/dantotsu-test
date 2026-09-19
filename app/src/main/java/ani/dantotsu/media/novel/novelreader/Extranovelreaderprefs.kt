@@ -13,4 +13,5 @@ object ExtraNovelReaderPrefs {
     const val PREF_SHOW_PROGRESS         = "extra_novel_show_progress"
     const val PREF_TRANSLATE_LANG        = "extra_novel_translate_lang"
     const val PREF_FONT_FAMILY           = "extra_novel_font_family"
+    const val PREF_BOLD_FONT             = "extra_novel_bold_font"
 }
