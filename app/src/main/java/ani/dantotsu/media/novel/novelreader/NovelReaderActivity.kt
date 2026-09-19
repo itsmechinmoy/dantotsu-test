@@ -132,6 +132,10 @@ class NovelReaderActivity : AppCompatActivity() {
     private var locatorJob: Job? = null
     private var isSliderDragging = false
     private var totalPositionsCount: Int = 0
+    private var latestLocator: Locator? = null
+    private var endOfChapterFrames = 0
+    private var lastObservedWebView: WebView? = null
+    private var applySettingsJob: Job? = null
 
     val themes = arrayListOf(
         NovelReaderTheme(
@@ -565,7 +569,25 @@ class NovelReaderActivity : AppCompatActivity() {
     private fun setupNavigatorObservers() {
         locatorJob?.cancel()
         locatorJob = visualNavigator?.currentLocator?.onEach { locator ->
-            val progression = locator.locations.totalProgression ?: locator.locations.progression ?: return@onEach
+            latestLocator = locator
+            val session = ani.dantotsu.media.novel.NovelReaderSession
+            val pub = currentPublication
+            val rawProgression = locator.locations.totalProgression
+            val progression = if (rawProgression != null) {
+                rawProgression
+            } else if (session.isActive() && session.chapters.isNotEmpty()) {
+                val intra = locator.locations.progression ?: 0.0
+                ((session.currentIndex + intra) / session.chapters.size).coerceIn(0.0, 1.0)
+            } else if (pub != null && pub.readingOrder.isNotEmpty()) {
+                val idx = pub.readingOrder.indexOfFirst {
+                    it.href.toString() == locator.href.toString() || it.href == locator.href
+                }.coerceAtLeast(0)
+                val intra = locator.locations.progression ?: 0.0
+                ((idx + intra) / pub.readingOrder.size).coerceIn(0.0, 1.0)
+            } else {
+                locator.locations.progression ?: return@onEach
+            }
+
             if (!isSliderDragging) {
                 binding.novelReaderSlider.value = progression.toFloat().coerceIn(0f, 1f)
             }
@@ -808,28 +830,31 @@ class NovelReaderActivity : AppCompatActivity() {
 
     // region Settings & Appearance
     fun applySettings() {
-        saveReaderSettings("${sanitizedBookId}_current_settings", defaultSettings)
-        hideBars()
+        applySettingsJob?.cancel()
+        applySettingsJob = scope.launch(Dispatchers.Main) {
+            saveReaderSettings("${sanitizedBookId}_current_settings", defaultSettings)
+            hideBars()
 
-        if (defaultSettings.keepScreenOn) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
+            if (defaultSettings.keepScreenOn) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
 
-        requestedOrientation = when (defaultSettings.dualPageMode) {
-            CurrentReaderSettings.DualPageModes.Force -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else -> ActivityInfo.SCREEN_ORIENTATION_USER
-        }
+            requestedOrientation = when (defaultSettings.dualPageMode) {
+                CurrentReaderSettings.DualPageModes.Force -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                else -> ActivityInfo.SCREEN_ORIENTATION_USER
+            }
 
-        epubNavigator?.submitPreferences(buildEpubPreferences())
-        pdfNavigator?.submitPreferences(
-            PdfiumPreferences(
-                scroll = defaultSettings.layout == CurrentNovelReaderSettings.Layouts.SCROLLED
+            epubNavigator?.submitPreferences(buildEpubPreferences())
+            pdfNavigator?.submitPreferences(
+                PdfiumPreferences(
+                    scroll = defaultSettings.layout == CurrentNovelReaderSettings.Layouts.SCROLLED
+                )
             )
-        )
 
-        applyExtraSettings()
+            applyExtraSettings()
+        }
     }
 
     private fun buildEpubPreferences(): EpubPreferences {
@@ -901,11 +926,14 @@ class NovelReaderActivity : AppCompatActivity() {
     }
 
     private fun toggleAutoScroll() {
-        if (autoScroll.isRunning || binding.novelReaderAutoScrollPlayBar.visibility == View.VISIBLE) {
-            autoScroll.stop()
-            binding.novelReaderAutoScrollPlayBar.visibility = View.GONE
-            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
-            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, false)
+        if (binding.novelReaderAutoScrollPlayBar.visibility == View.VISIBLE) {
+            if (autoScroll.isRunning) {
+                autoScroll.stop()
+                binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+            } else {
+                binding.novelReaderAutoScrollPlayBar.visibility = View.GONE
+                PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, false)
+            }
         } else {
             startAutoScroll()
         }
@@ -920,8 +948,22 @@ class NovelReaderActivity : AppCompatActivity() {
         if (ttsNavigator != null) stopTts()
         val wv = findActiveWebView(binding.novelReaderFragmentContainer)
         if (wv != null) {
+            endOfChapterFrames = 0
             autoScroll.attach(wv) { delta ->
-                findActiveWebView(binding.novelReaderFragmentContainer)?.scrollBy(0, delta)
+                val activeWv = findActiveWebView(binding.novelReaderFragmentContainer)
+                if (activeWv != null) {
+                    if (!activeWv.canScrollVertically(1)) {
+                        endOfChapterFrames++
+                        if (endOfChapterFrames > 25) {
+                            endOfChapterFrames = 0
+                            binding.novelReaderNextChapter.performClick()
+                        }
+                    } else {
+                        endOfChapterFrames = 0
+                        activeWv.scrollBy(0, delta)
+                        updateProgressFromScroll(activeWv)
+                    }
+                }
             }
             autoScroll.start()
             binding.novelReaderAutoScrollPlayBar.visibility = View.VISIBLE
@@ -937,15 +979,32 @@ class NovelReaderActivity : AppCompatActivity() {
             ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, 3f
         ).toFloat()
         val autoScrollEnabled = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL, false)
-        if (autoScrollEnabled && !autoScroll.isRunning) {
+        if (autoScrollEnabled) {
             val wv = findActiveWebView(binding.novelReaderFragmentContainer)
-            autoScroll.attach(wv) { delta ->
-                findActiveWebView(binding.novelReaderFragmentContainer)?.scrollBy(0, delta)
+            if (wv != null) {
+                endOfChapterFrames = 0
+                autoScroll.attach(wv) { delta ->
+                    val activeWv = findActiveWebView(binding.novelReaderFragmentContainer)
+                    if (activeWv != null) {
+                        if (!activeWv.canScrollVertically(1)) {
+                            endOfChapterFrames++
+                            if (endOfChapterFrames > 25) {
+                                endOfChapterFrames = 0
+                                binding.novelReaderNextChapter.performClick()
+                            }
+                        } else {
+                            endOfChapterFrames = 0
+                            activeWv.scrollBy(0, delta)
+                            updateProgressFromScroll(activeWv)
+                        }
+                    }
+                }
             }
-            autoScroll.start()
+            // Always start paused when reader is opened (matches MangaReader behavior)
+            autoScroll.stop()
             binding.novelReaderAutoScrollPlayBar.visibility = View.VISIBLE
-            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_pause_24)
-        } else if (!autoScrollEnabled && autoScroll.isRunning) {
+            binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+        } else {
             autoScroll.stop()
             binding.novelReaderAutoScrollPlayBar.visibility = View.GONE
             binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
@@ -956,15 +1015,71 @@ class NovelReaderActivity : AppCompatActivity() {
     }
 
     private fun findActiveWebView(root: View?): WebView? {
-        if (root is WebView) return root
+        if (root is WebView) {
+            attachWebViewScrollListener(root)
+            return root
+        }
         if (root is ViewGroup) {
             for (i in 0 until root.childCount) {
                 val child = root.getChildAt(i)
                 val found = findActiveWebView(child)
-                if (found != null && found.isShown) return found
+                if (found != null && found.isShown) {
+                    attachWebViewScrollListener(found)
+                    return found
+                }
             }
         }
         return null
+    }
+
+    private fun attachWebViewScrollListener(wv: WebView) {
+        if (lastObservedWebView === wv) return
+        lastObservedWebView = wv
+        wv.setOnScrollChangeListener { _, _, _, _, _ ->
+            updateProgressFromScroll(wv)
+        }
+    }
+
+    private fun updateProgressFromScroll(wv: WebView) {
+        if (isSliderDragging) return
+        val session = ani.dantotsu.media.novel.NovelReaderSession
+        val pub = currentPublication ?: return
+
+        val scrollY = wv.scrollY.toFloat()
+        val maxScroll = (wv.contentHeight * wv.scale - wv.height).coerceAtLeast(1f)
+        val chapterProgress = (scrollY / maxScroll).coerceIn(0f, 1f)
+
+        val totalChapters = if (session.isActive()) {
+            session.chapters.size
+        } else {
+            pub.readingOrder.size
+        }
+
+        if (totalChapters <= 0) return
+
+        val chapterIndex = if (session.isActive()) {
+            session.currentIndex.coerceIn(0, totalChapters - 1)
+        } else {
+            val currentHref = latestLocator?.href
+            val idx = if (currentHref != null) {
+                pub.readingOrder.indexOfFirst {
+                    it.href.toString() == currentHref.toString() || it.href == currentHref
+                }
+            } else -1
+            if (idx >= 0) idx else 0
+        }
+
+        val overallProgression = ((chapterIndex + chapterProgress) / totalChapters).toDouble().coerceIn(0.0, 1.0)
+        binding.novelReaderSlider.value = overallProgression.toFloat().coerceIn(0f, 1f)
+        val total = totalPositionsCount
+        val text = if (total > 0) {
+            val pos = (overallProgression * total).toInt().coerceIn(1, total)
+            "$pos / $total  (${(overallProgression * 100).toInt()}%)"
+        } else {
+            "${(overallProgression * 100).toInt()}%"
+        }
+        binding.novelReaderPageNumber.text = text
+        readerOverlay.progressFraction = overallProgression.toFloat()
     }
     // endregion
 
