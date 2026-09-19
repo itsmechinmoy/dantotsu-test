@@ -139,6 +139,13 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             settings.useOledTheme = isChecked
             activity.applySettings()
         }
+
+        val isBoldFont = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_BOLD_FONT, false)
+        binding.boldFont.isChecked = isBoldFont
+        binding.boldFont.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_BOLD_FONT, isChecked)
+            activity.applySettings()
+        }
         val layoutList = listOf(
             binding.paged,
             binding.continuous
