@@ -1173,7 +1173,7 @@ class NovelReaderActivity : AppCompatActivity() {
                     endOfChapterFrames = 0
                 } else {
                     val canScrollDown = activeWv.canScrollVertically(1)
-                    val isActuallyScrollable = activeWv.computeVerticalScrollRange() > activeWv.height + 200
+                    val isActuallyScrollable = (activeWv.contentHeight * activeWv.scale) > (activeWv.height + 200)
                     if (isActuallyScrollable && activeWv.scrollY > 500 && !canScrollDown) {
                         endOfChapterFrames++
                         if (endOfChapterFrames > 300) {
