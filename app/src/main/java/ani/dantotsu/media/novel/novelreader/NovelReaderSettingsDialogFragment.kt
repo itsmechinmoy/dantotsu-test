@@ -106,6 +106,34 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+
+        // Font Size
+        val currentFontSize = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_SIZE_PX, 100)
+        binding.fontSize.setText(currentFontSize.toString())
+        binding.fontSize.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val value = binding.fontSize.text.toString().toIntOrNull() ?: 100
+                val clamped = value.coerceIn(50, 300)
+                PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_FONT_SIZE_PX, clamped)
+                binding.fontSize.setText(clamped.toString())
+                activity.applySettings()
+            }
+        }
+        binding.incrementFontSize.setOnClickListener {
+            val value = binding.fontSize.text.toString().toIntOrNull() ?: 100
+            val newValue = (value + 5).coerceAtMost(300)
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_FONT_SIZE_PX, newValue)
+            binding.fontSize.setText(newValue.toString())
+            activity.applySettings()
+        }
+        binding.decrementFontSize.setOnClickListener {
+            val value = binding.fontSize.text.toString().toIntOrNull() ?: 100
+            val newValue = (value - 5).coerceAtLeast(50)
+            PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_FONT_SIZE_PX, newValue)
+            binding.fontSize.setText(newValue.toString())
+            activity.applySettings()
+        }
+
         binding.useOledTheme.isChecked = settings.useOledTheme
         binding.useOledTheme.setOnCheckedChangeListener { _, isChecked ->
             settings.useOledTheme = isChecked
