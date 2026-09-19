@@ -75,9 +75,8 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             "Poppins",
             "OpenDyslexic",
             "Cursive",
-            "Roboto",
-            "Literata",
-            "Merriweather"
+            "AccessibleDfA",
+            "IA Writer Duospace"
         )
         binding.fontSelect.adapter =
             NoPaddingArrayAdapter(activity, R.layout.item_dropdown, fontLabels)
@@ -85,7 +84,6 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         val fontIndex = fontLabels.indexOf(currentFont).coerceAtLeast(0)
         binding.fontSelect.setSelection(fontIndex, false)
 
-        var initialFontSet = true
         var fontDebounceJob: Job? = null
         binding.fontSelect.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
@@ -94,16 +92,13 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
                 position: Int,
                 id: Long
             ) {
-                if (initialFontSet) {
-                    initialFontSet = false
-                    return
-                }
-                val newFont = fontLabels[position]
-                if (newFont != PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, "Default")) {
+                val newFont = fontLabels.getOrNull(position) ?: return
+                val savedFont = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, "Default")
+                if (newFont != savedFont) {
                     PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, newFont)
                     fontDebounceJob?.cancel()
                     fontDebounceJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                        delay(150)
+                        delay(100)
                         activity.applySettings()
                     }
                 }
