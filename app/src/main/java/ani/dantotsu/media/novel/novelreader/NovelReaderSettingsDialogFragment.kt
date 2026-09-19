@@ -66,6 +66,51 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+
+        val fontLabels = listOf(
+            "Default",
+            "Sans-Serif",
+            "Serif",
+            "Monospace",
+            "Poppins",
+            "OpenDyslexic",
+            "Cursive",
+            "Roboto",
+            "Literata",
+            "Merriweather"
+        )
+        binding.fontSelect.adapter =
+            NoPaddingArrayAdapter(activity, R.layout.item_dropdown, fontLabels)
+        val currentFont = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, "Default")
+        val fontIndex = fontLabels.indexOf(currentFont).coerceAtLeast(0)
+        binding.fontSelect.setSelection(fontIndex, false)
+
+        var initialFontSet = true
+        var fontDebounceJob: Job? = null
+        binding.fontSelect.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                if (initialFontSet) {
+                    initialFontSet = false
+                    return
+                }
+                val newFont = fontLabels[position]
+                if (newFont != PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, "Default")) {
+                    PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, newFont)
+                    fontDebounceJob?.cancel()
+                    fontDebounceJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                        delay(150)
+                        activity.applySettings()
+                    }
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
         binding.useOledTheme.isChecked = settings.useOledTheme
         binding.useOledTheme.setOnCheckedChangeListener { _, isChecked ->
             settings.useOledTheme = isChecked
