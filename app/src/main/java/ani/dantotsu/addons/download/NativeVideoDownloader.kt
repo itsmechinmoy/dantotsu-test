@@ -43,9 +43,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
     private val cancelledSessions = ConcurrentHashMap.newKeySet<Long>()
     private val uriMap = ConcurrentHashMap<String, Uri>()
 
-    companion object {
-        private val hostConcurrencyCap = ConcurrentHashMap<String, Int>()
-    }
+
 
     // aria2 process variables
     private var aria2Process: Process? = null
@@ -770,10 +768,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         val segmentHost = parsed.segments.firstOrNull()?.toUri()?.host?.takeIf { it.isNotBlank() }
         val host = segmentHost ?: playlistUrl.toUri().host ?: ""
         val initialConcurrency = calculateDynamicConcurrency(host)
-        val activeConcurrency = java.util.concurrent.atomic.AtomicInteger(initialConcurrency)
-        val runningWorkers = java.util.concurrent.atomic.AtomicInteger(0)
         val rateLimitCooldownUntil = AtomicLong(0L)
-        val interSegmentDelayMs = AtomicLong(0L)
         val segmentFolder = File(context.cacheDir, "hls_parts_${sessionId}_${System.nanoTime()}")
         segmentFolder.mkdirs()
 
@@ -788,32 +783,12 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                 delay(cooldownWait.milliseconds)
                             }
 
-                            // Adaptive dynamic concurrency gating
-                            val maxPermits = activeConcurrency.get()
-                            val curRunning = runningWorkers.get()
-                            if (curRunning >= maxPermits) {
-                                delay(50.milliseconds)
-                                continue
-                            }
-                            if (!runningWorkers.compareAndSet(curRunning, curRunning + 1)) {
-                                continue
-                            }
-
                             val seg = synchronized(segmentQueue) {
                                 if (segmentQueue.isNotEmpty()) segmentQueue.removeAt(0) else null
-                            }
-                            if (seg == null) {
-                                runningWorkers.decrementAndGet()
-                                break
-                            }
+                            } ?: break
 
                             val partFile = File(segmentFolder, "seg_${seg.index}.part")
                             try {
-                                val pacing = interSegmentDelayMs.get()
-                                if (pacing > 0) {
-                                    delay(pacing.milliseconds)
-                                }
-
                                 seg.attempts++
                                 downloadHlsSegment(
                                     client = client,
@@ -843,22 +818,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                 if (e is CancellationException) throw e
                                 if (!isActive) throw e
 
-                                val segHost = seg.url.toUri().host ?: host
                                 if (e is RateLimitedException) {
-                                    // 1. Downscale active concurrency
-                                    val oldLimit = activeConcurrency.get()
-                                    val newLimit = maxOf(1, oldLimit / 2)
-                                    if (activeConcurrency.compareAndSet(oldLimit, newLimit)) {
-                                        Logger.log("Built-in: HTTP ${e.code} rate limit on $segHost. Downscaling concurrency from $oldLimit to $newLimit")
-                                        hostConcurrencyCap[segHost.lowercase()] = newLimit
-                                    }
-
-                                    // 2. Introduce / increase inter-segment pacing delay
-                                    interSegmentDelayMs.updateAndGet { cur ->
-                                        if (cur == 0L) 250L else minOf(cur * 2, 2000L)
-                                    }
-
-                                    // 3. Exponential backoff with jitter and Retry-After
                                     val retryAfterMs = (e.retryAfterSeconds ?: 0L) * 1000L
                                     val expBackoffMs = (1500L * (1L shl (seg.attempts - 1)).coerceAtMost(16)).coerceAtMost(30_000L)
                                     val jitterMs = (Math.random() * 800).toLong() + 200L
@@ -870,7 +830,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
 
                                     Logger.log("Built-in: Rate limited on seg ${seg.index} (attempt ${seg.attempts}/8). Backing off for ${backoffMs}ms")
 
-                                    // 4. Update shared cooldown so other workers pause as well
+                                    // Update shared cooldown so all other workers pause
                                     val cooldownUntil = android.os.SystemClock.elapsedRealtime() + backoffMs
                                     rateLimitCooldownUntil.updateAndGet { cur -> maxOf(cur, cooldownUntil) }
 
@@ -898,8 +858,6 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                                     }
                                     delay(backoffMs.milliseconds)
                                 }
-                            } finally {
-                                runningWorkers.decrementAndGet()
                             }
                         }
                     }
@@ -1108,32 +1066,9 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
         val lowerHost = host.lowercase()
         if (lowerHost.contains("animepahe") || lowerHost.contains("sibnet") || lowerHost.contains("video.sibnet")) return 1
 
-        val isRateLimitSensitiveHost = lowerHost.contains("vidstream") ||
-            lowerHost.contains("megacloud") ||
-            lowerHost.contains("mewcdn") ||
-            lowerHost.contains("megaplay") ||
-            lowerHost.contains("vizcloud") ||
-            lowerHost.contains("anikoto") ||
-            lowerHost.contains("anizone") ||
-            lowerHost.contains("kwik") ||
-            lowerHost.contains("streamtape") ||
-            lowerHost.contains("filemoon")
-
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
         val isLowRam = activityManager?.isLowRamDevice == true
-
-        val maxAllowed = when {
-            isRateLimitSensitiveHost -> if (isLowRam) 2 else 4
-            isLowRam -> 4
-            else -> 8
-        }
-
-        val learnedCap = hostConcurrencyCap[lowerHost]
-        return if (learnedCap != null) {
-            minOf(learnedCap, maxAllowed).coerceAtLeast(1)
-        } else {
-            maxAllowed
-        }
+        return if (isLowRam) 4 else 8
     }
 
     // ==========================================
