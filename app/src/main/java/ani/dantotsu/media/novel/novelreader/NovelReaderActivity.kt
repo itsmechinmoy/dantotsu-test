@@ -71,6 +71,10 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
+import org.readium.r2.navigator.epub.css.FontStyle as ReadiumFontStyle
+import org.readium.r2.navigator.epub.css.FontWeight as ReadiumFontWeight
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import org.readium.r2.navigator.pdf.PdfNavigatorFactory
 import org.readium.r2.navigator.pdf.PdfNavigatorFragment
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
@@ -132,8 +136,11 @@ class NovelReaderActivity : AppCompatActivity() {
     private var ttsSpeedIndex = 1
     private val ttsSpeeds = listOf(0.75, 1.0, 1.25, 1.5, 2.0)
 
+    private var snippetTts: TextToSpeech? = null
     private var locatorJob: Job? = null
     private var isSliderDragging = false
+    private var isNavigatingFromSlider = false
+    private var wasAutoScrolling = false
     private var totalPositionsCount: Int = 0
     private var latestLocator: Locator? = null
     private var endOfChapterFrames = 0
@@ -143,26 +150,6 @@ class NovelReaderActivity : AppCompatActivity() {
     private var scrollFrameCount = 0
     private var lastObservedWebView: WebView? = null
     private var applySettingsJob: Job? = null
-
-    private val poppinsBase64: String by lazy {
-        try {
-            assets.open("fonts/poppins.ttf").use { input ->
-                android.util.Base64.encodeToString(input.readBytes(), android.util.Base64.NO_WRAP)
-            }
-        } catch (_: Exception) {
-            ""
-        }
-    }
-
-    private val poppinsBoldBase64: String by lazy {
-        try {
-            assets.open("fonts/poppins_bold.ttf").use { input ->
-                android.util.Base64.encodeToString(input.readBytes(), android.util.Base64.NO_WRAP)
-            }
-        } catch (_: Exception) {
-            ""
-        }
-    }
 
     val themes = arrayListOf(
         NovelReaderTheme(
@@ -344,10 +331,16 @@ class NovelReaderActivity : AppCompatActivity() {
         binding.novelReaderSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
                 isSliderDragging = true
+                if (autoScroll.isRunning) {
+                    wasAutoScrolling = true
+                    autoScroll.stop()
+                    binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_play_arrow_24)
+                }
             }
 
             override fun onStopTrackingTouch(slider: Slider) {
                 val targetProgression = slider.value.toDouble()
+                isNavigatingFromSlider = true
                 scope.launch {
                     try {
                         val pub = currentPublication ?: return@launch
@@ -365,8 +358,19 @@ class NovelReaderActivity : AppCompatActivity() {
                                 visualNavigator?.go(contentLinks[targetIndex])
                             }
                         }
+                        kotlinx.coroutines.delay(400)
                     } finally {
                         isSliderDragging = false
+                        isNavigatingFromSlider = false
+                        if (wasAutoScrolling) {
+                            wasAutoScrolling = false
+                            val currentWv = findActiveWebView(binding.novelReaderFragmentContainer)
+                            if (currentWv != null) {
+                                attachAutoScroll(currentWv)
+                                autoScroll.start()
+                                binding.autoScrollPlayPause.setImageResource(R.drawable.ic_round_pause_24)
+                            }
+                        }
                     }
                 }
             }
@@ -542,6 +546,19 @@ class NovelReaderActivity : AppCompatActivity() {
                 initialPreferences = buildEpubPreferences(),
                 configuration = EpubNavigatorFragment.Configuration {
                     selectionActionModeCallback = this@NovelReaderActivity.selectionActionModeCallback
+                    servedAssets = listOf("fonts/.*")
+                    addFontFamilyDeclaration(FontFamily("Poppins")) {
+                        addFontFace {
+                            addSource("fonts/poppins.ttf")
+                            setFontStyle(ReadiumFontStyle.NORMAL)
+                            setFontWeight(ReadiumFontWeight.NORMAL)
+                        }
+                        addFontFace {
+                            addSource("fonts/poppins_bold.ttf")
+                            setFontStyle(ReadiumFontStyle.NORMAL)
+                            setFontWeight(ReadiumFontWeight.BOLD)
+                        }
+                    }
                 }
             )
             supportFragmentManager.fragmentFactory = fragmentFactory
@@ -716,8 +733,11 @@ class NovelReaderActivity : AppCompatActivity() {
                 }
             }
             isTransitioningChapter = false
-            chapterTransitionCooldown = 180
+            chapterTransitionCooldown = 45
             endOfChapterFrames = 0
+
+            val currentFont = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_FONT_FAMILY, "Default")
+            applyFontDirectlyToWebView(currentFont)
 
             val rawProgression = locator.locations.totalProgression
             val progression = if (rawProgression != null) {
@@ -740,7 +760,7 @@ class NovelReaderActivity : AppCompatActivity() {
                 locator.locations.progression ?: return@onEach
             }
 
-            if (!isSliderDragging) {
+            if (!isSliderDragging && !isNavigatingFromSlider) {
                 binding.novelReaderSlider.value = progression.toFloat().coerceIn(0f, 1f)
             }
             val total = totalPositionsCount
@@ -816,65 +836,14 @@ class NovelReaderActivity : AppCompatActivity() {
                 1003 -> {
                     scope.launch {
                         val selection = (visualNavigator as? SelectableNavigator)?.currentSelection()
+                        val selectedSnippet = selection?.locator?.text?.highlight?.trim()
                         val locator = selection?.locator
-                        val webView = findActiveWebView(binding.novelReaderFragmentContainer)
-                        val cssSelector = suspendCancellableCoroutine<String?> { cont ->
-                            if (webView != null) {
-                                val js = """
-                                    (function() {
-                                        try {
-                                            function getCssPath(el) {
-                                                if (!el || el.nodeType !== 1) return '';
-                                                var path = [];
-                                                while (el && el.nodeType === 1 && el.tagName.toLowerCase() !== 'html') {
-                                                    var selector = el.tagName.toLowerCase();
-                                                    if (el.id) {
-                                                        selector += '[id="' + el.id + '"]';
-                                                        path.unshift(selector);
-                                                        break;
-                                                    } else {
-                                                        var sibling = el;
-                                                        var nth = 1;
-                                                        while (sibling = sibling.previousElementSibling) {
-                                                            if (sibling.tagName.toLowerCase() === selector) nth++;
-                                                        }
-                                                        selector += ':nth-of-type(' + nth + ')';
-                                                    }
-                                                    path.unshift(selector);
-                                                    el = el.parentElement;
-                                                }
-                                                return path.join(' > ');
-                                            }
-                                            var sel = window.getSelection();
-                                            if (!sel || !sel.anchorNode) return '';
-                                            var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
-                                            return getCssPath(el);
-                                        } catch(e) {
-                                            return '';
-                                        }
-                                    })()
-                                """.trimIndent()
-                                webView.evaluateJavascript(js) { result ->
-                                    val clean = result?.trim('"', '\'', ' ', '\\')
-                                    cont.resume(clean?.takeIf { it.isNotBlank() && it != "null" })
-                                }
-                            } else {
-                                cont.resume(null)
-                            }
-                        }
                         (visualNavigator as? SelectableNavigator)?.clearSelection()
                         mode.finish()
-                        if (locator != null) {
-                            val targetLocator = if (!cssSelector.isNullOrBlank()) {
-                                locator.copy(
-                                    locations = locator.locations.copy(
-                                        otherLocations = locator.locations.otherLocations + ("cssSelector" to cssSelector)
-                                    )
-                                )
-                            } else {
-                                locator
-                            }
-                            startTts(fromLocator = targetLocator)
+                        if (!selectedSnippet.isNullOrBlank()) {
+                            speakSelectedText(selectedSnippet)
+                        } else if (locator != null) {
+                            startTts(fromLocator = locator)
                         }
                     }
                     return true
@@ -888,6 +857,21 @@ class NovelReaderActivity : AppCompatActivity() {
     // endregion
 
     // region Text-To-Speech (TTS)
+    private fun speakSelectedText(text: String) {
+        stopTts()
+        if (snippetTts == null) {
+            snippetTts = TextToSpeech(this) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    snippetTts?.language = Locale.getDefault()
+                    snippetTts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "snippet_tts")
+                } else {
+                    snackString("TTS is not available")
+                }
+            }
+        } else {
+            snippetTts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "snippet_tts")
+        }
+    }
     private fun toggleTts() {
         if (ttsNavigator != null) {
             if (ttsNavigator?.playback?.value?.playWhenReady == true) {
@@ -1027,34 +1011,50 @@ class NovelReaderActivity : AppCompatActivity() {
             else -> "'$fontName', sans-serif"
         }
 
-        val fontFaceCss = if (fontName == "Poppins" && poppinsBase64.isNotEmpty()) {
-            "@font-face { font-family: 'Poppins'; src: url('data:font/truetype;charset=utf-8;base64,$poppinsBase64') format('truetype'); font-weight: normal; font-style: normal; } " +
-            "@font-face { font-family: 'Poppins'; src: url('data:font/truetype;charset=utf-8;base64,$poppinsBoldBase64') format('truetype'); font-weight: bold; font-style: normal; } "
+        val fontFaceCss = if (fontName == "Poppins") {
+            "@font-face { font-family: 'Poppins'; src: url('https://readium/assets/fonts/poppins.ttf') format('truetype'); font-weight: normal; font-style: normal; } " +
+            "@font-face { font-family: 'Poppins'; src: url('https://readium/assets/fonts/poppins_bold.ttf') format('truetype'); font-weight: bold; font-style: normal; }"
         } else ""
 
-        val rules = mutableListOf<String>()
-        if (cssFont != null) {
-            rules.add("font-family: $cssFont !important;")
-        }
-        if (isBold) {
-            rules.add("font-weight: bold !important;")
-        }
-
-        val bodyRule = if (rules.isNotEmpty()) {
-            "body, p, span, div, h1, h2, h3, h4, h5, h6, li, a, blockquote { ${rules.joinToString(" ")} }"
+        val fontRule = if (cssFont != null) {
+            "body, p, span, div, h1, h2, h3, h4, h5, h6, li, a, blockquote { font-family: $cssFont !important; }"
         } else ""
 
-        val combinedCss = (fontFaceCss + bodyRule).trim().replace("\n", " ").replace("'", "\\'")
+        val fontCombined = (fontFaceCss + " " + fontRule).trim().replace("\n", " ").replace("'", "\\'")
+
+        val boldRule = if (isBold) {
+            "body, p, span, div, h1, h2, h3, h4, h5, h6, li, a, em, b, strong, blockquote { font-weight: bold !important; }"
+        } else ""
+
+        val boldCombined = boldRule.trim().replace("\n", " ").replace("'", "\\'")
 
         val js = """
             (function() {
-                var style = document.getElementById('dantotsu-font-override');
-                if (!style) {
-                    style = document.createElement('style');
-                    style.id = 'dantotsu-font-override';
-                    document.head.appendChild(style);
-                }
-                style.textContent = '$combinedCss';
+                try {
+                    var fontStyle = document.getElementById('dantotsu-font-override');
+                    if ('$fontCombined'.length > 0) {
+                        if (!fontStyle) {
+                            fontStyle = document.createElement('style');
+                            fontStyle.id = 'dantotsu-font-override';
+                            (document.head || document.documentElement).appendChild(fontStyle);
+                        }
+                        fontStyle.textContent = '$fontCombined';
+                    } else if (fontStyle) {
+                        fontStyle.remove();
+                    }
+
+                    var boldStyle = document.getElementById('dantotsu-bold-override');
+                    if ('$boldCombined'.length > 0) {
+                        if (!boldStyle) {
+                            boldStyle = document.createElement('style');
+                            boldStyle.id = 'dantotsu-bold-override';
+                            (document.head || document.documentElement).appendChild(boldStyle);
+                        }
+                        boldStyle.textContent = '$boldCombined';
+                    } else if (boldStyle) {
+                        boldStyle.remove();
+                    }
+                } catch(e) {}
             })();
         """.trimIndent()
         wv.evaluateJavascript(js, null)
@@ -1118,6 +1118,8 @@ class NovelReaderActivity : AppCompatActivity() {
             else -> FontFamily(fontName)
         }
 
+        val isBold = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_BOLD_FONT, false)
+
         val marginFactor = when {
             defaultSettings.margin in 0.001f..0.4f -> (defaultSettings.margin / 0.06).toDouble().coerceIn(0.2, 4.0)
             defaultSettings.margin > 0.4f -> defaultSettings.margin.toDouble().coerceIn(0.2, 4.0)
@@ -1129,6 +1131,7 @@ class NovelReaderActivity : AppCompatActivity() {
             textColor = ReadiumColor(fgInt),
             theme = readiumTheme,
             fontFamily = readiumFontFamily,
+            fontWeight = if (isBold) 2.0 else null,
             fontSize = fontSizeMultiplier,
             lineHeight = defaultSettings.lineHeight.toDouble().takeIf { it > 0 },
             pageMargins = marginFactor,
@@ -1159,8 +1162,14 @@ class NovelReaderActivity : AppCompatActivity() {
 
     private fun attachAutoScroll(wv: WebView) {
         endOfChapterFrames = 0
-        chapterTransitionCooldown = 60
+        chapterTransitionCooldown = 45
         autoScroll.attach(wv) { delta ->
+            if (isSliderDragging || isNavigatingFromSlider) return@attach
+            if (isTransitioningChapter || chapterTransitionCooldown > 0) {
+                if (chapterTransitionCooldown > 0) chapterTransitionCooldown--
+                endOfChapterFrames = 0
+                return@attach
+            }
             val activeWv = findActiveWebView(binding.novelReaderFragmentContainer)
             if (activeWv != null) {
                 activeWv.scrollBy(0, delta)
@@ -1168,23 +1177,22 @@ class NovelReaderActivity : AppCompatActivity() {
                 if (scrollFrameCount % 4 == 0) {
                     updateProgressFromScroll(activeWv)
                 }
-                if (isTransitioningChapter || chapterTransitionCooldown > 0) {
-                    if (chapterTransitionCooldown > 0) chapterTransitionCooldown--
-                    endOfChapterFrames = 0
-                } else {
-                    val canScrollDown = activeWv.canScrollVertically(1)
-                    val isActuallyScrollable = (activeWv.contentHeight * activeWv.scale) > (activeWv.height + 200)
-                    if (isActuallyScrollable && activeWv.scrollY > 500 && !canScrollDown) {
-                        endOfChapterFrames++
-                        if (endOfChapterFrames > 300) {
-                            endOfChapterFrames = 0
-                            isTransitioningChapter = true
-                            chapterTransitionCooldown = 300
-                            binding.novelReaderNextChapter.performClick()
-                        }
-                    } else {
+                val canScrollDown = activeWv.canScrollVertically(1)
+                val isActuallyScrollable = (activeWv.contentHeight * activeWv.scale) > (activeWv.height + 100)
+                if (isActuallyScrollable && !canScrollDown) {
+                    endOfChapterFrames++
+                    if (endOfChapterFrames > 45) {
                         endOfChapterFrames = 0
+                        isTransitioningChapter = true
+                        chapterTransitionCooldown = 60
+                        if (ani.dantotsu.media.novel.NovelReaderSession.isActive() && ani.dantotsu.media.novel.NovelReaderSession.hasNext()) {
+                            loadStreamingChapter(direction = 1)
+                        } else {
+                            (visualNavigator as? OverflowableNavigator)?.goForward(animated = false)
+                        }
                     }
+                } else {
+                    endOfChapterFrames = 0
                 }
             }
         }
@@ -1234,21 +1242,47 @@ class NovelReaderActivity : AppCompatActivity() {
     }
 
     private fun findActiveWebView(root: View?): WebView? {
-        if (root is WebView) {
-            attachWebViewScrollListener(root)
-            return root
-        }
-        if (root is ViewGroup) {
-            for (i in 0 until root.childCount) {
-                val child = root.getChildAt(i)
-                val found = findActiveWebView(child)
-                if (found != null && found.isShown) {
-                    attachWebViewScrollListener(found)
-                    return found
+        if (root == null) return null
+        val webViews = mutableListOf<WebView>()
+        fun collect(v: View) {
+            if (v is WebView) {
+                webViews.add(v)
+            } else if (v is ViewGroup) {
+                for (i in 0 until v.childCount) {
+                    collect(v.getChildAt(i))
                 }
             }
         }
-        return null
+        collect(root)
+        if (webViews.isEmpty()) return null
+        if (webViews.size == 1) {
+            val single = webViews[0]
+            attachWebViewScrollListener(single)
+            return single
+        }
+
+        val screenRect = android.graphics.Rect()
+        root.getGlobalVisibleRect(screenRect)
+        val centerX = screenRect.centerX()
+        val centerY = screenRect.centerY()
+
+        var bestWv: WebView? = null
+        var maxVisibleArea = 0
+
+        for (w in webViews) {
+            if (!w.isShown) continue
+            val r = android.graphics.Rect()
+            if (w.getGlobalVisibleRect(r)) {
+                val area = r.width() * r.height()
+                if (r.contains(centerX, centerY) && area > maxVisibleArea) {
+                    maxVisibleArea = area
+                    bestWv = w
+                }
+            }
+        }
+        val target = bestWv ?: webViews.firstOrNull { it.isShown } ?: webViews[0]
+        attachWebViewScrollListener(target)
+        return target
     }
 
     private fun attachWebViewScrollListener(wv: WebView) {
@@ -1260,7 +1294,7 @@ class NovelReaderActivity : AppCompatActivity() {
     }
 
     private fun updateProgressFromScroll(wv: WebView) {
-        if (isSliderDragging) return
+        if (isSliderDragging || isNavigatingFromSlider) return
         val session = ani.dantotsu.media.novel.NovelReaderSession
         val pub = currentPublication ?: return
 
@@ -1304,7 +1338,7 @@ class NovelReaderActivity : AppCompatActivity() {
         readerOverlay.progressFraction = overallProgression.toFloat()
 
         // Also update the slider and page number text during auto-scroll
-        if (!isSliderDragging) {
+        if (!isSliderDragging && !isNavigatingFromSlider) {
             binding.novelReaderSlider.value = overallProgression.toFloat().coerceIn(0f, 1f)
             val total = totalPositionsCount
             val text = if (total > 0) {
@@ -1485,6 +1519,9 @@ class NovelReaderActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        snippetTts?.stop()
+        snippetTts?.shutdown()
+        snippetTts = null
         stopTts()
         autoScroll.destroy()
         readerOverlay.destroy()
