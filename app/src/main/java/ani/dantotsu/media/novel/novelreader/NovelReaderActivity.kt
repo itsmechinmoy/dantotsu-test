@@ -494,12 +494,6 @@ class NovelReaderActivity : AppCompatActivity() {
                 initialPreferences = buildEpubPreferences(),
                 configuration = EpubNavigatorFragment.Configuration {
                     selectionActionModeCallback = this@NovelReaderActivity.selectionActionModeCallback
-                    servedAssets = servedAssets + "fonts/.*"
-                    addFontFamilyDeclaration(FontFamily("Poppins")) {
-                        addFontFace {
-                            addSource("fonts/poppins.ttf")
-                        }
-                    }
                 }
             )
             supportFragmentManager.fragmentFactory = fragmentFactory
@@ -540,34 +534,34 @@ class NovelReaderActivity : AppCompatActivity() {
     ) : NoPaddingArrayAdapter<String>(context, R.layout.item_dropdown, items) {
 
         override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = super.getDropDownView(position, convertView, parent)
-            val textView = (view as? TextView) ?: view.findViewById<TextView>(android.R.id.text1)
+            // Inflate fresh each time to avoid recycled-view color contamination
+            val inflater = android.view.LayoutInflater.from(parent.context)
+            val textView = (convertView as? TextView)
+                ?: inflater.inflate(R.layout.item_dropdown, parent, false) as TextView
+
             val isSelected = (position == selectedIndex)
+            val original = items.getOrElse(position) { "" }
 
-            if (textView != null) {
-                val original = items.getOrElse(position) { "" }
-                if (isSelected) {
-                    val primaryColor = parent.context.getThemeColor(androidx.appcompat.R.attr.colorPrimary)
-                    textView.setTextColor(primaryColor)
-                    textView.setTypeface(textView.typeface, android.graphics.Typeface.BOLD)
-
-                    val alphaBg = android.graphics.Color.argb(
-                        40,
-                        android.graphics.Color.red(primaryColor),
-                        android.graphics.Color.green(primaryColor),
-                        android.graphics.Color.blue(primaryColor)
-                    )
-                    textView.setBackgroundColor(alphaBg)
-                    textView.text = "✓  $original"
-                } else {
-                    val textColor = parent.context.getThemeColor(android.R.attr.textColorPrimary)
-                    textView.setTextColor(textColor)
-                    textView.setTypeface(android.graphics.Typeface.create(textView.typeface, android.graphics.Typeface.NORMAL))
-                    textView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    textView.text = original
-                }
+            if (isSelected) {
+                val primaryColor = parent.context.getThemeColor(androidx.appcompat.R.attr.colorPrimary)
+                textView.setTextColor(primaryColor)
+                textView.setTypeface(textView.typeface, android.graphics.Typeface.BOLD)
+                val alphaBg = android.graphics.Color.argb(
+                    40,
+                    android.graphics.Color.red(primaryColor),
+                    android.graphics.Color.green(primaryColor),
+                    android.graphics.Color.blue(primaryColor)
+                )
+                textView.setBackgroundColor(alphaBg)
+                textView.text = "✓  $original"
+            } else {
+                val textColor = parent.context.getThemeColor(android.R.attr.textColorPrimary)
+                textView.setTextColor(textColor)
+                textView.setTypeface(android.graphics.Typeface.defaultFromStyle(android.graphics.Typeface.NORMAL))
+                textView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                textView.text = original
             }
-            return view
+            return textView
         }
     }
 
@@ -1098,11 +1092,11 @@ class NovelReaderActivity : AppCompatActivity() {
                     if (chapterTransitionCooldown > 0) {
                         chapterTransitionCooldown--
                         endOfChapterFrames = 0
-                    } else if (activeWv.scrollY > 200 && !activeWv.canScrollVertically(1)) {
+                    } else if (activeWv.scrollY > 500 && !activeWv.canScrollVertically(1)) {
                         endOfChapterFrames++
-                        if (endOfChapterFrames > 90) {
+                        if (endOfChapterFrames > 300) {
                             endOfChapterFrames = 0
-                            chapterTransitionCooldown = 120
+                            chapterTransitionCooldown = 180
                             binding.novelReaderNextChapter.performClick()
                         }
                     } else {
@@ -1136,11 +1130,11 @@ class NovelReaderActivity : AppCompatActivity() {
                         if (chapterTransitionCooldown > 0) {
                             chapterTransitionCooldown--
                             endOfChapterFrames = 0
-                        } else if (activeWv.scrollY > 200 && !activeWv.canScrollVertically(1)) {
+                        } else if (activeWv.scrollY > 500 && !activeWv.canScrollVertically(1)) {
                             endOfChapterFrames++
-                            if (endOfChapterFrames > 90) {
+                            if (endOfChapterFrames > 300) {
                                 endOfChapterFrames = 0
-                                chapterTransitionCooldown = 120
+                                chapterTransitionCooldown = 180
                                 binding.novelReaderNextChapter.performClick()
                             }
                         } else {
@@ -1220,6 +1214,19 @@ class NovelReaderActivity : AppCompatActivity() {
 
         val overallProgression = ((chapterIndex + chapterProgress) / totalChapters).toDouble().coerceIn(0.0, 1.0)
         readerOverlay.progressFraction = overallProgression.toFloat()
+
+        // Also update the slider and page number text during auto-scroll
+        if (!isSliderDragging) {
+            binding.novelReaderSlider.value = overallProgression.toFloat().coerceIn(0f, 1f)
+            val total = totalPositionsCount
+            val text = if (total > 0) {
+                val pos = ((overallProgression * total).toInt()).coerceIn(1, total)
+                "$pos / $total  (${(overallProgression * 100).toInt()}%)"
+            } else {
+                "${(overallProgression * 100).toInt()}%"
+            }
+            binding.novelReaderPageNumber.text = text
+        }
     }
     // endregion
 
