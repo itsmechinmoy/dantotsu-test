@@ -165,10 +165,12 @@ dependencies {
     implementation(libs.bundles.media3)
     implementation(libs.bundles.subtitles)
     implementation(libs.mediarouter)
-    // HTTP/3 (QUIC) tiered DataSource resolver
-    // Tier 1: system HttpEngine on API 34+ (0 KB footprint — engine lives in the OS)
-    implementation(libs.media3.httpengine)
-    // Tier 2: adapter glue only (~90 KB .dex, no bundled Chromium binary)
+    // HTTP/3 (QUIC) tiered DataSource resolver — all tiers from a single artifact:
+    // media3-datasource-cronet contains both CronetDataSource AND HttpEngineDataSource.
+    // Tier 1 (API 34+): HttpEngineDataSource via system OS engine — zero GMS requirement.
+    // Tier 2 (API 30-33): CronetDataSource wrapping system HttpEngine — zero GMS requirement.
+    // Tier 3 (API 26-29, GMS): CronetDataSource via Play Services Cronet — GMS only.
+    // Tier 4 (fallback / F-Droid): OkHttp (already in APK).
     implementation(libs.media3.cronet)
     // GMS Cronet provider — google flavor only; absent from F-Droid APK
     add("googleImplementation", libs.play.services.cronet)
