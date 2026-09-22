@@ -165,6 +165,13 @@ dependencies {
     implementation(libs.bundles.media3)
     implementation(libs.bundles.subtitles)
     implementation(libs.mediarouter)
+    // HTTP/3 (QUIC) tiered DataSource resolver
+    // Tier 1: system HttpEngine on API 34+ (0 KB footprint — engine lives in the OS)
+    implementation(libs.media3.httpengine)
+    // Tier 2: adapter glue only (~90 KB .dex, no bundled Chromium binary)
+    implementation(libs.media3.cronet)
+    // GMS Cronet provider — google flavor only; absent from F-Droid APK
+    add("googleImplementation", libs.play.services.cronet)
 
     // Firebase
     add("googleImplementation", platform(libs.firebase.bom))
