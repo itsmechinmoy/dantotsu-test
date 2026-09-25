@@ -326,8 +326,9 @@ class NovelReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         }
 
         val autoScrollSpeed = PrefManager.getCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, 3f).toFloat()
-        binding.autoScrollSpeedSlider.value = autoScrollSpeed.coerceIn(0.5f, 10f)
-        binding.autoScrollSpeedText.text = "${autoScrollSpeed}x"
+        val safeSpeed = kotlin.math.round(autoScrollSpeed.coerceIn(0.5f, 10f) * 2f) / 2f
+        binding.autoScrollSpeedSlider.value = safeSpeed
+        binding.autoScrollSpeedText.text = "${safeSpeed}x"
         binding.autoScrollSpeedSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 PrefManager.setCustomVal(ExtraNovelReaderPrefs.PREF_AUTO_SCROLL_SPEED, value)
