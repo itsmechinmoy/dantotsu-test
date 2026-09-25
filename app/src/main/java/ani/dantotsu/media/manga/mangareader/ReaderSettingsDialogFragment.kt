@@ -171,15 +171,16 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         }
 
         // Continuous Side Padding Slider
-        binding.readerContinuousPaddingSlider.value = settings.continuousSidePadding.toFloat()
-        binding.readerContinuousPaddingText.text = "${settings.continuousSidePadding}%"
+        val paddingVal = settings.continuousSidePadding.coerceIn(0, 25)
+        binding.readerContinuousPaddingSlider.value = paddingVal.toFloat()
+        binding.readerContinuousPaddingText.text = "${paddingVal}%"
         binding.readerContinuousPaddingSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
-                val paddingVal = value.toInt()
-                settings.continuousSidePadding = paddingVal
-                binding.readerContinuousPaddingText.text = "${paddingVal}%"
-                PrefManager.setVal(PrefName.ContinuousSidePadding, paddingVal)
-                activity.applySidePadding(paddingVal)
+                val padding = value.toInt()
+                settings.continuousSidePadding = padding
+                binding.readerContinuousPaddingText.text = "${padding}%"
+                PrefManager.setVal(PrefName.ContinuousSidePadding, padding)
+                activity.applySidePadding(padding)
             }
         }
 
@@ -215,12 +216,13 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
             activity.updateAutoScrollState(isChecked)
         }
 
-        binding.readerAutoScrollSpeedSlider.value = settings.autoScrollSpeed.toFloat()
-        binding.readerAutoScrollSpeedText.text = "${settings.autoScrollSpeed}x"
+        val autoScrollSpeed = kotlin.math.round(settings.autoScrollSpeed.coerceIn(0.5f, 10f) * 2f) / 2f
+        binding.readerAutoScrollSpeedSlider.value = autoScrollSpeed
+        binding.readerAutoScrollSpeedText.text = "${autoScrollSpeed}x"
         binding.readerAutoScrollSpeedSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 settings.autoScrollSpeed = value
-                binding.readerAutoScrollSpeedText.text = "${value.toInt()}x"
+                binding.readerAutoScrollSpeedText.text = "${value}x"
                 PrefManager.setVal(PrefName.AutoScrollSpeed, value)
                 activity.updateAutoScrollSpeed(value)
             }
@@ -361,8 +363,9 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         }
 
         // ================= TAB 4: DATA & PRELOAD =================
-        binding.readerPreloadSlider.value = settings.preloadAmount.toFloat()
-        binding.readerPreloadText.text = "${settings.preloadAmount} Pages"
+        val preloadVal = settings.preloadAmount.coerceIn(1, 10)
+        binding.readerPreloadSlider.value = preloadVal.toFloat()
+        binding.readerPreloadText.text = "$preloadVal Pages"
         binding.readerPreloadSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 val amount = value.toInt()
@@ -395,7 +398,9 @@ class ReaderSettingsDialogFragment : BottomSheetDialogFragment() {
         binding.dataSaverModeText.text = dataSaverModeNames[settings.dataSaverMode]
         dataSaverModes[settings.dataSaverMode].alpha = 1f
 
-        binding.dataSaverQualitySlider.value = settings.dataSaverImageQuality.toFloat()
+        val qualityVal = ((settings.dataSaverImageQuality / 5) * 5).coerceIn(10, 100)
+        binding.dataSaverQualitySlider.value = qualityVal.toFloat()
+        binding.dataSaverQualityLabel.text = "${getString(R.string.data_saver_quality)} ($qualityVal%)"
         binding.dataSaverIgnoreJpeg.isChecked = settings.dataSaverIgnoreJpeg
         binding.dataSaverIgnoreGif.isChecked = settings.dataSaverIgnoreGif
         binding.dataSaverImageFormat.isChecked = settings.dataSaverImageFormatJpeg
