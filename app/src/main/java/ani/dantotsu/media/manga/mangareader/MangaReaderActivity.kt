@@ -1599,9 +1599,10 @@ class MangaReaderActivity : AppCompatActivity() {
     }
 
     fun updateAutoScrollSpeed(speed: Float) {
-        defaultSettings.autoScrollSpeed = speed
+        val safeSpeed = kotlin.math.round(speed.coerceIn(0.5f, 10f) * 2f) / 2f
+        defaultSettings.autoScrollSpeed = safeSpeed
         saveCurrentSettings()
-        autoScrollHelper.speed = speed
+        autoScrollHelper.speed = safeSpeed
     }
 
     fun getChapterDisplayTitle(chap: MangaChapter?): String {
