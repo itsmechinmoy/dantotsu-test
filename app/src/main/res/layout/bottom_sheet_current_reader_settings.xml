@@ -578,17 +578,17 @@
                         android:fontFamily="@font/poppins_bold"
                         android:textColor="?attr/colorPrimary"
                         android:textSize="13sp"
-                        tools:text="2x" />
+                        tools:text="3.0x" />
                 </LinearLayout>
 
                 <com.google.android.material.slider.Slider
                     android:id="@+id/readerAutoScrollSpeedSlider"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:stepSize="1"
-                    android:value="2"
-                    android:valueFrom="1"
-                    android:valueTo="10" />
+                    android:stepSize="0.5"
+                    android:value="3.0"
+                    android:valueFrom="0.5"
+                    android:valueTo="10.0" />
 
                 <!-- Overscroll -->
                 <com.google.android.material.materialswitch.MaterialSwitch
