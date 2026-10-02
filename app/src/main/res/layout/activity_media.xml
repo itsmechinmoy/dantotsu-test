@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fitsSystemWindows="false"
-            app:contentScrim="@android:color/transparent"
+            app:contentScrim="?android:colorBackground"
             app:layout_scrollFlags="scroll|exitUntilCollapsed|snap">
 
             <com.flaviofaria.kenburnsview.KenBurnsView
@@ -170,7 +170,7 @@
                     android:text="@string/slogan"
                     android:textSize="16sp"
                     android:transitionName="mediaTitle"
-                    app:contentScrim="@android:color/transparent"
+                    app:contentScrim="?android:colorBackground"
                     tools:visibility="gone" />
 
                 <LinearLayout
