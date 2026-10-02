@@ -306,9 +306,11 @@ class AnimeFragment : Fragment() {
                         }
                     }
                     model.loaded = true
-                    withContext(Dispatchers.Main) {
-                        model.aniMangaSearchResults.results.clear()
-                        popularAdaptor.notifyDataSetChanged()
+                    if (_binding?.animeRefresh?.isRefreshing == true) {
+                        withContext(Dispatchers.Main) {
+                            model.aniMangaSearchResults.results.clear()
+                            popularAdaptor.notifyDataSetChanged()
+                        }
                     }
                     withContext(Dispatchers.IO) {
                         model.loadAll(PrefManager.getVal(PrefName.PopularAnimeList))
