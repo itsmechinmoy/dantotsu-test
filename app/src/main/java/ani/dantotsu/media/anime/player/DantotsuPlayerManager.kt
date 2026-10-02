@@ -27,7 +27,6 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
 import ani.dantotsu.defaultHeaders
@@ -321,6 +320,9 @@ class DantotsuPlayerManager(
         val player = exoPlayer ?: return
         val currentItem = currentMediaItem ?: return
 
+        // Snapshot current track parameters so audio selection survives the media-source rebuild.
+        val savedTrackParams = player.trackSelectionParameters
+
         val newMediaItem = currentItem.buildUpon()
             .setSubtitleConfigurations(newSubConfigs)
             .build()
@@ -335,6 +337,8 @@ class DantotsuPlayerManager(
             player.setMediaItem(newMediaItem, position)
         }
         player.prepare()
+        // Restore track selection so the audio track (and any disabled text tracks) are not reset.
+        player.trackSelectionParameters = savedTrackParams
         player.play()
     }
 
@@ -434,7 +438,6 @@ class DantotsuPlayerManager(
         }
 
         player.addListener(listener)
-        player.addAnalyticsListener(EventLogger())
         isInitialized = true
         return player
     }
