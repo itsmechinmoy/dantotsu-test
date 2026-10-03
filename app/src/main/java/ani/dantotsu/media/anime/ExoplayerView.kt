@@ -986,6 +986,15 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
             subtitleManager.initialSubtitleLabel =
                 if (savedSubLang == "None") null else subtitle?.language ?: lang
             if (subtitle != null) {
+                val subIndex = ext.subtitles.indexOf(subtitle).takeIf { it != -1 } ?: 0
+                val rawSubUrl = subtitle!!.file.url
+                val resolvedSubUrl = PlayerSubtitleManager.unwrapProxyUrl(
+                    PlayerSubtitleManager.resolveSubtitleUrl(rawSubUrl, ext.server.embed.url, video!!.file.url)
+                )
+                val subId = PlayerSubtitleManager.buildSubtitleId(subIndex, subtitle!!.language, resolvedSubUrl)
+                subtitleManager.pendingTrackId = subId
+                subtitleManager.pendingSubtitleLabel = subtitle!!.language
+                episode.selectedSubtitle = subIndex
                 PrefManager.setCustomVal("subLang_${media.id}", subtitle!!.language)
                 subtitleManager.setActiveServerSubtitle(subtitle)
             }
