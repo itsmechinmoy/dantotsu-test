@@ -427,8 +427,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 getString(R.string.active_sub_prefix, "Local: $clean")
             }
             savedLang.startsWith("Embedded:") -> {
-                val trackName = savedLang.removePrefix("Embedded:").trim()
-                getString(R.string.active_sub_prefix, "Stream: $trackName")
+                val rawName = savedLang.removePrefix("Embedded:").trim()
+                val trackNum = rawName.substringAfterLast('_').toIntOrNull()
+                val displayName = if (trackNum != null) "Track ${trackNum + 1}" else rawName
+                getString(R.string.active_sub_prefix, "Stream: $displayName")
             }
             savedLang.startsWith("Online:") -> {
                 PrefManager.setCustomVal("subLang_${media.id}", null)
@@ -483,7 +485,13 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     val lang = format.language
                     val label = format.label
                     val trackId = format.id.orEmpty()
-                    if (lang != "none" && !trackId.startsWith("shifted_sub_") && !trackId.startsWith("local_sub_")) {
+                    val cleanTrackId = trackId.substringAfter(":")
+                    val isExternalOrGenerated = cleanTrackId.startsWith("ext_sub_") ||
+                        cleanTrackId.startsWith("shifted_sub_") ||
+                        cleanTrackId.startsWith("local_sub_") ||
+                        cleanTrackId.startsWith("server_sub_") ||
+                        cleanTrackId.startsWith("online_sub_")
+                    if (lang != "none" && !isExternalOrGenerated) {
                         items.add(EmbeddedSubtitleTrack(group, trackIndex, lang, label))
                     }
                 }
@@ -848,6 +856,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             val effectiveOnlineId = activeOnlineId ?: savedEpSub?.id
             val savedLang: String? = PrefManager.getNullableCustomVal("subLang_${mediaId}", null, String::class.java)
 
+            val isOnlineActiveState = effectiveOnlineId != null
+            val isNoneActiveState = !isOnlineActiveState && (savedLang == "None" || (savedLang == null && (episode.selectedSubtitle == null || episode.selectedSubtitle == -1) && subManager?.activeServerSubtitle == null))
+            val isLocalActiveState = !isOnlineActiveState && !isNoneActiveState && savedLang?.startsWith("[Local]") == true
+            val isEmbeddedActiveState = !isOnlineActiveState && !isNoneActiveState && !isLocalActiveState && savedLang?.startsWith("Embedded:") == true
+            val isServerActiveState = !isOnlineActiveState && !isNoneActiveState && !isLocalActiveState && !isEmbeddedActiveState
+
             // Reset visibility
             itemBinding.formatBadge.isVisible = false
             itemBinding.hiBadge.isVisible = false
@@ -863,7 +877,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     itemBinding.subtitleTitle.text = getString(R.string.subtitles_off)
                     itemBinding.subtitleDetails.text = getString(R.string.subtitles_off_desc)
 
-                    val isSelected = activeOnlineId == null && savedEpSub == null && (savedLang == null || savedLang == "None")
+                    val isSelected = isNoneActiveState
                     if (isSelected) {
                         itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
                         itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
@@ -871,10 +885,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     }
 
                     itemBinding.subtitleCardRoot.setOnClickListener {
-                        episode.selectedSubtitle = null
+                        episode.selectedSubtitle = -1
+                        subManager?.setActiveServerSubtitle(null)
                         model.setEpisode(episode, "Subtitle")
                         PrefManager.setCustomVal("subLang_${mediaId}", "None")
                         exoActivity?.subtitleManager?.clearOnlineSubtitle(mediaId, episode.number)
+                        subManager?.disableSubtitles()
                         updateActiveSubtitleBadge()
                         dismiss()
                     }
@@ -890,9 +906,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     itemBinding.formatBadge.text = ext
                     itemBinding.formatBadge.isVisible = true
 
-                    itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
-                    itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
-                    itemBinding.selectedCheckmark.isVisible = true
+                    val isSelected = isOnlineActiveState
+                    if (isSelected) {
+                        itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
+                        itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
+                        itemBinding.selectedCheckmark.isVisible = true
+                    }
 
                     itemBinding.subtitleCardRoot.setOnClickListener {
                         updateActiveSubtitleBadge()
@@ -915,7 +934,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             itemBinding.formatBadge.isVisible = true
                         }
 
-                        val isSelected = savedLang == item.language || (savedLang?.startsWith("[Local]") == true && savedLang.contains(fileName))
+                        val isSelected = isLocalActiveState && (savedLang == item.language || (savedLang?.contains(fileName) == true))
                         if (isSelected) {
                             itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
                             itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
@@ -935,6 +954,8 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         }
 
                         itemBinding.subtitleCardRoot.setOnClickListener {
+                            episode.selectedSubtitle = -1
+                            subManager?.setActiveServerSubtitle(null)
                             PrefManager.setCustomVal("subLang_${mediaId}", item.language)
                             exoActivity?.subtitleManager?.clearOnlineSubtitle(mediaId, episode.number)
                             if (item.file.url.isNotBlank()) {
@@ -962,7 +983,18 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             itemBinding.formatBadge.isVisible = true
                         }
 
-                        val isSelected = activeOnlineId == null && savedEpSub == null && savedLang == item.language
+                        val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
+                        val curSubs = currentExtractor?.subtitles ?: emptyList()
+                        val itemIndex = curSubs.indexOf(item)
+                        val activeServerSub = subManager?.activeServerSubtitle
+                        val selectedServerIndex = when {
+                            activeServerSub != null -> curSubs.indexOfFirst { it === activeServerSub || (it.language == activeServerSub.language && it.file.url == activeServerSub.file.url) }
+                            episode.selectedSubtitle != null && episode.selectedSubtitle in curSubs.indices -> episode.selectedSubtitle!!
+                            savedLang != null -> curSubs.indexOfFirst { it.language.equals(savedLang, ignoreCase = true) }
+                            else -> 0
+                        }.takeIf { it in curSubs.indices } ?: 0
+
+                        val isSelected = isServerActiveState && itemIndex != -1 && itemIndex == selectedServerIndex
                         if (isSelected) {
                             itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
                             itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
@@ -970,12 +1002,14 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         }
 
                         itemBinding.subtitleCardRoot.setOnClickListener {
-                            val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
-                            val subIndex = currentExtractor?.subtitles?.indexOf(item) ?: -1
-                            episode.selectedSubtitle = subIndex
+                            val curExt = episode.extractors?.find { it.server.name == episode.selectedExtractor }
+                            val subIdx = curExt?.subtitles?.indexOf(item) ?: -1
+                            episode.selectedSubtitle = subIdx
+                            subManager?.setActiveServerSubtitle(item)
                             model.setEpisode(episode, "Subtitle")
                             PrefManager.setCustomVal("subLang_${mediaId}", item.language)
                             exoActivity?.subtitleManager?.clearOnlineSubtitle(mediaId, episode.number)
+                            exoActivity?.subtitleManager?.applyServerSubtitle(item)
                             updateActiveSubtitleBadge()
                             dismiss()
                         }
@@ -990,7 +1024,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     itemBinding.subtitleDetails.text = "${item.serverName} • ${item.subtitle.language}"
 
                     val uniqueKey = "${item.subtitle.language} [${item.serverName}]"
-                    val isSelected = activeOnlineId == null && savedEpSub == null && savedLang == uniqueKey
+                    val isSelected = isServerActiveState && savedLang == uniqueKey
                     if (isSelected) {
                         itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
                         itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
@@ -998,9 +1032,11 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     }
 
                     itemBinding.subtitleCardRoot.setOnClickListener {
+                        episode.selectedSubtitle = -1
+                        subManager?.setActiveServerSubtitle(item.subtitle)
                         PrefManager.setCustomVal("subLang_${mediaId}", uniqueKey)
                         exoActivity?.subtitleManager?.clearOnlineSubtitle(mediaId, episode.number)
-                        exoActivity?.reApplyLocalSubtitle(item.subtitle.file.url)
+                        exoActivity?.subtitleManager?.applyServerSubtitle(item.subtitle)
                         updateActiveSubtitleBadge()
                         dismiss()
                     }
@@ -1015,8 +1051,8 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     itemBinding.subtitleTitle.text = langName
                     itemBinding.subtitleDetails.text = "${getString(R.string.embedded_stream_subs)} • $label"
 
-                    val uniqueKey = "Embedded:${item.language ?: item.trackIndex}"
-                    val isSelected = activeOnlineId == null && savedEpSub == null && savedLang == uniqueKey
+                    val uniqueKey = "Embedded:${item.group.mediaTrackGroup.id}_${item.trackIndex}"
+                    val isSelected = isEmbeddedActiveState && (savedLang == uniqueKey || (savedLang == null && item.group.isTrackSelected(item.trackIndex)))
                     if (isSelected) {
                         itemBinding.subtitleCardRoot.setCardBackgroundColor(highlightColor)
                         itemBinding.subtitleCardRoot.strokeColor = borderSelectedColor
@@ -1024,6 +1060,8 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     }
 
                     itemBinding.subtitleCardRoot.setOnClickListener {
+                        episode.selectedSubtitle = -1
+                        subManager?.setActiveServerSubtitle(null)
                         PrefManager.setCustomVal("subLang_${mediaId}", uniqueKey)
                         exoActivity?.subtitleManager?.clearOnlineSubtitle(mediaId, episode.number)
                         exoActivity?.onSetTrackGroupOverride(
@@ -1060,6 +1098,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
+                            subManager?.setActiveServerSubtitle(null)
                             exoActivity.applyWyzieSubtitle(item)
                         }
                         updateActiveSubtitleBadge()
@@ -1088,6 +1127,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
+                            subManager?.setActiveServerSubtitle(null)
                             exoActivity.applySubSourceSubtitle(item)
                         }
                         updateActiveSubtitleBadge()
@@ -1120,6 +1160,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
+                            subManager?.setActiveServerSubtitle(null)
                             exoActivity.applyOpenSubRestSubtitle(item)
                         }
                         updateActiveSubtitleBadge()
@@ -1147,6 +1188,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         val exoActivity = requireActivity() as? ExoplayerView
                         if (exoActivity != null) {
                             episode.selectedSubtitle = -1
+                            subManager?.setActiveServerSubtitle(null)
                             exoActivity.applyOnlineSubtitle(item, langName, "OpenSubtitles")
                         }
                         updateActiveSubtitleBadge()
