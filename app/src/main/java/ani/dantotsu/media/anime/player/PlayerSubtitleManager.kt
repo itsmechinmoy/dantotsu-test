@@ -89,8 +89,6 @@ class PlayerSubtitleManager(
     var audioDelayMs: Long = 0L
         private set
 
-    var activeServerSubtitle: Subtitle? = null
-        private set
     var activeSubtitleDisplayName: String? = null
         private set
     var activeSubtitleId: String? = null
@@ -108,7 +106,6 @@ class PlayerSubtitleManager(
     @Volatile var initialSubtitleLabel: String? = null
 
     fun setActiveServerSubtitle(sub: Subtitle?) {
-        activeServerSubtitle = sub
         if (sub == null) {
             currentActiveSubFile = null
             currentActiveSubRawContent = null
@@ -138,7 +135,7 @@ class PlayerSubtitleManager(
         // Fetch and cache server subtitle text in background so delay/sync works for server subtitles
         serverSubJob?.cancel()
         val rawUrl = sub.file.url
-        val resolvedUrl = unwrapProxyUrl(resolveSubtitleUrl(rawUrl, "", ""))
+        val resolvedUrl = resolveSubtitleUrl(rawUrl, "", "")
         if (resolvedUrl.isNotBlank()) {
             serverSubJob = activity.lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -172,120 +169,6 @@ class PlayerSubtitleManager(
                     }
                 } catch (e: Exception) {
                     Logger.log("PlayerSubtitleManager: Server sub cache error: ${e.message}")
-                }
-            }
-        }
-    }
-
-    fun disableSubtitles() {
-        val player = getPlayer() ?: return
-        player.trackSelectionParameters = player.trackSelectionParameters
-            .buildUpon()
-            .setTrackTypeDisabled(TRACK_TYPE_TEXT, true)
-            .build()
-        playerView.subtitleView?.visibility = View.GONE
-        playerView.subtitleView?.alpha = 0f
-    }
-
-    fun applyServerSubtitle(sub: Subtitle) {
-        val player = getPlayer() ?: return
-        setActiveServerSubtitle(sub)
-
-        val exoActivity = activity as? ExoplayerView
-        val videoUrl = player.currentMediaItem?.localConfiguration?.uri?.toString().orEmpty()
-        val curExtractor = exoActivity?.episode?.extractors?.find { it.server.name == exoActivity.episode.selectedExtractor }
-        val subIndex = curExtractor?.subtitles?.indexOf(sub)?.takeIf { it != -1 } ?: 0
-
-        val rawUrl = sub.file.url
-        val resolvedUrl = unwrapProxyUrl(resolveSubtitleUrl(rawUrl, videoUrl))
-        val targetTrackId = buildSubtitleId(subIndex, sub.language, resolvedUrl)
-
-        // Try selecting in current ExoPlayer tracks
-        val tracks = player.currentTracks
-        var foundTrack = false
-        for (groupIndex in 0 until tracks.groups.size) {
-            val group = tracks.groups[groupIndex]
-            if (group.type == TRACK_TYPE_TEXT) {
-                for (trackIndex in 0 until group.length) {
-                    val format = group.getTrackFormat(trackIndex)
-                    val trackId = format.id.orEmpty()
-                    val cleanTrackId = trackId.substringAfter(":")
-                    if (cleanTrackId == targetTrackId || trackId == targetTrackId) {
-                        onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
-                        snackString("Subtitle loaded: ${sub.language}", activity)
-                        foundTrack = true
-                        break
-                    }
-                }
-            }
-            if (foundTrack) break
-        }
-
-        if (!foundTrack) {
-            // Label-based fallback in existing tracks
-            for (groupIndex in 0 until tracks.groups.size) {
-                val group = tracks.groups[groupIndex]
-                if (group.type == TRACK_TYPE_TEXT) {
-                    for (trackIndex in 0 until group.length) {
-                        val format = group.getTrackFormat(trackIndex)
-                        val trackLabel = format.label.orEmpty()
-                        if (trackLabel.equals(sub.language, ignoreCase = true)) {
-                            onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
-                            snackString("Subtitle loaded: ${sub.language}", activity)
-                            foundTrack = true
-                            break
-                        }
-                    }
-                }
-                if (foundTrack) break
-            }
-        }
-
-        // If not found in current tracks, download via OkHttp and apply via applySubtitleFromFile
-        if (!foundTrack && resolvedUrl.isNotBlank()) {
-            activity.lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val client = Injekt.get<NetworkHelper>().client
-                    val requestBuilder = Request.Builder().url(resolvedUrl)
-                    defaultHeaders.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
-                    sub.file.headers?.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
-                    client.newCall(requestBuilder.build()).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            withContext(Dispatchers.Main) {
-                                snackString("Failed to download subtitle: HTTP ${response.code}", activity)
-                            }
-                            return@use
-                        }
-                        val content = response.body?.string()
-                        if (content.isNullOrBlank()) return@use
-                        val mimeType = when (sub.type) {
-                            SubtitleType.ASS -> MimeTypes.TEXT_SSA
-                            SubtitleType.VTT -> MimeTypes.TEXT_VTT
-                            else -> MimeTypes.APPLICATION_SUBRIP
-                        }
-                        val ext = when (sub.type) {
-                            SubtitleType.ASS -> "ass"
-                            SubtitleType.VTT -> "vtt"
-                            else -> "srt"
-                        }
-                        val file = File(activity.cacheDir, "server_sub_${sub.language.hashCode()}.$ext")
-                        file.writeText(content)
-                        withContext(Dispatchers.Main) {
-                            applySubtitleFromFile(
-                                file = file,
-                                lang = sub.language,
-                                mimeType = mimeType,
-                                displayName = sub.language,
-                                id = "server_sub_${sub.language.hashCode()}",
-                                provider = "Server"
-                            )
-                            snackString("Subtitle loaded: ${sub.language}", activity)
-                        }
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        snackString("Failed to load subtitle: ${e.message}", activity)
-                    }
                 }
             }
         }
@@ -796,7 +679,6 @@ class PlayerSubtitleManager(
     }
 
     fun clearOnlineSubtitle(mediaId: Int? = null, clearPersistedForEp: String? = null) {
-        activeServerSubtitle = null
         currentActiveSubFile = null
         currentActiveSubRawContent = null
         activeSubtitleDisplayName = null
@@ -986,7 +868,7 @@ class PlayerSubtitleManager(
         }
     }
 
-    internal fun applySubtitleFromFile(
+    private fun applySubtitleFromFile(
         file: File,
         lang: String,
         mimeType: String,
@@ -1005,10 +887,10 @@ class PlayerSubtitleManager(
         }
         currentActiveSubLang = lang
         currentActiveSubMimeType = mimeType
-        activeSubtitleDisplayName = if (provider == "Server") "$displayName [Server]" else "$displayName ($provider)"
+        activeSubtitleDisplayName = "$displayName ($provider)"
         activeSubtitleId = id
 
-        val label = if (provider == "Server") displayName else "Online: $displayName"
+        val label = "Online: $displayName"
         val subUri = Uri.fromFile(file)
         val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
             .setMimeType(mimeType)
@@ -1036,7 +918,7 @@ class PlayerSubtitleManager(
         val exoActivity = activity as? ExoplayerView
         if (exoActivity != null) {
             val epNum = runCatching { exoActivity.episode.number }.getOrNull()
-            if (epNum != null && provider != "Server") {
+            if (epNum != null) {
                 EpisodeSubtitleStore.saveSubtitle(
                     context = exoActivity,
                     mediaId = ExoplayerView.media.id,
@@ -1169,7 +1051,7 @@ class PlayerSubtitleManager(
         }
     }
 
-    internal fun selectSubtitleTrack(targetTrackId: String?, targetLabel: String?) {
+    fun selectSubtitleTrack(targetTrackId: String?, targetLabel: String?) {
         val player = getPlayer() ?: return
         try {
             val tracks = player.currentTracks
