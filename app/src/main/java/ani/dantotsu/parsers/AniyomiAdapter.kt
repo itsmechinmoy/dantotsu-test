@@ -932,12 +932,7 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
         videoUrl: String = "",
         headers: Map<String, String> = emptyMap()
     ): Subtitle {
-        val unwrappedTrackUrl = ani.dantotsu.media.anime.player.PlayerSubtitleManager.unwrapProxyUrl(track.url)
-        val resolvedUrl = if (unwrappedTrackUrl.startsWith("http://") || unwrappedTrackUrl.startsWith("https://")) {
-            unwrappedTrackUrl
-        } else {
-            ani.dantotsu.media.anime.player.PlayerSubtitleManager.resolveSubtitleUrl(unwrappedTrackUrl, videoUrl)
-        }
+        val resolvedUrl = ani.dantotsu.media.anime.player.PlayerSubtitleManager.resolveSubtitleUrl(track.url, videoUrl)
         var type = findSubtitleTypeFromUrl(resolvedUrl)
         if (type == SubtitleType.UNKNOWN) {
             val lower = resolvedUrl.lowercase(Locale.ROOT)
