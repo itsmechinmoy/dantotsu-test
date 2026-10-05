@@ -410,41 +410,43 @@ data class ShowResponse(
 
     private fun readObject(inStream: java.io.ObjectInputStream) {
         inStream.defaultReadObject()
-        if (inStream.readBoolean()) {
-            val anime = SAnime.create().apply {
-                url = inStream.readObject() as String
-                title = inStream.readObject() as String
-                artist = inStream.readObject() as? String
-                author = inStream.readObject() as? String
-                description = inStream.readObject() as? String
-                genre = inStream.readObject() as? String
-                status = inStream.readInt()
-                thumbnail_url = inStream.readObject() as? String
-                background_url = inStream.readObject() as? String
-                season_number = inStream.readDouble()
-                initialized = inStream.readBoolean()
-                memo = runCatching {
-                    val raw = inStream.readObject() as? String ?: "{}"
-                    kotlinx.serialization.json.Json.parseToJsonElement(raw)
-                        as? kotlinx.serialization.json.JsonObject
-                        ?: kotlinx.serialization.json.JsonObject(emptyMap())
-                }.getOrDefault(kotlinx.serialization.json.JsonObject(emptyMap()))
+        runCatching {
+            if (inStream.readBoolean()) {
+                val anime = SAnime.create().apply {
+                    url = inStream.readObject() as String
+                    title = inStream.readObject() as String
+                    artist = inStream.readObject() as? String
+                    author = inStream.readObject() as? String
+                    description = inStream.readObject() as? String
+                    genre = inStream.readObject() as? String
+                    status = inStream.readInt()
+                    thumbnail_url = inStream.readObject() as? String
+                    background_url = inStream.readObject() as? String
+                    season_number = inStream.readDouble()
+                    initialized = inStream.readBoolean()
+                    memo = runCatching {
+                        val raw = inStream.readObject() as? String ?: "{}"
+                        kotlinx.serialization.json.Json.parseToJsonElement(raw)
+                            as? kotlinx.serialization.json.JsonObject
+                            ?: kotlinx.serialization.json.JsonObject(emptyMap())
+                    }.getOrDefault(kotlinx.serialization.json.JsonObject(emptyMap()))
+                }
+                sAnime = anime
             }
-            sAnime = anime
-        }
-        if (inStream.readBoolean()) {
-            val manga = SManga.create().apply {
-                url = inStream.readObject() as String
-                title = inStream.readObject() as String
-                artist = inStream.readObject() as? String
-                author = inStream.readObject() as? String
-                description = inStream.readObject() as? String
-                genre = inStream.readObject() as? String
-                status = inStream.readInt()
-                thumbnail_url = inStream.readObject() as? String
-                initialized = inStream.readBoolean()
+            if (inStream.readBoolean()) {
+                val manga = SManga.create().apply {
+                    url = inStream.readObject() as String
+                    title = inStream.readObject() as String
+                    artist = inStream.readObject() as? String
+                    author = inStream.readObject() as? String
+                    description = inStream.readObject() as? String
+                    genre = inStream.readObject() as? String
+                    status = inStream.readInt()
+                    thumbnail_url = inStream.readObject() as? String
+                    initialized = inStream.readBoolean()
+                }
+                sManga = manga
             }
-            sManga = manga
         }
     }
 
