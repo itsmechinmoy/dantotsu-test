@@ -176,20 +176,23 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             }.getOrNull()
 
             val res = if (!seasons.isNullOrEmpty()) {
-                val allEpisodes = mutableListOf<SEpisode>()
-                for (season in seasons) {
-                    val seasonAnime = runCatching {
-                        if (source is AnimeHttpSource) source.getAnimeDetails(season) else season
-                    }.getOrDefault(season)
-                    val seasonEpisodes = runCatching {
-                        source.getEpisodeListCompat(seasonAnime)
-                    }.getOrDefault(emptyList())
-                    seasonEpisodes.forEach { ep ->
-                        if (ep.scanlator.isNullOrBlank()) {
-                            ep.scanlator = seasonAnime.title.ifBlank { null } ?: season.title
+                val allEpisodes = coroutineScope {
+                    seasons.map { season ->
+                        async {
+                            val seasonAnime = runCatching {
+                                if (source is AnimeHttpSource) source.getAnimeDetails(season) else season
+                            }.getOrDefault(season)
+                            val seasonEpisodes = runCatching {
+                                source.getEpisodeListCompat(seasonAnime)
+                            }.getOrDefault(emptyList())
+                            seasonEpisodes.forEach { ep ->
+                                if (ep.scanlator.isNullOrBlank()) {
+                                    ep.scanlator = seasonAnime.title.ifBlank { null } ?: season.title
+                                }
+                            }
+                            seasonEpisodes
                         }
-                    }
-                    allEpisodes.addAll(seasonEpisodes)
+                    }.awaitAll().flatten()
                 }
                 if (allEpisodes.isEmpty()) {
                     source.getEpisodeListCompat(sAnime)
