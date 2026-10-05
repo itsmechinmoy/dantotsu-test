@@ -1005,7 +1005,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).build()
                             }
                             val videoUrl = exoActivity?.playerManager?.exoPlayer?.currentMediaItem?.localConfiguration?.uri?.toString().orEmpty()
-                            val resolvedUrl = PlayerSubtitleManager.resolveSubtitleUrl(item.file.url, videoUrl)
+                            val embedUrl = curExt?.server?.embed?.url.orEmpty()
+                            val resolvedUrl = PlayerSubtitleManager.unwrapProxyUrl(
+                                PlayerSubtitleManager.resolveSubtitleUrl(item.file.url, embedUrl, videoUrl)
+                            )
                             val targetTrackId = PlayerSubtitleManager.buildSubtitleId(subIdx, item.language, resolvedUrl)
                             exoActivity?.subtitleManager?.selectSubtitleTrack(targetTrackId, item.language)
                             updateActiveSubtitleBadge()
