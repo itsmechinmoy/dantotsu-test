@@ -378,6 +378,26 @@ class PlayerSubtitleManager(
             )
             contentFrame?.addView(assView)
             assSubtitleView = assView
+            loadLocalFonts()
+        }
+    }
+
+    fun loadLocalFonts() {
+        val handler = assHandler ?: return
+        runCatching {
+            val fontDirs = listOf(
+                java.io.File(activity.filesDir, "mpv/fonts"),
+                java.io.File(activity.cacheDir, "reanime-fonts")
+            )
+            fontDirs.forEach { dir ->
+                if (dir.isDirectory) {
+                    dir.walkTopDown()
+                        .filter { it.isFile && (it.extension.equals("ttf", true) || it.extension.equals("otf", true) || it.extension.equals("ttc", true)) }
+                        .forEach { file ->
+                            handler.addFont(file.name, file.readBytes())
+                        }
+                }
+            }
         }
     }
 
@@ -482,6 +502,7 @@ class PlayerSubtitleManager(
         hasExtSubtitles: Boolean,
         defaultSubLanguage: String? = null
     ): List<MediaItem.SubtitleConfiguration> {
+        loadLocalFonts()
         val targetLabel = defaultSubLanguage ?: initialSubtitleLabel
         return subtitles.mapIndexed { index, subtitle ->
             val subtitleUrl = if (!hasExtSubtitles) currentVideoUrl else subtitle.file.url
@@ -1154,7 +1175,7 @@ class PlayerSubtitleManager(
                     val parts = trimmedLine.substringAfter(":").split(",")
                     styleFormatMap.clear()
                     parts.forEachIndexed { index, name ->
-                        styleFormatMap[name.trim().lowercase(Locale.ROOT)] = index
+                        styleFormatMap[name.trim().lowercase(java.util.Locale.ROOT)] = index
                     }
                 } else if (trimmedLine.startsWith("Style:", ignoreCase = true) && styleFormatMap.isNotEmpty()) {
                     val styleContent = trimmedLine.substringAfter("Style:")
