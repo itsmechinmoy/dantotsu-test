@@ -809,20 +809,10 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
             }
 
             if (format == null) {
-                val host = urlObj.host
-                val port = urlObj.port
-                val isLocalhost = host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
-                val isTorrent = isLocalhost && (port == 11470 || port == 8090 ||
-                        path.contains("torrent", ignoreCase = true) ||
-                        query?.contains("torrent", ignoreCase = true) == true ||
-                        query?.contains("infohash", ignoreCase = true) == true ||
-                        query?.contains("tr=") == true ||
-                        Regex("""/[0-9a-fA-F]{40}(?:/|$)""").containsMatchIn(path))
-                val isLocalMp4 = isLocalhost && (path.contains("mp4", ignoreCase = true) || query?.contains("mp4", ignoreCase = true) == true)
-                if (isLocalMp4) {
+                if (StreamTypeDetector.isLocalMp4(urlObj)) {
                     format = VideoType.CONTAINER
-                } else if (isLocalhost && !isTorrent) {
-                    if (path.contains("mpd", ignoreCase = true) || query?.contains("mpd", ignoreCase = true) == true) {
+                } else if (StreamTypeDetector.isLocalhost(urlObj) && !StreamTypeDetector.isTorrentStream(urlObj)) {
+                    if (StreamTypeDetector.isLocalDash(urlObj)) {
                         format = VideoType.DASH
                     } else {
                         format = VideoType.M3U8
