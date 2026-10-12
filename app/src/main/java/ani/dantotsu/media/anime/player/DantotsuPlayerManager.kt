@@ -37,6 +37,7 @@ import ani.dantotsu.media.anime.AudioFocusListener
 import ani.dantotsu.media.anime.MediaDataSourceFactory
 import ani.dantotsu.media.anime.VideoCache
 import ani.dantotsu.others.LanguageMapper
+import ani.dantotsu.parsers.StreamTypeDetector
 import ani.dantotsu.parsers.Video
 import ani.dantotsu.parsers.VideoType
 import ani.dantotsu.settings.saving.PrefManager
@@ -108,26 +109,10 @@ class DantotsuPlayerManager(
         mediaMetadata: MediaMetadata? = null,
         audioTracks: List<eu.kanade.tachiyomi.animesource.model.Track> = emptyList()
     ): Pair<MediaSource, MediaItem> {
-        val isLocalhost = runCatching {
-            val host = video.file.url.toUri().host
-            host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
-        }.getOrDefault(false)
-
-        val isLocalhostTorrent = isLocalhost && runCatching {
-            val uri = video.file.url.toUri()
-            uri.port == 11470 || uri.port == 8090 ||
-                uri.path?.contains("torrent", ignoreCase = true) == true ||
-                uri.query?.contains("torrent", ignoreCase = true) == true ||
-                uri.query?.contains("infohash", ignoreCase = true) == true ||
-                uri.query?.contains("tr=") == true ||
-                Regex("""/[0-9a-fA-F]{40}(?:/|$)""").containsMatchIn(uri.path ?: "")
-        }.getOrDefault(false)
-
-        val isLocalhostMp4 = isLocalhost && runCatching {
-            val uri = video.file.url.toUri()
-            uri.path?.contains("mp4", ignoreCase = true) == true ||
-                uri.query?.contains("mp4", ignoreCase = true) == true
-        }.getOrDefault(false)
+        val videoUri = runCatching { video.file.url.toUri() }.getOrNull()
+        val isLocalhost = StreamTypeDetector.isLocalhost(videoUri)
+        val isLocalhostTorrent = StreamTypeDetector.isTorrentStream(videoUri)
+        val isLocalhostMp4 = StreamTypeDetector.isLocalMp4(videoUri)
 
         val headers = mutableMapOf<String, String>()
         headers.putAll(defaultHeaders)
@@ -153,7 +138,7 @@ class DantotsuPlayerManager(
             addNetworkInterceptor { chain ->
                 val request = chain.request()
                 val host = request.url.host
-                val isLocal = host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
+                val isLocal = StreamTypeDetector.isLocalhost(host)
                 val newRequest = if (isLocal) {
                     request.newBuilder()
                         .removeHeader("Accept-Encoding")
@@ -166,7 +151,7 @@ class DantotsuPlayerManager(
             addInterceptor { chain ->
                 val request = chain.request()
                 val host = request.url.host
-                val isLocal = host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
+                val isLocal = StreamTypeDetector.isLocalhost(host)
                 val newRequest = if (isLocal) {
                     request.newBuilder()
                         .removeHeader("Accept-Encoding")
@@ -369,10 +354,7 @@ class DantotsuPlayerManager(
         releaseExoPlayer()
 
         val uri = currentMediaItem?.localConfiguration?.uri
-        val isTorrentStream = uri != null && (uri.host == "127.0.0.1" || uri.host == "localhost") &&
-            (uri.path?.contains("torrent", ignoreCase = true) == true ||
-             uri.query?.contains("torrent", ignoreCase = true) == true ||
-             uri.query?.contains("infohash", ignoreCase = true) == true)
+        val isTorrentStream = StreamTypeDetector.isTorrentStream(uri)
         val targetBufferBytes = if (isTorrentStream) 48 * 1024 * 1024 else androidx.media3.common.C.LENGTH_UNSET
         val maxBufferMs = if (isTorrentStream) 60_000 else DEFAULT_MAX_BUFFER_MS
         val loadControl = DefaultLoadControl.Builder()
