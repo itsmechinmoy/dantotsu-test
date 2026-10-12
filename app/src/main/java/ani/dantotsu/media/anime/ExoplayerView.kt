@@ -105,6 +105,7 @@ import ani.dantotsu.others.Xubtitle
 import ani.dantotsu.others.getSerialized
 import ani.dantotsu.parsers.AnimeSources
 import ani.dantotsu.parsers.HAnimeSources
+import ani.dantotsu.parsers.StreamTypeDetector
 import ani.dantotsu.parsers.Subtitle
 import ani.dantotsu.parsers.Video
 import ani.dantotsu.parsers.VideoExtractor
@@ -1023,16 +1024,8 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
 
         val videoUrl = video?.file?.url ?: ""
         val uri = runCatching { Uri.parse(videoUrl) }.getOrNull()
-        val isLocalhost = uri != null && (uri.host == "127.0.0.1" || uri.host == "localhost" || uri.host == "::1" || uri.host == "[::1]")
-        val isTorrent = isLocalhost && (uri?.port == 11470 || uri?.port == 8090 ||
-                uri?.path?.contains("torrent", ignoreCase = true) == true ||
-                uri?.query?.contains("torrent", ignoreCase = true) == true ||
-                uri?.query?.contains("infohash", ignoreCase = true) == true ||
-                uri?.query?.contains("tr=") == true ||
-                Regex("""/[0-9a-fA-F]{40}(?:/|$)""").containsMatchIn(uri?.path ?: ""))
-        val isLocalMp4 = isLocalhost && (uri?.path?.contains("mp4", ignoreCase = true) == true || uri?.query?.contains("mp4", ignoreCase = true) == true)
-        val isLocalDash = isLocalhost && (uri?.path?.contains("mpd", ignoreCase = true) == true || uri?.query?.contains("mpd", ignoreCase = true) == true)
-        val isLocalhostHls = isLocalhost && !isTorrent && !isLocalMp4 && !isLocalDash
+        val isLocalDash = StreamTypeDetector.isLocalDash(uri)
+        val isLocalhostHls = StreamTypeDetector.isLocalhostHls(uri)
 
         val mimeType = when {
             video?.format == VideoType.M3U8 ||
