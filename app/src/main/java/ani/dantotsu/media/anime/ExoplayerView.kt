@@ -1022,13 +1022,33 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
         lifecycleScope.launch(Dispatchers.IO) { ext.onVideoPlayed(video) }
 
         val videoUrl = video?.file?.url ?: ""
+        val uri = runCatching { Uri.parse(videoUrl) }.getOrNull()
+        val isLocalhost = uri != null && (uri.host == "127.0.0.1" || uri.host == "localhost" || uri.host == "::1" || uri.host == "[::1]")
+        val isTorrent = isLocalhost && (uri?.port == 11470 || uri?.port == 8090 ||
+                uri?.path?.contains("torrent", ignoreCase = true) == true ||
+                uri?.query?.contains("torrent", ignoreCase = true) == true ||
+                uri?.query?.contains("infohash", ignoreCase = true) == true ||
+                uri?.query?.contains("tr=") == true ||
+                Regex("""/[0-9a-fA-F]{40}(?:/|$)""").containsMatchIn(uri?.path ?: ""))
+        val isLocalMp4 = isLocalhost && (uri?.path?.contains("mp4", ignoreCase = true) == true || uri?.query?.contains("mp4", ignoreCase = true) == true)
+        val isLocalDash = isLocalhost && (uri?.path?.contains("mpd", ignoreCase = true) == true || uri?.query?.contains("mpd", ignoreCase = true) == true)
+        val isLocalhostHls = isLocalhost && !isTorrent && !isLocalMp4 && !isLocalDash
+
         val mimeType = when {
             video?.format == VideoType.M3U8 ||
                     videoUrl.contains(".m3u8", ignoreCase = true) ||
-                    videoUrl.contains("/m3u8", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
+                    videoUrl.contains("/m3u8", ignoreCase = true) ||
+                    videoUrl.contains("/pl/", ignoreCase = true) ||
+                    videoUrl.contains("/playlist/", ignoreCase = true) ||
+                    videoUrl.contains("/hls/", ignoreCase = true) ||
+                    videoUrl.contains("format=m3u8", ignoreCase = true) ||
+                    isLocalhostHls -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
             video?.format == VideoType.DASH ||
                     videoUrl.contains(".mpd", ignoreCase = true) ||
-                    videoUrl.contains("/mpd", ignoreCase = true) -> androidx.media3.common.MimeTypes.APPLICATION_MPD
+                    videoUrl.contains("/mpd", ignoreCase = true) ||
+                    videoUrl.contains("/dash/", ignoreCase = true) ||
+                    videoUrl.contains("format=mpd", ignoreCase = true) ||
+                    isLocalDash -> androidx.media3.common.MimeTypes.APPLICATION_MPD
             video?.format == VideoType.CONTAINER -> {
                 if (videoUrl.startsWith("content://")) {
                     val decoded = runCatching { java.net.URLDecoder.decode(videoUrl, "UTF-8").lowercase() }.getOrDefault("")
@@ -1604,6 +1624,17 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                 if (playerErrorRetryCount < MAX_PLAYER_ERROR_RETRIES) {
                     playerErrorRetryCount++
                     val savedPos = if (playerManager.isInitialized) player?.currentPosition?.takeIf { it > 0 } ?: playbackPosition else playbackPosition
+                    if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED && video != null && video!!.format == VideoType.CONTAINER && extractor != null) {
+                        video = video!!.copy(format = VideoType.M3U8)
+                        val ext = extractor!!
+                        val subConfigs = subtitleManager.buildSubtitleConfigurations(
+                            ext.subtitles, ext.server.embed.url, video!!.file.url, hasExtSubtitles, subtitle?.language ?: lang
+                        )
+                        playerManager.buildMediaSource(
+                            video!!, subConfigs, androidx.media3.common.MimeTypes.APPLICATION_M3U8,
+                            null, null, ext.audioTracks
+                        )
+                    }
                     val currentParams = playerManager.exoPlayer?.playbackParameters ?: PlaybackParameters(1f)
                     val fallbackExo = playerManager.buildExoplayer(savedPos, currentParams, this, forceDefaultRenderers = false)
                     playerView.player = fallbackExo
