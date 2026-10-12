@@ -1628,7 +1628,7 @@ class ExoplayerView : AppCompatActivity(), Player.Listener {
                         video = video!!.copy(format = VideoType.M3U8)
                         val ext = extractor!!
                         val subConfigs = subtitleManager.buildSubtitleConfigurations(
-                            ext.subtitles, ext.server.embed.url, video!!.file.url, hasExtSubtitles, subtitle?.language ?: lang
+                            ext.subtitles, ext.server.embed.url, video!!.file.url, hasExtSubtitles, subtitle?.language
                         )
                         playerManager.buildMediaSource(
                             video!!, subConfigs, androidx.media3.common.MimeTypes.APPLICATION_M3U8,
